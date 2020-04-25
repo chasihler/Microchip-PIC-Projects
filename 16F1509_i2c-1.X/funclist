@@ -1,0 +1,20 @@
+_I2C_Start_Bit: CODE, 1584 0 15
+_read_TCN75A_addr0: CODE, 1842 0 98
+_read_TCN75A_addr1: CODE, 1940 0 98
+_RX_I2C_Data: CODE, 1546 0 11
+_main: CODE, 1753 0 89
+_I2C_NAK: CODE, 1570 0 14
+_Send_I2C_Data: CODE, 1537 0 9
+_I2C_restart: CODE, 1520 0 8
+__initialization: CODE, 2038 0 7
+_I2C_check_idle: CODE, 1631 0 16
+_I2C_Stop_Bit: CODE, 1557 0 13
+_serial_init: CODE, 1707 0 46
+_I2C_Control_Write0: CODE, 1615 0 16
+_I2C_Control_Write1: CODE, 1663 0 16
+_I2C_ACK: CODE, 1528 0 9
+_init_io: CODE, 1679 0 28
+_uart_xmit: CODE, 1514 0 6
+_I2C_Control_Read0: CODE, 1599 0 16
+_I2C_Control_Read1: CODE, 1647 0 16
+Total: 531

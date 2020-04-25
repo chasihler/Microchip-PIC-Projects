@@ -1,0 +1,181 @@
+// Put this line at the top of your program
+#define BMP085_ADDRESS 0x77  // I2C address of BMP085
+
+// Read 1 byte from the BMP085 at 'address'
+char bmp085Read(unsigned char address)
+{
+  unsigned char data;
+  
+  Wire.beginTransmission(BMP085_ADDRESS);
+  Wire.write(address);
+  Wire.endTransmission();
+  
+  Wire.requestFrom(BMP085_ADDRESS, 1);
+  while(!Wire.available())
+    ;
+    
+  return Wire.read();
+}
+
+// Read 2 bytes from the BMP085
+// First byte will be from 'address'
+// Second byte will be from 'address'+1
+int bmp085ReadInt(unsigned char address)
+{
+  unsigned char msb, lsb;
+  
+  Wire.beginTransmission(BMP085_ADDRESS);
+  Wire.write(address);
+  Wire.endTransmission();
+  
+  Wire.requestFrom(BMP085_ADDRESS, 2);
+  while(Wire.available()<2)
+    ;
+  msb = Wire.read();
+  lsb = Wire.read();
+  
+  return (int) msb<<8 | lsb;
+}
+
+
+
+
+/*  21:41 08 March 2013  
+ *   E:\Electronics\PIC Projects\MCP Forum\paoloberno\Main.c 
+ *   PIC16F1509 
+ *   MCP4661 digital pot (address '0101'b + A2:A1:A0) = 01010000 (0x50) 
+ *   (Pot, EE mem, NV wiper, 5K Ohm, 257 steps) 
+ *   xc8 v1.12 (free) MPLAB 8.89 
+ * 
+ *   Tested ok 12:09 09/03/2013 
+ */ 
+ 
+ #include <xc.h> 
+ 
+ /*------------------------------------------------------------------------*/ 
+ #pragma config CONFIG1 = 0X09E1;    /* MCLRE is ON */ 
+ #pragma config CONFIG2 = 0X1DFF; 
+ /*------------------------------------------------------------------------*/ 
+ #define _XTAL_FREQ  (4000000) 
+ #define Idle        !(SSP1STATbits.R_nW | (0x1F & SSP1CON2)) 
+ #define I2C_Start   (SSP1CON2bits.SEN)  /* I2C start */ 
+ #define I2C_Stop    (SSP1CON2bits.PEN)  /* I2C stop */ 
+ #define DEBUG_LED   (PORTCbits.RC5) 
+ /*------------------------------------------------------------------------*/ 
+ char Wiper_Data_H; 
+ char Wiper_Data_L; 
+ /*------------------------------------------------------------------------*/ 
+ void I2C_init (void); 
+ void Start_I2C (char address); 
+ void Single_write_WPx (char WPx, char value); 
+ void Single_read_WPx (char WPx); 
+ /*------------------------------------------------------------------------*/ 
+ void main (void) 
+ { 
+     OSCCON = 0b00000000;            /* Ext CLK Fosc = 4MHz (Inst. clk = 1MHz) */ 
+     ANSELA = 0x0; 
+     ANSELB = 0x0; 
+     ANSELC = 0x0; 
+ 
+     TRISA = 0x0; 
+     TRISB = 0x50;                   // RB4 (pin 13) is SCL, RB6 (pin 11) is SCL 
+     TRISC = 0x0; 
+ 
+     I2C_init(); 
+ 
+ while(1) 
+ { 
+     DEBUG_LED = 1; 
+     __delay_ms(50); 
+     Single_write_WPx(0x10, 50);     // 50 gives measured reading of 1.03K ohm 
+     DEBUG_LED = 0; 
+     __delay_ms(50); 
+     Single_read_WPx(0x10); 
+ 
+     while(1); 
+ } 
+ } 
+ //--------------------------SINGLE WRITE TO WPx----------------------- 
+ void Single_write_WPx (char WPx, char value) 
+ { 
+ //Single (Non continuous) write to volatile wiper x (memory location 00h or 01h) 
+ //(Write 0x0, measured 87.5R - Data sheet spec = 75R to 160R) 
+ //(Write 0x3, measured 144.2R [87.5 + (3 * 19)] ) 
+ 
+     Start_I2C  (0x50);              /* Control byte */ 
+ 
+     SSP1BUF = 0b00010000;           /* Write Command pointer to wiper 1 */ 
+     while(!Idle);                   /* Wait whilst data clocked out */ 
+ 
+     SSP1BUF = value;                  /* Data byte - Wiper 1 data */ 
+     while(!Idle);                   /* Wait whilst data clocked out */ 
+ 
+     I2C_Stop = 1;                   /* Set STOP bit */ 
+     while(!Idle);                   /* Wait while STOP condition established */ 
+ 
+ } 
+ //--------------------------SINGLE READ OF WPx (Last Memory Address Accessed)------ 
+ void Single_read_WPx (char WPx) 
+ { 
+ //Single (Non continuous) read of volatile wiper x (memory location 00h or 01h) 
+ 
+     Start_I2C  (0x51);              /* Control byte */ 
+ 
+ /* Get wiper high byte */ 
+ 
+     SSP1CON2bits.RCEN = 1;          /* Set Receive Enable bit (Master as a receiver) */ 
+     while(!Idle); 
+ 
+     Wiper_Data_H = SSP1BUF;         /* Read wiper high byte */ 
+ 
+     SSP1CON2bits.ACKEN = 1;         /* Start Acknowledge sequence */ 
+     SSP1CON2bits.ACKDT = 0;         /* Acknowledge bit, 0 = acknowledge byte received */ 
+     while(!Idle);                   /* Wait for end of acknowledge sequence */ 
+ 
+ /* Get wiper low byte */ 
+      
+     SSP1CON2bits.RCEN = 1;          /* Set Receive Enable bit (Master as a receiver) */ 
+     while(!Idle);                   /* Wait while received data is clocked in */ 
+ 
+     Wiper_Data_L = SSP1BUF;         /* Read wiper low byte */ 
+ 
+ //NACK 
+     SSP1CON2bits.ACKDT = 1;         /* Acknowledge bit, 0 = acknowledge byte received */ 
+     SSP1CON2bits.ACKEN = 1;         /* Start Acknowledge sequence */ 
+     while(!Idle);                   /* Wait for end of acknowledge sequence */ 
+ 
+     I2C_Stop = 1;                   /* Set STOP bit */   
+     while(!Idle);                   /* Wait while STOP condition established */ 
+ 
+ } 
+ //--------------------------INITIALISE I2C----------------------- 
+ void I2C_init (void) 
+ { 
+ /* SSP1STAT: MSSP STATUS REGISTER (I2C MODE) */ 
+     SSP1STATbits.SMP = 1;                           /* Slew rate disabled */ 
+     SSP1STATbits.CKE = 0;                           /* Disable SMBus specific inputs */ 
+ 
+ /* SSP1CON1: MSSP CONTROL 1 REGISTER (I2C MODE) */ 
+     SSP1CON1bits.SSPEN = 1;                         /* Synchronous Serial Port Enable bit */ 
+     SSP1CON1bits.SSPM = 0x8;                        /* Synchronous Serial Port Mode Select bits * 
+ 
+ /* SSP1ADD: SSP Baud Rate Reload Register in I2C Master Mode */ 
+     SSP1ADD = 0x09;                                 /* 100KHz (Fosc = 4MHz) */ 
+ 
+ } 
+ //--------------------------START I2C COMMS---------------------- 
+ 
+ void Start_I2C  (char address) 
+ { 
+     while (!Idle);                      /* Don't start unless the MSSP module is idle */ 
+ 
+     I2C_Start = 1;                      /* Set START bit */ 
+ 
+     while(I2C_Start);                   /* Wait until hardware clears the SEN bit */ 
+ 
+     SSP1BUF = address;                  /* Write xmit data to buffer */ 
+ 
+     while(!Idle);                       /* Wait whilst Xmit in progress */ 
+  } 
+ 
+

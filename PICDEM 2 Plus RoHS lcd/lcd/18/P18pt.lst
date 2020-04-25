@@ -1,0 +1,2314 @@
+MPASM  5.05                         P18PT.ASM   10-19-2006  10:51:44         PAGE  1
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+                      00001 ;************************************************************************
+                      00002 ;*      Microchip Technology Inc. 2002                                  *
+                      00003 ;*      Assembler version: 2.0000                                       *
+                      00004 ;*      Filename:                                                       *
+                      00005 ;*              p18demo.asm (main routine)                              *
+                      00006 ;*      Dependents:                                                     *
+                      00007 ;*              p18lcd.asm                                              *
+                      00008 ;*              p18math.asm                                             *
+                      00009 ;*              16f877.lkr                                              *
+                      00010 ;*      March 14,2002                                                   *
+                      00011 ;*      PICDEM 2 PLUS DEMO code. The following functions are included   *
+                      00012 ;*      with this code:                                                 *
+                      00013 ;*              1. Voltmeter                                            *
+                      00014 ;*                      The center tap of R16 is connected to RA0, the  *
+                      00015 ;*                      A/D converter converts this analog voltage and  *
+                      00016 ;*                      the result is displayed on the LCD in a range   *
+                      00017 ;*                      from 0.00V - 5.00V.                             *
+                      00018 ;*              2. Buzzer                                               *
+                      00019 ;*                      The Piezo buzzer is connected to RC2 and is     *
+                      00020 ;*                      driven by the CCP1 module. The period and duty  *
+                      00021 ;*                      cycle are adjustable on the fly through the LCD *
+                      00022 ;*                      and push-buttons.                               *
+                      00023 ;*              3. Temperature                                          *
+                      00024 ;*                      A TC74 Serial Digital Thermal Sensor is used to *
+                      00025 ;*                      measure ambient temperature. The PIC and TC74   *
+                      00026 ;*                      communicate using the MSSP module. The TC74 is  *
+                      00027 ;*                      connected to the SDA & SCL I/O pins of the PIC  *
+                      00028 ;*                      and functions as a slave. Every 2 seconds, the  *
+                      00029 ;*                      temperature is logged into the external EEPROM  *
+                      00030 ;*                      in a specific memory location.                  *
+                      00031 ;*              4. Clock                                                *
+                      00032 ;*                      This function is a real-time clock. When the    *
+                      00033 ;*                      mode is entered, time begins at 00:00:00. The   *
+                      00034 ;*                      user can set the time if desired.               *
+                      00035 ;*                                                                      *
+                      00036 ;*              The data that is sent to the LCD is also sent to the    *
+                      00037 ;*              USART through the RS-232 port to be displayed on a PC   *
+                      00038 ;*              HyperTerminal.                                          *
+                      00039 ;************************************************************************
+                      00040 
+                      00041         list p=18f4520
+                      00042         #include p18f4520.inc
+                      00001         LIST
+                      00002 
+                      00003 ;==========================================================================
+                      00004 ;  $Id: P18F4520.INC,v 1.6.2.3 2005/10/17 20:38:01 curtiss Exp $
+                      00005 ;  MPASM PIC18F4520 processor include
+                      00006 ; 
+                      00007 ;  (c) Copyright 1999-2005 Microchip Technology, All rights reserved
+                      00008 ;==========================================================================
+                      00009 
+                      01333         LIST
+                      00043 
+MPASM  5.05                         P18PT.ASM   10-19-2006  10:51:44         PAGE  2
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+                      00044    CONFIG       OSC = HS  
+                      00045    CONFIG       FCMEN = OFF
+                      00046    CONFIG       IESO = OFF
+                      00047    CONFIG       PWRT = ON            
+                      00048    CONFIG       BOREN = OFF
+                      00049    CONFIG       WDT = OFF 
+                      00050    CONFIG       MCLRE = ON  
+                      00051    CONFIG       PBADEN = OFF 
+                      00052    CONFIG       LVP = OFF  
+                      00053    CONFIG       XINST = OFF 
+                      00054 
+                      00055         #define scroll_dir      TRISA,4
+                      00056         #define scroll          PORTA,4         ;Push-button RA4 on PCB
+                      00057         #define select_dir      TRISB,0         
+                      00058         #define select          PORTB,0         ;Push-button RB0 on PCB
+                      00059 
+  0000                00060         EXTERN  LCDInit, temp_wr, d_write, i_write, LCDLine_1, LCDLine_2
+  0000                00061         EXTERN  UMUL0808L, UDIV1608L, AARGB0, AARGB1, BARGB0
+                      00062 
+                      00063 
+                      00064 ssprw   macro                           ;check for idle SSP module routine
+                      00065         movlw   0x00
+                      00066         andwf   SSPCON2,W
+                      00067         sublw   0x00
+                      00068         btfss   STATUS,Z
+                      00069         bra     $-8
+                      00070 
+                      00071         btfsc   SSPSTAT,R_W
+                      00072         bra     $-2
+                      00073         endm
+                      00074 
+                      00075 variables       UDATA
+000000                00076 ptr_pos         RES 1
+000001                00077 ptr_count       RES 1
+000002                00078 temp_1          RES 1
+000003                00079 temp_2          RES 1
+000004                00080 temp_3          RES 1
+000005                00081 cmd_byte        RES 1
+000006                00082 temperature     RES 1
+000007                00083 LSD             RES 1
+000008                00084 MsD             RES 1
+000009                00085 MSD             RES 1
+00000A                00086 seconds         RES 1
+00000B                00087 minutes         RES 1
+00000C                00088 hours           RES 1
+                      00089 
+00000D                00090 NumH            RES 1
+00000E                00091 NumL            RES 1
+00000F                00092 TenK            RES 1
+000010                00093 Thou            RES 1
+000011                00094 Hund            RES 1
+000012                00095 Tens            RES 1
+000013                00096 Ones            RES 1
+MPASM  5.05                         P18PT.ASM   10-19-2006  10:51:44         PAGE  3
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+                      00097 
+                      00098 STARTUP CODE 0
+000000 0000           00099         NOP
+000002 EF?? F???      00100         goto    start
+000006 0000           00101         NOP
+000008 0000           00102         NOP
+00000A 0000           00103         NOP
+                      00104 PROG1   CODE
+                      00105 
+000000                00106 prod_table                              ;table for production code
+                      00107         ;       "XXXXXXXXXXXXXXXX"
+                      00108         ;                               ptr:
+000000 5250 444F 4355 00109         data    "PRODUCTION TEST "      ;0
+       4954 4E4F 5420 
+       5345 2054 
+000010 2020 4320 4D4F 00110         data    "   COMPLETE     "      ;16
+       4C50 5445 2045 
+       2020 2020 
+000020 2020 3320 2E32 00111         data    "   32.768KHz    "      ;32
+       3637 4B38 7A48 
+       2020 2020 
+000030 2020 4354 3437 00112         data    "  TC74 Sensor   "      ;48
+       5320 6E65 6F73 
+       2072 2020 
+000040 5020 6572 7373 00113         data    " Press RA4, RB0 "      ;64
+       5220 3441 202C 
+       4252 2030 
+000050 2020 4D20 6369 00114         data    "   Microchip    "      ;80
+       6F72 6863 7069 
+       2020 2020 
+000060 5020 4349 4544 00115         data    " PICDEM 2 PLUS  "      ;96
+       204D 2032 4C50 
+       5355 2020 
+000070 2020 2020 2020 00116         data    "                "      ;112  blank line display
+       2020 2020 2020 
+       2020 2020 
+000080 2020 2020 5220 00117         data    "     RS-232     "      ;128
+       2D53 3332 2032 
+       2020 2020 
+000090 2020 2020 2020 00118         data    "                "      ;144
+       2020 2020 2020 
+       2020 2020 
+0000A0 4146 4C49 4621 00119         data    "FAIL!FAIL!FAIL! "      ;160
+       4941 214C 4146 
+       4C49 2021 
+0000B0 2020 2020 4520 00120         data    "     EEPROM     "      ;176
+       5045 4F52 204D 
+       2020 2020 
+0000C0 694D 7263 636F 00121         data    "Microchip Temp= "      ;192
+       6968 2070 6554 
+       706D 203D 
+0000D0 2D3C 2D2D 202D 00122         data    "<---- LED Test  "      ;208
+       454C 2044 6554 
+MPASM  5.05                         P18PT.ASM   10-19-2006  10:51:44         PAGE  4
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+       7473 2020 
+0000E0 5020 746F 6E65 00123         data    " Potentiometer  "      ;224
+       6974 6D6F 7465 
+       7265 2020 
+                      00124 
+0000F0                00125 stan_table                              ;table for standard code
+                      00126         ;       "XXXXXXXXXXXXXXXX"
+                      00127         ;                               ptr:
+0000F0 2020 5620 6C6F 00128         data    "   Voltmeter    "      ;0
+       6D74 7465 7265 
+       2020 2020 
+000100 2020 2020 4220 00129         data    "     Buzzer     "      ;16
+       7A75 657A 2072 
+       2020 2020 
+000110 2020 6554 706D 00130         data    "  Temperature   "      ;32
+       7265 7461 7275 
+       2065 2020 
+000120 2020 2020 4320 00131         data    "     Clock      "      ;48
+       6F6C 6B63 2020 
+       2020 2020 
+000130 4152 3D34 654E 00132         data    "RA4=Next RB0=Now"      ;64
+       7478 5220 3042 
+       4E3D 776F 
+000140 2020 4D20 6369 00133         data    "   Microchip    "      ;80
+       6F72 6863 7069 
+       2020 2020 
+000150 5020 4349 4544 00134         data    " PICDEM 2 PLUS  "      ;96
+       204D 2032 4C50 
+       5355 2020 
+000160 4152 3D34 6553 00135         data    "RA4=Set RB0=Menu"      ;112
+       2074 4252 3D30 
+       654D 756E 
+000170 4152 3D34 2D20 00136         data    "RA4= --> RBO= ++"      ;128
+       3E2D 5220 4F42 
+       203D 2B2B 
+000180 2020 5220 3042 00137         data    "   RB0 = Exit   "      ;144
+       3D20 4520 6978 
+       2074 2020 
+000190 6F56 746C 2073 00138         data    "Volts =         "      ;160
+       203D 2020 2020 
+       2020 2020 
+0001A0 7250 2E64 313D 00139         data    "Prd.=128 DC=128 "      ;176
+       3832 4420 3D43 
+       3231 2038 
+                      00140 
+0001B0                00141 start   
+0001B0 EC?? F???      00142         call LCDInit
+                      00143         
+0001B4 0EA4           00144         movlw   B'10100100'             ;initialize USART
+0001B6 6EAC           00145         movwf   TXSTA                   ;8-bit, Async, High Speed
+0001B8 0E19           00146         movlw   .25
+0001BA 6EAF           00147         movwf   SPBRG                   ;9.6kbaud @ 4MHz
+0001BC 0E90           00148         movlw   B'10010000'
+MPASM  5.05                         P18PT.ASM   10-19-2006  10:51:44         PAGE  5
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+0001BE 6EAB           00149         movwf   RCSTA
+                      00150 
+0001C0 9494           00151         bcf     TRISC,2                 ;configure CCP1 module for buzzer
+                      00152 ;       bcf     TRISC,6
+0001C2 0E80           00153         movlw   0x80
+0001C4 6ECB           00154         movwf   PR2                     ;initialize PWM period 
+0001C6 0E80           00155         movlw   0x80                    ;initialize PWM duty cycle
+0001C8 6EBE           00156         movwf   CCPR1L
+0001CA 9ABD           00157         bcf     CCP1CON,CCP1X
+0001CC 98BD           00158         bcf     CCP1CON,CCP1Y
+                      00159         
+0001CE 0E05           00160         movlw   0x05                    ;postscale 1:1, prescaler 4, Timer2 ON
+0001D0 6ECA           00161         movwf   T2CON
+                      00162                 
+0001D2 8892           00163         bsf     TRISA,4                 ;make switch RA4 an Input
+0001D4 8093           00164         bsf     TRISB,0                 ;make switch RB0 an Input
+                      00165 
+                      00166 
+                      00167 ;**************** STANDARD CODE MENU SELECTION *******************
+                      00168                         ;Introduction
+0001D6 0E50           00169         movlw   .80                     ;send "Microchip" to LCD
+0001D8 6E??           00170         movwf   ptr_pos
+0001DA EC?? F???      00171         call    stan_char_1
+                      00172 
+0001DE 0E60           00173         movlw   .96                     ;send "PICDEM 2 PLUS" to LCD
+0001E0 6E??           00174         movwf   ptr_pos
+0001E2 EC?? F???      00175         call    stan_char_2
+0001E6 EC?? F???      00176         call    delay_1s                ;delay for display
+0001EA EC?? F???      00177         call    delay_1s                ;delay for display
+0001EE                00178 menu
+                      00179 ;------------------ VOLT MEASUREMENT  ----------------------------
+0001EE A880           00180         btfss   scroll                  ;wait for RA4 release
+0001F0 EF?? F???      00181         goto    $-2             
+0001F4 A081           00182         btfss   select                  ;wait for RB0 release
+0001F6 EF?? F???      00183         goto    $-2
+                      00184 
+0001FA 0E00           00185         movlw   0x00                    ;voltmeter
+0001FC 6E??           00186         movwf   ptr_pos
+0001FE EC?? F???      00187         call    stan_char_1
+                      00188 
+000202 0E40           00189         movlw   .64                     ;RA4=Next  RB0=Now
+000204 6E??           00190         movwf   ptr_pos
+000206 EC?? F???      00191         call    stan_char_2
+00020A                00192 v_wait
+00020A A081           00193         btfss   select                  ;voltmeter measurement ??
+00020C D???           00194         bra     voltmeter
+00020E B880           00195         btfsc   scroll                  ;next mode ??
+000210 D???           00196         bra     v_wait                  ;NO
+000212 A880           00197         btfss   scroll                  ;YES
+000214 D???           00198         bra     $-2                     ;wait for RA4 release
+                      00199 ;------------------ BUZZER --------------------------------------
+000216                00200 menu_buz
+000216 A081           00201         btfss   select                  ;wait for RB0 release
+MPASM  5.05                         P18PT.ASM   10-19-2006  10:51:44         PAGE  6
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+000218 D???           00202         bra     $-2                     
+                      00203 
+00021A 0E10           00204         movlw   .16                     ;buzzer
+00021C 6E??           00205         movwf   ptr_pos
+00021E EC?? F???      00206         call    stan_char_1
+                      00207 
+000222 0E40           00208         movlw   .64                     ;RA4=Next  RB0=Now
+000224 6E??           00209         movwf   ptr_pos
+000226 EC?? F???      00210         call    stan_char_2
+00022A                00211 b_wait
+00022A A081           00212         btfss   select                  ;Buzzer sound ??
+00022C EF?? F???      00213         goto    buzzer                  ;YES
+000230 B880           00214         btfsc   scroll                  ;NO, next mode ??
+000232 EF?? F???      00215         goto    b_wait                  ;NO
+000236 A880           00216         btfss   scroll                  ;YES
+000238 D???           00217         bra     $-2                     ;wait for RA4 release
+                      00218 ;----------------- TEMPERATURE MEASUREMENT ----------------------
+00023A                00219 menu_temp
+00023A A880           00220         btfss   scroll                  ;wait for RA4 release
+00023C D???           00221         bra     $-2             
+                      00222 
+00023E 0E20           00223         movlw   .32                     ;temperature
+000240 6E??           00224         movwf   ptr_pos
+000242 EC?? F???      00225         call    stan_char_1
+                      00226 
+000246 0E40           00227         movlw   .64                     ;RA4=Next  RB0=Now
+000248 6E??           00228         movwf   ptr_pos
+00024A EC?? F???      00229         call    stan_char_2
+00024E                00230 t_wait
+00024E A081           00231         btfss   select                  ;temperature measurement ??
+000250 D???           00232         bra     temp                    ;YES
+000252 B880           00233         btfsc   scroll                  ;NO, next mode ??
+000254 D???           00234         bra     t_wait                  ;NO
+000256 A880           00235         btfss   scroll                  ;YES
+000258 D???           00236         bra     $-2                     ;wait for release
+                      00237 ;------------------ CLOCK TIME ----------------------------------
+00025A                00238 menu_clock
+00025A A081           00239         btfss   select                  ;wait for RB0 release
+00025C D???           00240         bra     $-2             
+                      00241 
+00025E 0E30           00242         movlw   .48                     ;clock
+000260 6E??           00243         movwf   ptr_pos
+000262 EC?? F???      00244         call    stan_char_1
+                      00245 
+000266 0E40           00246         movlw   .64                     ;RA4=Next  RB0=Now
+000268 6E??           00247         movwf   ptr_pos
+00026A EC?? F???      00248         call    stan_char_2
+00026E                00249 c_wait
+00026E A081           00250         btfss   select                  ;goto time ??
+000270 D???           00251         bra     clock                   ;YES
+000272 B880           00252         btfsc   scroll                  ;NO, next mode ??
+000274 D???           00253         bra     c_wait                  ;NO
+000276 A880           00254         btfss   scroll                  ;YES
+MPASM  5.05                         P18PT.ASM   10-19-2006  10:51:44         PAGE  7
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+000278 D???           00255         bra     $-2                     ;wait for release
+                      00256 ;-------------------------------------------------------------------
+00027A D???           00257         bra     menu                    ;begining of menu
+00027C 0012           00258         return
+                      00259 
+                      00260 ;*******************************************************************
+                      00261 
+                      00262 
+                      00263 
+                      00264 
+                      00265 ;************* STANDARD USER CODE **********************************
+                      00266 
+                      00267 ;------------- Voltmeter--------------------------------------------
+00027E                00268 voltmeter
+00027E A081           00269         btfss   select                  ;wait for RB0 release
+000280 D???           00270         bra     $-2
+                      00271 
+                      00272 ;       movlw   B'01000001'             ;configure A/D converter        
+                      00273 ;       movwf   ADCON0                  ;turn A/D on
+000282 80C2           00274         bsf             ADCON0,0                        ;turn on A/D
+                      00275 
+000284 0E0E           00276         movlw   b'00001110'             ;RA0 = analog input
+000286 6EC1           00277         movwf   ADCON1
+                      00278 
+000288 0E01           00279         movlw   0x01
+00028A 6EC0           00280         movwf   ADCON2
+                      00281 
+00028C 0EA0           00282         movlw   .160                    ;send "Volts = " to the LCD
+00028E 6E??           00283         movwf   ptr_pos
+000290 EC?? F???      00284         call    stan_char_1
+000294                00285 volts_again
+000294 82C2           00286         bsf     ADCON0,GO               ;start conversion
+000296 B2C2           00287         btfsc   ADCON0,GO
+000298 D???           00288         bra     $-2
+00029A 50C4           00289         movf    ADRESH,W
+                      00290 
+00029C 6E??           00291         movwf   AARGB0                  ;move adresh into AARGB1
+00029E 0EC3           00292         movlw   0xC3                    ;19.5mV/step   0xC3 = 195
+0002A0 6E??           00293         movwf   BARGB0
+0002A2 EC?? F???      00294         call    UMUL0808L
+                      00295         
+0002A6 0E64           00296         movlw   0x64                    ;divide result by 100 (0x64)
+0002A8 6E??           00297         movwf   BARGB0
+0002AA EC?? F???      00298         call    UDIV1608L
+                      00299         
+0002AE 50??           00300         movf    AARGB0,W                ;prepare for 16-bit binary to BCD
+0002B0 6E??           00301         movwf   NumH
+0002B2 50??           00302         movf    AARGB1,W
+0002B4 6E??           00303         movwf   NumL
+0002B6 EC?? F???      00304         call    bin16_bcd               ;get volts ready for LCD
+                      00305         
+0002BA EC?? F???      00306         call    LCDLine_2               ;display A/D result on 2nd line
+0002BE 50??           00307         movf    Hund,W                  ;get hunds
+MPASM  5.05                         P18PT.ASM   10-19-2006  10:51:44         PAGE  8
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+0002C0 EC?? F???      00308         call    bin_bcd
+0002C4 50??           00309         movf    LSD,W                   ;send high digit from the LSD #.xx      
+0002C6 6E??           00310         movwf   temp_wr
+0002C8 EC?? F???      00311         call    d_write
+0002CC 0E2E           00312         movlw   A'.'                    ;send decimal point "."
+0002CE 6E??           00313         movwf   temp_wr
+0002D0 EC?? F???      00314         call    d_write
+                      00315         
+0002D4 50??           00316         movf    Tens,W                  ;get tens
+0002D6 EC?? F???      00317         call    bin_bcd
+0002DA 50??           00318         movf    LSD,W                   ;send low digit   x.#x
+0002DC 6E??           00319         movwf   temp_wr
+0002DE EC?? F???      00320         call    d_write
+                      00321 
+0002E2 50??           00322         movf    Ones,W                  ;get ones
+0002E4 EC?? F???      00323         call    bin_bcd
+0002E8 50??           00324         movf    LSD,W                   ;send low digit   x.x#
+0002EA 6E??           00325         movwf   temp_wr
+0002EC EC?? F???      00326         call    d_write
+0002F0 0E56           00327         movlw   A'V'                    ;send "V" unit
+0002F2 6E??           00328         movwf   temp_wr
+0002F4 EC?? F???      00329         call    d_write
+                      00330 
+0002F8 0E20           00331         movlw   0x20                    ;3 spaces       
+0002FA 6E??           00332         movwf   temp_wr
+0002FC EC?? F???      00333         call    d_write
+000300 0E20           00334         movlw   0x20                    
+000302 6E??           00335         movwf   temp_wr
+000304 EC?? F???      00336         call    d_write
+000308 0E20           00337         movlw   0x20                    
+00030A 6E??           00338         movwf   temp_wr
+00030C EC?? F???      00339         call    d_write
+000310 0E52           00340         movlw   A'R'                    ;send "RB0=Exit" to LCD
+000312 6E??           00341         movwf   temp_wr
+000314 EC?? F???      00342         call    d_write
+000318 0E42           00343         movlw   A'B'                    
+00031A 6E??           00344         movwf   temp_wr
+00031C EC?? F???      00345         call    d_write
+000320 0E30           00346         movlw   A'0'                    
+000322 6E??           00347         movwf   temp_wr
+000324 EC?? F???      00348         call    d_write
+000328 0E3D           00349         movlw   A'='                    
+00032A 6E??           00350         movwf   temp_wr
+00032C EC?? F???      00351         call    d_write
+000330 0E45           00352         movlw   A'E'                    
+000332 6E??           00353         movwf   temp_wr
+000334 EC?? F???      00354         call    d_write
+000338 0E78           00355         movlw   A'x'            
+00033A 6E??           00356         movwf   temp_wr
+00033C EC?? F???      00357         call    d_write
+000340 0E69           00358         movlw   A'i'                    
+000342 6E??           00359         movwf   temp_wr
+000344 EC?? F???      00360         call    d_write
+MPASM  5.05                         P18PT.ASM   10-19-2006  10:51:44         PAGE  9
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+000348 0E74           00361         movlw   A't'                    
+00034A 6E??           00362         movwf   temp_wr
+00034C EC?? F???      00363         call    d_write
+000350 0E20           00364         movlw   0x20                    ;2 spaces       
+000352 6E??           00365         movwf   temp_wr
+000354 EC?? F???      00366         call    d_write
+000358 0E20           00367         movlw   0x20                    
+00035A 6E??           00368         movwf   temp_wr
+00035C EC?? F???      00369         call    d_write
+                      00370 
+000360 0E0D           00371         movlw   "\r"                    ;move data into TXREG
+000362 6EAD           00372         movwf   TXREG                   ;carriage return
+000364 A2AC           00373         btfss   TXSTA,TRMT              ;wait for data TX
+000366 D???           00374         bra     $-2
+                      00375 
+000368 A081           00376         btfss   select                  ;exit volt measurement ??
+00036A D???           00377         bra     menu_buz                        ;YES
+00036C D???           00378         bra     volts_again             ;NO, do conversion again
+                      00379 
+                      00380 ;--------------------- BUZZER --------------------------------------
+00036E                00381 buzzer
+00036E A081           00382         btfss   select                  ;wait for RB0 release
+000370 D???           00383         bra     $-2
+                      00384 
+000372 0E80           00385         movlw   0x80                    ;start at these PWM values
+000374 6ECB           00386         movwf   PR2                     ;initialize PWM period 
+000376 0E80           00387         movlw   0x80                    
+000378 6EBE           00388         movwf   CCPR1L                  ;initialize PWM duty cycle
+                      00389         
+00037A EC?? F???      00390         call    LCDLine_1
+00037E 0EB0           00391         movlw   .176                    ;send "Prd.=128 DC=128" to LCD
+000380 6E??           00392         movwf   ptr_pos
+000382 EC?? F???      00393         call    stan_char_1
+000386 EC?? F???      00394         call    LCDLine_2
+00038A 0E80           00395         movlw   .128                    ;send "RA4= -> RB0 = ++" to LCD
+00038C 6E??           00396         movwf   ptr_pos
+00038E EC?? F???      00397         call    stan_char_2
+                      00398                 
+000392 0E0F           00399         movlw   0x0F                    ;turn buzzer on 
+000394 6EBD           00400         movwf   CCP1CON 
+                      00401                 
+000396                00402 pr2_again                       
+000396 B081           00403         btfsc   select                  ;increment PR2 ???
+000398 D???           00404         bra     pr2_out                 ;NO
+00039A EC?? F???      00405         call    delay_100ms             ;YES
+00039E EC?? F???      00406         call    delay_100ms             
+0003A2 2ACB           00407         incf    PR2,F                   ;increment PR2
+0003A4                00408 pr2_out
+0003A4 0E85           00409         movlw   0x85                    ;move cursor into position
+0003A6 6E??           00410         movwf   temp_wr
+0003A8 EC?? F???      00411         call    i_write
+                      00412 
+0003AC                00413 pol1
+MPASM  5.05                         P18PT.ASM   10-19-2006  10:51:44         PAGE 10
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+0003AC A880           00414         btfss   scroll                  ;goto increment CCPR1L
+0003AE D???           00415         bra     inc_dc
+0003B0 B081           00416         btfsc   select                  ;wait for RB0 press
+0003B2 D???           00417         bra     pol1
+                      00418 
+0003B4 50CB           00419         movf    PR2,W                   ;send PR2 register to conversion
+0003B6 EC?? F???      00420         call    bin_bcd
+                      00421 
+0003BA 50??           00422         movf    MSD,W                   ;send high digit
+0003BC 6E??           00423         movwf   temp_wr
+0003BE EC?? F???      00424         call    d_write
+0003C2 50??           00425         movf    MsD,W                   ;send middle digit
+0003C4 6E??           00426         movwf   temp_wr
+0003C6 EC?? F???      00427         call    d_write
+0003CA 50??           00428         movf    LSD,W                   ;send low digit
+0003CC 6E??           00429         movwf   temp_wr
+0003CE EC?? F???      00430         call    d_write
+                      00431 
+0003D2 D???           00432         bra     pr2_again               
+                      00433 
+                      00434 ;------------------------
+                      00435                 ;adjust Duty Cycle
+0003D4                00436 inc_dc
+0003D4 A880           00437         btfss   scroll                  ;wait for button release
+0003D6 D???           00438         bra     $-2
+                      00439 
+0003D8                00440 inc_ccpr1l      
+0003D8 B081           00441         btfsc   select                  ;increment CCPR1L ???
+0003DA EF?? F???      00442         goto    ccpr1l_out              ;NO
+0003DE EC?? F???      00443         call    delay_100ms             ;YES
+0003E2 EC?? F???      00444         call    delay_100ms
+0003E6 2ABE           00445         incf    CCPR1L,F                ;increment CCPR1L
+0003E8                00446 ccpr1l_out
+0003E8 0E8C           00447         movlw   0x8C                    ;move cursor into position
+0003EA 6E??           00448         movwf   temp_wr
+0003EC EC?? F???      00449         call    i_write
+                      00450 
+0003F0                00451 col1
+0003F0 A880           00452         btfss   scroll                  ;exit?
+0003F2 D???           00453         bra     pwm_out
+0003F4 B081           00454         btfsc   select                  ;wait for RB0 press
+0003F6 D???           00455         bra     col1
+                      00456         
+0003F8 50BE           00457         movf    CCPR1L,W                ;send PR2 register to conversion
+0003FA EC?? F???      00458         call    bin_bcd
+                      00459         
+0003FE 50??           00460         movf    MSD,W                   ;send high digit
+000400 6E??           00461         movwf   temp_wr
+000402 EC?? F???      00462         call    d_write
+000406 50??           00463         movf    MsD,W                   ;send middle digit
+000408 6E??           00464         movwf   temp_wr
+00040A EC?? F???      00465         call    d_write
+00040E 50??           00466         movf    LSD,W                   ;send low digit
+MPASM  5.05                         P18PT.ASM   10-19-2006  10:51:44         PAGE 11
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+000410 6E??           00467         movwf   temp_wr
+000412 EC?? F???      00468         call    d_write                 
+000416 D???           00469         bra     inc_ccpr1l
+                      00470 
+000418                00471 pwm_out
+000418 0E00           00472         movlw   0
+00041A 6EBD           00473         movwf   CCP1CON                 ;turn buzzer off
+00041C D???           00474         bra     menu_temp
+                      00475 
+                      00476 ;---------------------- Temperature -------------------------------- 
+00041E                00477 temp
+                      00478 ;       This code if for the TC74A5-5.0VAT temperature sensor
+                      00479 ;               1st. Check if temperature is ready to be read in config reg.
+                      00480 ;               2nd. If ready, retireve temperatute in hex.
+                      00481 ;                    If not ready, check config register again.
+                      00482 
+00041E 8694           00483         bsf     TRISC,3                 ;initialize MSSP module
+000420 8894           00484         bsf     TRISC,4
+000422 0E28           00485         movlw   B'00101000'
+000424 6EC6           00486         movwf   SSPCON1
+000426 8EC7           00487         bsf     SSPSTAT,SMP
+000428 0E05           00488         movlw   .5
+00042A 6EC8           00489         movwf   SSPADD
+                      00490 
+00042C 909E           00491         bcf     PIR1,TMR1IF
+00042E 6ACF           00492         clrf    TMR1H                   ;load Timer1 for 2 sec overflow
+000430 6ACE           00493         clrf    TMR1L
+                      00494 
+000432                00495 get_temp
+000432 0E01           00496         movlw   0x01                    ;config register command byte
+000434 6E??           00497         movwf   cmd_byte
+000436                00498 temp_now
+000436 8CC7           00499         bsf     SSPSTAT,6               ;SMBUS spec for TC74
+                      00500 
+000438 80C5           00501         bsf     SSPCON2,SEN             ;write to TC74
+00043A B0C5           00502         btfsc   SSPCON2,SEN
+00043C D???           00503         bra     $-2     
+00043E 0E9A           00504         movlw   B'10011010'             ;send TC74 ADDRESS (write)
+000440 6EC9           00505         movwf   SSPBUF
+                      00506         ssprw
+000442 0E00               M         movlw   0x00
+000444 14C5               M         andwf   SSPCON2,W
+000446 0800               M         sublw   0x00
+000448 A4D8               M         btfss   STATUS,Z
+00044A D???               M         bra     $-8
+                          M 
+00044C B4C7               M         btfsc   SSPSTAT,R_W
+00044E D???               M         bra     $-2
+000450 BCC5           00507         btfsc   SSPCON2,ACKSTAT         ;ack?
+000452 D???           00508         bra     $-2
+                      00509 
+000454 50??           00510         movf    cmd_byte,W              ;send COMMAND byte (config)
+000456 6EC9           00511         movwf   SSPBUF
+MPASM  5.05                         P18PT.ASM   10-19-2006  10:51:44         PAGE 12
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+                      00512         ssprw
+000458 0E00               M         movlw   0x00
+00045A 14C5               M         andwf   SSPCON2,W
+00045C 0800               M         sublw   0x00
+00045E A4D8               M         btfss   STATUS,Z
+000460 D???               M         bra     $-8
+                          M 
+000462 B4C7               M         btfsc   SSPSTAT,R_W
+000464 D???               M         bra     $-2
+000466 BCC5           00513         btfsc   SSPCON2,ACKSTAT         ;ack?
+000468 D???           00514         bra     $-2
+                      00515 
+00046A 82C5           00516         bsf     SSPCON2,RSEN            ;send repeated start
+00046C B2C5           00517         btfsc   SSPCON2,RSEN
+00046E D???           00518         bra     $-2
+000470 0E9B           00519         movlw   B'10011011'             ;send TC74 ADDRESS (read)
+000472 6EC9           00520         movwf   SSPBUF
+                      00521         ssprw                           ;module idle?
+000474 0E00               M         movlw   0x00
+000476 14C5               M         andwf   SSPCON2,W
+000478 0800               M         sublw   0x00
+00047A A4D8               M         btfss   STATUS,Z
+00047C D???               M         bra     $-8
+                          M 
+00047E B4C7               M         btfsc   SSPSTAT,R_W
+000480 D???               M         bra     $-2
+000482 BCC5           00522         btfsc   SSPCON2,ACKSTAT         ;ack?
+000484 D???           00523         bra     $-2
+                      00524 
+000486 86C5           00525         bsf     SSPCON2,RCEN            ;enable receive mode
+000488 B6C5           00526         btfsc   SSPCON2,RCEN
+00048A D???           00527         bra     $-2
+                      00528 
+00048C 50C9           00529         movf    SSPBUF,W                ;retrieve config reg or temp reg
+                      00530         
+00048E 8AC5           00531         bsf     SSPCON2,ACKDT           ;send NOT-ACK
+000490 88C5           00532         bsf     SSPCON2,ACKEN
+000492 B8C5           00533         btfsc   SSPCON2,ACKEN
+000494 D???           00534         bra     $-2
+                      00535                         
+000496 84C5           00536         bsf     SSPCON2,PEN             ;stop
+000498 B4C5           00537         btfsc   SSPCON2,PEN
+00049A D???           00538         bra     $-2
+                      00539         
+00049C A0??           00540         btfss   cmd_byte,0              ;config command OR temp command
+00049E D???           00541         bra     convert_temp            ;get temperature ready for display
+                      00542 
+0004A0 0B40           00543         andlw   0x40                    ;is temp ready ??
+0004A2 0840           00544         sublw   0x40
+0004A4 A4D8           00545         btfss   STATUS,Z
+0004A6 D???           00546         bra     get_temp
+0004A8 0E00           00547         movlw   0x00                    ;temp is ready for reading
+0004AA 6E??           00548         movwf   cmd_byte                ;send temp register command
+MPASM  5.05                         P18PT.ASM   10-19-2006  10:51:44         PAGE 13
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+0004AC D???           00549         bra     temp_now
+                      00550 
+0004AE                00551 convert_temp
+0004AE 6E??           00552         movwf   temperature
+0004B0 EC?? F???      00553         call    bin_bcd                 ;get temp ready for LCD
+0004B4 EC?? F???      00554         call    LCDLine_1
+                      00555         
+0004B8 0E54           00556         movlw   A'T'                    ;send "Temp=" to LCD
+0004BA 6E??           00557         movwf   temp_wr 
+0004BC EC?? F???      00558         call    d_write
+0004C0 0E65           00559         movlw   A'e'
+0004C2 6E??           00560         movwf   temp_wr 
+0004C4 EC?? F???      00561         call    d_write
+0004C8 0E6D           00562         movlw   A'm'
+0004CA 6E??           00563         movwf   temp_wr 
+0004CC EC?? F???      00564         call    d_write
+0004D0 0E70           00565         movlw   A'p'
+0004D2 6E??           00566         movwf   temp_wr 
+0004D4 EC?? F???      00567         call    d_write
+0004D8 0E20           00568         movlw   0x20                    ;space
+0004DA 6E??           00569         movwf   temp_wr 
+0004DC EC?? F???      00570         call    d_write
+0004E0 0E3D           00571         movlw   A'='
+0004E2 6E??           00572         movwf   temp_wr 
+0004E4 EC?? F???      00573         call    d_write
+                      00574 
+0004E8 0E20           00575         movlw   0x20                    ;space
+0004EA 6E??           00576         movwf   temp_wr 
+0004EC EC?? F???      00577         call    d_write
+                      00578 
+0004F0 50??           00579         movf    MSD,W                   ;send high digit
+0004F2 6E??           00580         movwf   temp_wr
+0004F4 EC?? F???      00581         call    d_write
+0004F8 50??           00582         movf    MsD,W                   ;send middle digit
+0004FA 6E??           00583         movwf   temp_wr
+0004FC EC?? F???      00584         call    d_write
+000500 50??           00585         movf    LSD,W                   ;send low digit
+000502 6E??           00586         movwf   temp_wr
+000504 EC?? F???      00587         call    d_write
+000508 0E43           00588         movlw   A'C'                    ;send "C" for celcius
+00050A 6E??           00589         movwf   temp_wr 
+00050C EC?? F???      00590         call    d_write
+                      00591 
+000510 0E20           00592         movlw   0x20                    ;space
+000512 6E??           00593         movwf   temp_wr 
+000514 EC?? F???      00594         call    d_write
+000518 0E20           00595         movlw   0x20                    ;space
+00051A 6E??           00596         movwf   temp_wr 
+00051C EC?? F???      00597         call    d_write
+000520 0E20           00598         movlw   0x20                    ;space
+000522 6E??           00599         movwf   temp_wr 
+000524 EC?? F???      00600         call    d_write
+                      00601         
+MPASM  5.05                         P18PT.ASM   10-19-2006  10:51:44         PAGE 14
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+000528 EC?? F???      00602         call    LCDLine_2               ;send "RB0 = Exit" to LCD
+00052C 0E90           00603         movlw   .144
+00052E 6E??           00604         movwf   ptr_pos
+000530 EC?? F???      00605         call    stan_char_2
+                      00606         
+000534 A081           00607         btfss   select                  ;wait for RB0 release
+000536 D???           00608         bra     $-2
+000538 EC?? F???      00609         call    delay_100ms
+00053C A081           00610         btfss   select                  ;exit ?
+00053E D???           00611         bra     menu_clock              ;YES, goto main menu
+000540 B09E           00612         btfsc   PIR1,TMR1IF             ;2 second overflow occur ??
+000542 EC?? F???      00613         call    write_eeprom            ;YES
+000546 D???           00614         bra     get_temp                ;NO, get temperature again
+                      00615 
+                      00616         
+                      00617 ;----------------- CLOCK ------------------------------------------
+                      00618 
+000548                00619 clock
+000548 A081           00620         btfss   select                  ;wait for RB0 button release
+00054A D???           00621         bra     $-2
+00054C 0E0F           00622         movlw   0x0F                    ;intitialize TIMER1
+00054E 6ECD           00623         movwf   T1CON
+000550 6A??           00624         clrf    seconds
+000552 6A??           00625         clrf    minutes
+000554 6A??           00626         clrf    hours
+000556                00627 overflow        
+000556 909E           00628         bcf     PIR1,TMR1IF
+000558 0E80           00629         movlw   0x80            
+00055A 6ECF           00630         movwf   TMR1H                   ;load regs for 1 sec overflow
+00055C 6ACE           00631         clrf    TMR1L
+                      00632 
+00055E 2A??           00633         incf    seconds,F               ;increment seconds
+000560 50??           00634         movf    seconds,W
+000562 083C           00635         sublw   .60
+000564 A4D8           00636         btfss   STATUS,Z                ;increment minutes ?
+000566 D???           00637         bra     clk_done
+000568 2A??           00638         incf    minutes,F               
+00056A 6A??           00639         clrf    seconds
+                      00640 
+00056C 50??           00641         movf    minutes,W
+00056E 083C           00642         sublw   .60
+000570 A4D8           00643         btfss   STATUS,Z                ;increment hours ?
+000572 D???           00644         bra     clk_done        
+000574 2A??           00645         incf    hours,F                 
+000576 6A??           00646         clrf    minutes
+                      00647 
+000578 50??           00648         movf    hours,W
+00057A 080D           00649         sublw   .13
+00057C A4D8           00650         btfss   STATUS,Z
+00057E D???           00651         bra     clk_done
+000580 0E01           00652         movlw   .1                      ;start a new 12 hour period
+000582 6E??           00653         movwf   hours
+000584                00654 clk_done
+MPASM  5.05                         P18PT.ASM   10-19-2006  10:51:44         PAGE 15
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+000584 50??           00655         movf    hours,W                 ;send hours to LCD
+000586 EC?? F???      00656         call    bin_bcd
+                      00657 
+00058A EC?? F???      00658         call    LCDLine_1               ;place time on line 1
+                      00659 
+00058E 50??           00660         movf    MsD,W                   ;send middle digit
+000590 6E??           00661         movwf   temp_wr
+000592 EC?? F???      00662         call    d_write
+000596 50??           00663         movf    LSD,W                   ;send low digit
+000598 6E??           00664         movwf   temp_wr
+00059A EC?? F???      00665         call    d_write 
+00059E 0E3A           00666         movlw   0x3A                    ;send  :   colon
+0005A0 6E??           00667         movwf   temp_wr
+0005A2 EC?? F???      00668         call    d_write
+                      00669 
+0005A6 50??           00670         movf    minutes,W               ;send minutes to LCD
+0005A8 EC?? F???      00671         call    bin_bcd
+                      00672 
+0005AC 50??           00673         movf    MsD,W                   ;send middle digit
+0005AE 6E??           00674         movwf   temp_wr
+0005B0 EC?? F???      00675         call    d_write
+0005B4 50??           00676         movf    LSD,W                   ;send low digit
+0005B6 6E??           00677         movwf   temp_wr
+0005B8 EC?? F???      00678         call    d_write 
+0005BC 0E3A           00679         movlw   0x3A                    ; send :   colon
+0005BE 6E??           00680         movwf   temp_wr
+0005C0 EC?? F???      00681         call    d_write
+                      00682 
+0005C4 50??           00683         movf    seconds,W               ;send seconds to LCD
+0005C6 EC?? F???      00684         call    bin_bcd
+                      00685 
+0005CA 50??           00686         movf    MsD,W                   ;send middle digit
+0005CC 6E??           00687         movwf   temp_wr
+0005CE EC?? F???      00688         call    d_write
+0005D2 50??           00689         movf    LSD,W                   ;send low digit
+0005D4 6E??           00690         movwf   temp_wr
+0005D6 EC?? F???      00691         call    d_write
+                      00692 
+0005DA 0E20           00693         movlw   0x20                    ;send 3 spaces after 00:00:00
+0005DC 6E??           00694         movwf   temp_wr
+0005DE EC?? F???      00695         call    d_write
+0005E2 0E20           00696         movlw   0x20
+0005E4 6E??           00697         movwf   temp_wr
+0005E6 EC?? F???      00698         call    d_write
+0005EA 0E20           00699         movlw   0x20
+0005EC 6E??           00700         movwf   temp_wr
+0005EE EC?? F???      00701         call    d_write
+                      00702         
+0005F2 0E70           00703         movlw   .112                    ;send "RA4=Dn RB0=Menu" to LCD
+0005F4 6E??           00704         movwf   ptr_pos
+0005F6 EC?? F???      00705         call    stan_char_2
+                      00706 
+0005FA A880           00707         btfss   scroll                  ;set time ??
+MPASM  5.05                         P18PT.ASM   10-19-2006  10:51:44         PAGE 16
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+0005FC D???           00708         bra     set_time
+                      00709 
+0005FE A081           00710         btfss   select                  ;return to main menu ??
+000600 D???           00711         bra     menu
+                      00712         
+000602 A09E           00713         btfss   PIR1,TMR1IF             ;has timer1 overflowed ?        
+000604 D???           00714         bra     $-2                     ;NO, wait til overflow
+000606 D???           00715         bra     overflow                ;YES
+                      00716 
+000608 0012           00717         return
+                      00718 ;*******************************************************************
+                      00719 
+                      00720 
+                      00721 
+                      00722 
+                      00723 
+                      00724 
+                      00725 
+                      00726 
+                      00727 
+                      00728 ;************************** ROUTINES ******************************
+                      00729 ;******************************************************************
+                      00730 ;******************************************************************
+                      00731 
+                      00732 ;----Standard code, Place characters on line-1--------------------------
+00060A                00733 stan_char_1
+00060A EC?? F???      00734         call    LCDLine_1               ;mvoe cursor to line 1 
+00060E 0E10           00735         movlw   .16                     ;1-full line of LCD
+000610 6E??           00736         movwf   ptr_count
+000612 0E??           00737         movlw   UPPER stan_table
+000614 6EF8           00738         movwf   TBLPTRU
+000616 0E??           00739         movlw   HIGH stan_table
+000618 6EF7           00740         movwf   TBLPTRH
+00061A 0E??           00741         movlw   LOW stan_table
+00061C 6EF6           00742         movwf   TBLPTRL
+00061E 50??           00743         movf    ptr_pos,W
+000620 26F6           00744         addwf   TBLPTRL,F
+000622 6AE8           00745         clrf    WREG
+000624 22F7           00746         addwfc  TBLPTRH,F
+000626 22F8           00747         addwfc  TBLPTRU,F
+                      00748 
+000628                00749 stan_next_char_1
+000628 0009           00750         tblrd   *+
+00062A CFF5 F???      00751         movff   TABLAT,temp_wr                  
+00062E EC?? F???      00752         call    d_write                 ;send character to LCD
+                      00753 
+000632 2E??           00754         decfsz  ptr_count,F             ;move pointer to next char
+000634 D???           00755         bra     stan_next_char_1
+                      00756 
+000636 0E0A           00757         movlw   "\n"                    ;move data into TXREG
+000638 6EAD           00758         movwf   TXREG                   ;next line
+00063A A2AC           00759         btfss   TXSTA,TRMT              ;wait for data TX
+00063C EF?? F???      00760         goto    $-2
+MPASM  5.05                         P18PT.ASM   10-19-2006  10:51:44         PAGE 17
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+000640 0E0D           00761         movlw   "\r"                    ;move data into TXREG
+000642 6EAD           00762         movwf   TXREG                   ;carriage return
+000644 A2AC           00763         btfss   TXSTA,TRMT              ;wait for data TX
+000646 EF?? F???      00764         goto    $-2
+                      00765 
+00064A 0012           00766         return
+                      00767 
+                      00768 ;----Standard code, Place characters on line-2--------------------------
+00064C                00769 stan_char_2     
+00064C EC?? F???      00770         call    LCDLine_2               ;move cursor to line 2 
+000650 0E10           00771         movlw   .16                     ;1-full line of LCD
+000652 6E??           00772         movwf   ptr_count
+000654 0E??           00773         movlw   UPPER stan_table
+000656 6EF8           00774         movwf   TBLPTRU
+000658 0E??           00775         movlw   HIGH stan_table
+00065A 6EF7           00776         movwf   TBLPTRH
+00065C 0E??           00777         movlw   LOW stan_table
+00065E 6EF6           00778         movwf   TBLPTRL
+000660 50??           00779         movf    ptr_pos,W
+000662 26F6           00780         addwf   TBLPTRL,F
+000664 6AE8           00781         clrf    WREG
+000666 22F7           00782         addwfc  TBLPTRH,F
+000668 22F8           00783         addwfc  TBLPTRU,F
+                      00784 
+00066A                00785 stan_next_char_2
+00066A 0009           00786         tblrd   *+
+00066C CFF5 F???      00787         movff   TABLAT,temp_wr
+000670 EC?? F???      00788         call    d_write                 ;send character to LCD
+                      00789 
+000674 2E??           00790         decfsz  ptr_count,F             ;move pointer to next char
+000676 D???           00791         bra     stan_next_char_2
+                      00792 
+000678 0E0A           00793         movlw   "\n"                    ;move data into TXREG
+00067A 6EAD           00794         movwf   TXREG                   ;next line
+00067C A2AC           00795         btfss   TXSTA,TRMT              ;wait for data TX
+00067E EF?? F???      00796         goto    $-2
+000682 0E0D           00797         movlw   "\r"                    ;move data into TXREG
+000684 6EAD           00798         movwf   TXREG                   ;carriage return
+000686 A2AC           00799         btfss   TXSTA,TRMT              ;wait for data TX
+000688 EF?? F???      00800         goto    $-2
+                      00801 
+00068C 0012           00802         return
+                      00803 ;----------------------------------------------------------------------
+                      00804 
+                      00805 
+                      00806 ;------------------ 100ms Delay --------------------------------
+00068E                00807 delay_100ms
+00068E 0EFF           00808         movlw   0xFF
+000690 6E??           00809         movwf   temp_1
+000692 0E83           00810         movlw   0x83
+000694 6E??           00811         movwf   temp_2
+                      00812 
+000696                00813 d100l1
+MPASM  5.05                         P18PT.ASM   10-19-2006  10:51:44         PAGE 18
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+000696 2E??           00814         decfsz  temp_1,F
+000698 D???           00815         bra     d100l1
+00069A 2E??           00816         decfsz  temp_2,F
+00069C D???           00817         bra     d100l1
+00069E 0012           00818         return
+                      00819 
+                      00820 ;---------------- 1s Delay -----------------------------------
+0006A0                00821 delay_1s
+0006A0 0EFF           00822         movlw   0xFF
+0006A2 6E??           00823         movwf   temp_1
+0006A4 6E??           00824         movwf   temp_2
+0006A6 0E05           00825         movlw   0x05
+0006A8 6E??           00826         movwf   temp_3
+0006AA                00827 d1l1
+0006AA 2E??           00828         decfsz  temp_1,F
+0006AC D???           00829         bra     d1l1
+0006AE 2E??           00830         decfsz  temp_2,F
+0006B0 D???           00831         bra     d1l1
+0006B2 2E??           00832         decfsz  temp_3,F
+0006B4 D???           00833         bra     d1l1
+0006B6 0012           00834         return  
+                      00835 
+                      00836 ;---------------- Set Current Time ----------------------------
+0006B8                00837 set_time
+0006B8 0E80           00838         movlw   .128                    ;send "RA4= --> RBO= ++" to LCD
+0006BA 6E??           00839         movwf   ptr_pos
+0006BC EC?? F???      00840         call    stan_char_2
+0006C0                00841 set_time_again
+0006C0 A880           00842         btfss   scroll                  ;wait for button release
+0006C2 D???           00843         bra     $-2
+                      00844 
+0006C4 EC?? F???      00845         call    LCDLine_1               ;start at 0x00 on LCD
+                      00846 
+0006C8 A081           00847         btfss   select                  ;wait for RB0 button release
+0006CA D???           00848         bra     $-2
+0006CC EC?? F???      00849         call    delay_100ms                     
+0006D0 A081           00850         btfss   select                  ;increment hours (tens) ?
+0006D2 D???           00851         bra     inc_hours
+0006D4 D???           00852         bra     next_digit
+0006D6                00853 inc_hours       
+0006D6 2A??           00854         incf    hours
+0006D8 50??           00855         movf    hours,W                 ;check if hours has passed 12 ?
+0006DA 080D           00856         sublw   .13
+0006DC A4D8           00857         btfss   STATUS,Z
+0006DE D???           00858         bra     next_digit
+0006E0 6A??           00859         clrf    hours                   ;YES, reset hours to 00
+0006E2                00860 next_digit
+0006E2 A880           00861         btfss   scroll                  ;move to next digit
+0006E4 D???           00862         bra     inc_mins
+0006E6 50??           00863         movf    hours,W         
+                      00864 
+0006E8 EC?? F???      00865         call    bin_bcd                 ;get hours ready for display
+                      00866         
+MPASM  5.05                         P18PT.ASM   10-19-2006  10:51:44         PAGE 19
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+0006EC 50??           00867         movf    MsD,W                   ;send tens digit
+0006EE 6E??           00868         movwf   temp_wr
+0006F0 EC?? F???      00869         call    d_write
+0006F4 50??           00870         movf    LSD,W                   ;send ones digit
+0006F6 6E??           00871         movwf   temp_wr
+0006F8 EC?? F???      00872         call    d_write 
+0006FC 0E3A           00873         movlw   0x3A                    ;send   :   colon
+0006FE 6E??           00874         movwf   temp_wr
+000700 EC?? F???      00875         call    d_write
+                      00876 
+000704 D???           00877         bra     set_time_again
+                      00878         
+000706                00879 inc_mins
+000706 A880           00880         btfss   scroll                  ;wait for RA4 button release
+000708 D???           00881         bra     $-2
+00070A EC?? F???      00882         call    LCDLine_1
+00070E 0E14           00883         movlw   0x14                    ;shift cursor to right 3 places
+000710 6E??           00884         movwf   temp_wr
+000712 EC?? F???      00885         call    i_write
+000716 0E14           00886         movlw   0x14
+000718 6E??           00887         movwf   temp_wr
+00071A EC?? F???      00888         call    i_write
+00071E 0E14           00889         movlw   0x14
+000720 6E??           00890         movwf   temp_wr
+000722 EC?? F???      00891         call    i_write
+                      00892         
+000726 A081           00893         btfss   select                  ;wait for RB0 button release
+000728 D???           00894         bra     $-2
+00072A EC?? F???      00895         call    delay_100ms
+00072E A081           00896         btfss   select                  ;increment minutes (tens) ?
+000730 D???           00897         bra     inc_minutes
+000732 D???           00898         bra     next_digit?
+000734                00899 inc_minutes     
+000734 2A??           00900         incf    minutes
+000736 50??           00901         movf    minutes,W               ;check if hours has passed 12 ?
+000738 083C           00902         sublw   .60
+00073A A4D8           00903         btfss   STATUS,Z
+00073C D???           00904         bra     next_digit?
+00073E 6A??           00905         clrf    minutes
+000740                00906 next_digit?
+000740 A880           00907         btfss   scroll                  ;move to next digit
+000742 D???           00908         bra     set_time_done
+000744 50??           00909         movf    minutes,W
+                      00910                 
+000746 EC?? F???      00911         call    bin_bcd                 ;get minutes ready for display
+                      00912         
+00074A 50??           00913         movf    MsD,W                   ;send tens digit
+00074C 6E??           00914         movwf   temp_wr
+00074E EC?? F???      00915         call    d_write
+000752 50??           00916         movf    LSD,W                   ;send ones digit
+000754 6E??           00917         movwf   temp_wr
+000756 EC?? F???      00918         call    d_write 
+00075A 0E3A           00919         movlw   0x3A                    ;send  :   colon
+MPASM  5.05                         P18PT.ASM   10-19-2006  10:51:44         PAGE 20
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+00075C 6E??           00920         movwf   temp_wr
+00075E EC?? F???      00921         call    d_write 
+000762 D???           00922         bra     inc_mins
+                      00923 
+000764                00924 set_time_done
+000764 A880           00925         btfss   scroll                  ;wait for RA4 button release
+000766 D???           00926         bra     $-2
+000768 D???           00927         bra     overflow
+                      00928         
+                      00929 ;---------------- Binary (8-bit) to BCD -----------------------
+                      00930 ;               255 = highest possible result
+00076A                00931 bin_bcd
+00076A 6A??           00932         clrf    MSD
+00076C 6A??           00933         clrf    MsD
+00076E 6E??           00934         movwf   LSD             ;move value to LSD
+000770                00935 ghundreth       
+000770 0E64           00936         movlw   .100            ;subtract 100 from LSD
+000772 5C??           00937         subwf   LSD,W
+000774 A0D8           00938         btfss   STATUS,C        ;is value greater then 100
+000776 D???           00939         bra     gtenth          ;NO goto tenths
+000778 6E??           00940         movwf   LSD             ;YES, move subtraction result into LSD
+00077A 2A??           00941         incf    MSD,F           ;increment hundreths
+00077C D???           00942         bra     ghundreth       
+00077E                00943 gtenth
+00077E 0E0A           00944         movlw   .10             ;take care of tenths
+000780 5C??           00945         subwf   LSD,W
+000782 A0D8           00946         btfss   STATUS,C
+000784 D???           00947         bra     over            ;finished conversion
+000786 6E??           00948         movwf   LSD
+000788 2A??           00949         incf    MsD,F           ;increment tenths position
+00078A D???           00950         bra     gtenth
+00078C                00951 over                            ;0 - 9, high nibble = 3 for LCD
+00078C 50??           00952         movf    MSD,W           ;get BCD values ready for LCD display
+00078E 0A30           00953         xorlw   0x30            ;convert to LCD digit
+000790 6E??           00954         movwf   MSD
+000792 50??           00955         movf    MsD,W
+000794 0A30           00956         xorlw   0x30            ;convert to LCD digit
+000796 6E??           00957         movwf   MsD
+000798 50??           00958         movf    LSD,W
+00079A 0A30           00959         xorlw   0x30            ;convert to LCD digit
+00079C 6E??           00960         movwf   LSD
+00079E 0C00           00961         retlw   0
+                      00962 
+                      00963 ;---------------- Binary (16-bit) to BCD -----------------------
+                      00964 ;               xxx = highest possible result
+0007A0                00965 bin16_bcd
+                      00966                                ; Takes number in NumH:NumL 
+                      00967                                 ; Returns decimal in 
+                      00968                                 ; TenK:Thou:Hund:Tens:Ones 
+0007A0 38??           00969         swapf   NumH,W 
+0007A2 0B0F           00970         andlw   0x0F
+0007A4 0FF0           00971         addlw   0xF0
+0007A6 6E??           00972         movwf   Thou 
+MPASM  5.05                         P18PT.ASM   10-19-2006  10:51:44         PAGE 21
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+0007A8 26??           00973         addwf   Thou,F 
+0007AA 0FE2           00974         addlw   0xE2 
+0007AC 6E??           00975         movwf   Hund 
+0007AE 0F32           00976         addlw   0x32 
+0007B0 6E??           00977         movwf   Ones 
+                      00978 
+0007B2 50??           00979         movf    NumH,W 
+0007B4 0B0F           00980         andlw   0x0F 
+0007B6 26??           00981         addwf   Hund,F 
+0007B8 26??           00982         addwf   Hund,F 
+0007BA 26??           00983         addwf   Ones,F 
+0007BC 0FE9           00984         addlw   0xE9 
+0007BE 6E??           00985         movwf   Tens 
+0007C0 26??           00986         addwf   Tens,F 
+0007C2 26??           00987         addwf   Tens,F 
+                      00988 
+0007C4 38??           00989         swapf   NumL,W 
+0007C6 0B0F           00990         andlw   0x0F 
+0007C8 26??           00991         addwf   Tens,F 
+0007CA 26??           00992         addwf   Ones,F 
+                      00993 
+0007CC 36??           00994         rlcf     Tens,F 
+0007CE 36??           00995         rlcf     Ones,F 
+0007D0 1E??           00996         comf    Ones,F 
+0007D2 36??           00997         rlcf     Ones,F 
+                      00998 
+0007D4 50??           00999         movf    NumL,W 
+0007D6 0B0F           01000         andlw   0x0F 
+0007D8 26??           01001         addwf   Ones,F 
+0007DA 36??           01002         rlcf     Thou,F 
+                      01003 
+0007DC 0E07           01004         movlw   0x07 
+0007DE 6E??           01005         movwf   TenK 
+                      01006 
+0007E0 0E0A           01007         movlw   0x0A                             ; Ten 
+0007E2                01008 Lb1: 
+0007E2 06??           01009         decf    Tens,F 
+0007E4 26??           01010         addwf   Ones,F 
+0007E6 A0D8           01011         btfss   STATUS,C 
+0007E8 D???           01012          bra   Lb1 
+0007EA                01013 Lb2: 
+0007EA 06??           01014         decf    Hund,F 
+0007EC 26??           01015         addwf   Tens,F 
+0007EE A0D8           01016         btfss   STATUS,C 
+0007F0 D???           01017          bra   Lb2 
+0007F2                01018 Lb3: 
+0007F2 06??           01019         decf    Thou,F 
+0007F4 26??           01020         addwf   Hund,F 
+0007F6 A0D8           01021         btfss   STATUS,C
+0007F8 D???           01022          bra   Lb3 
+0007FA                01023 Lb4: 
+0007FA 06??           01024         decf    TenK,F 
+0007FC 26??           01025         addwf   Thou,F 
+MPASM  5.05                         P18PT.ASM   10-19-2006  10:51:44         PAGE 22
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+0007FE A0D8           01026         btfss   STATUS,C 
+000800 D???           01027          bra   Lb4 
+                      01028 
+000802 0C00           01029         retlw   0
+                      01030 
+                      01031 
+                      01032 ;---------------------------- EEPROM WRITE -------------------------------
+000804                01033 write_eeprom    
+000804 80C5           01034         bsf     SSPCON2,SEN             ;start bit
+000806 B0C5           01035         btfsc   SSPCON2,SEN
+000808 EF?? F???      01036         goto    $-2     
+00080C 0EA0           01037         movlw   B'10100000'             ;send control byte (write)
+00080E 6EC9           01038         movwf   SSPBUF
+                      01039         ssprw
+000810 0E00               M         movlw   0x00
+000812 14C5               M         andwf   SSPCON2,W
+000814 0800               M         sublw   0x00
+000816 A4D8               M         btfss   STATUS,Z
+000818 D???               M         bra     $-8
+                          M 
+00081A B4C7               M         btfsc   SSPSTAT,R_W
+00081C D???               M         bra     $-2
+00081E BCC5           01040         btfsc   SSPCON2,ACKSTAT         ;ack?
+000820 EF?? F???      01041         goto    $-2
+                      01042 
+000824 0E00           01043         movlw   0x00                    ;send slave address HIGH byte
+000826 6EC9           01044         movwf   SSPBUF
+                      01045         ssprw
+000828 0E00               M         movlw   0x00
+00082A 14C5               M         andwf   SSPCON2,W
+00082C 0800               M         sublw   0x00
+00082E A4D8               M         btfss   STATUS,Z
+000830 D???               M         bra     $-8
+                          M 
+000832 B4C7               M         btfsc   SSPSTAT,R_W
+000834 D???               M         bra     $-2
+000836 BCC5           01046         btfsc   SSPCON2,ACKSTAT         ;ack?
+000838 EF?? F???      01047         goto    $-2
+                      01048 
+00083C 0E05           01049         movlw   0x05                    ;send slave address LOW byte(0x0005)
+00083E 6EC9           01050         movwf   SSPBUF
+                      01051         ssprw
+000840 0E00               M         movlw   0x00
+000842 14C5               M         andwf   SSPCON2,W
+000844 0800               M         sublw   0x00
+000846 A4D8               M         btfss   STATUS,Z
+000848 D???               M         bra     $-8
+                          M 
+00084A B4C7               M         btfsc   SSPSTAT,R_W
+00084C D???               M         bra     $-2
+00084E BCC5           01052         btfsc   SSPCON2,ACKSTAT         ;ack?
+000850 EF?? F???      01053         goto    $-2
+                      01054 
+MPASM  5.05                         P18PT.ASM   10-19-2006  10:51:44         PAGE 23
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+000854 50??           01055         movf    temperature,w           ;send slave DATA = temperature
+000856 6EC9           01056         movwf   SSPBUF
+                      01057         ssprw
+000858 0E00               M         movlw   0x00
+00085A 14C5               M         andwf   SSPCON2,W
+00085C 0800               M         sublw   0x00
+00085E A4D8               M         btfss   STATUS,Z
+000860 D???               M         bra     $-8
+                          M 
+000862 B4C7               M         btfsc   SSPSTAT,R_W
+000864 D???               M         bra     $-2
+000866 BCC5           01058         btfsc   SSPCON2,ACKSTAT         ;ack?
+000868 EF?? F???      01059         goto    $-2
+                      01060 
+00086C 84C5           01061         bsf     SSPCON2,PEN             ;stop bit
+00086E B4C5           01062         btfsc   SSPCON2,PEN
+000870 EF?? F???      01063         goto    $-2
+                      01064                 
+000874 909E           01065         bcf     PIR1,TMR1IF             ;clear TIMER1 overflow flag
+000876 6ACE           01066         clrf    TMR1L                   ;clear registers for next overflow
+000878 6ACF           01067         clrf    TMR1H
+                      01068 
+00087A 0012           01069         return
+                      01070 
+                      01071 ;*********************************************************************
+                      01072         end     
+MPASM  5.05                         P18PT.ASM   10-19-2006  10:51:44         PAGE 24
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+A                                 00000000
+AARGB0                            00000000
+AARGB1                            00000000
+ABDEN                             00000000
+ABDOVF                            00000007
+ACCESS                            00000000
+ACKDT                             00000005
+ACKEN                             00000004
+ACKSTAT                           00000006
+ACQT0                             00000003
+ACQT1                             00000004
+ACQT2                             00000005
+ADCON0                            00000FC2
+ADCON1                            00000FC1
+ADCON2                            00000FC0
+ADCS0                             00000000
+ADCS1                             00000001
+ADCS2                             00000002
+ADDEN                             00000003
+ADEN                              00000003
+ADFM                              00000007
+ADIE                              00000006
+ADIF                              00000006
+ADIP                              00000006
+ADON                              00000000
+ADRES                             00000FC3
+ADRESH                            00000FC4
+ADRESL                            00000FC3
+AN0                               00000000
+AN1                               00000001
+AN10                              00000001
+AN11                              00000004
+AN12                              00000000
+AN2                               00000002
+AN3                               00000003
+AN4                               00000005
+AN5                               00000000
+AN6                               00000001
+AN7                               00000002
+AN8                               00000002
+AN9                               00000003
+BANKED                            00000001
+BARGB0                            00000000
+BAUDCON                           00000FB8
+BAUDCTL                           00000FB8
+BCLIE                             00000003
+BCLIF                             00000003
+BCLIP                             00000003
+BF                                00000000
+BGST                              00000005
+BOR                               00000000
+BRG16                             00000003
+BRGH                              00000002
+MPASM  5.05                         P18PT.ASM   10-19-2006  10:51:44         PAGE 25
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+BSR                               00000FE0
+C                                 00000000
+C1INV                             00000004
+C1OUT                             00000006
+C2INV                             00000005
+C2OUT                             00000007
+CCP1                              00000002
+CCP1CON                           00000FBD
+CCP1IE                            00000002
+CCP1IF                            00000002
+CCP1IP                            00000002
+CCP1M0                            00000000
+CCP1M1                            00000001
+CCP1M2                            00000002
+CCP1M3                            00000003
+CCP1X                             00000005
+CCP1Y                             00000004
+CCP2CON                           00000FBA
+CCP2IE                            00000000
+CCP2IF                            00000000
+CCP2IP                            00000000
+CCP2M0                            00000000
+CCP2M1                            00000001
+CCP2M2                            00000002
+CCP2M3                            00000003
+CCP2X                             00000005
+CCP2Y                             00000004
+CCP2_PORTB                        00000003
+CCP2_PORTC                        00000001
+CCPR1                             00000FBE
+CCPR1H                            00000FBF
+CCPR1L                            00000FBE
+CCPR2                             00000FBB
+CCPR2H                            00000FBC
+CCPR2L                            00000FBB
+CFGS                              00000006
+CHS0                              00000002
+CHS1                              00000003
+CHS2                              00000004
+CHS3                              00000005
+CIS                               00000003
+CK                                00000006
+CKE                               00000006
+CKP                               00000004
+CLKI                              00000007
+CLKO                              00000006
+CM0                               00000000
+CM1                               00000001
+CM2                               00000002
+CMCON                             00000FB4
+CMIE                              00000006
+CMIF                              00000006
+CMIP                              00000006
+MPASM  5.05                         P18PT.ASM   10-19-2006  10:51:44         PAGE 26
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+CREN                              00000004
+CS                                00000002
+CSRC                              00000007
+CVR0                              00000000
+CVR1                              00000001
+CVR2                              00000002
+CVR3                              00000003
+CVRCON                            00000FB5
+CVREF                             00000002
+CVREN                             00000007
+CVROE                             00000006
+CVRR                              00000005
+CVRSS                             00000004
+D                                 00000005
+DC                                00000001
+DC1B0                             00000004
+DC1B1                             00000005
+DC2B0                             00000004
+DC2B1                             00000005
+DDRA                              TRISA
+DDRB                              TRISB
+DDRC                              TRISC
+DDRD                              TRISD
+DDRE                              TRISE
+DONE                              00000001
+D_A                               00000005
+ECCP1AS                           00000FB6
+ECCPAS0                           00000004
+ECCPAS1                           00000005
+ECCPAS2                           00000006
+ECCPASE                           00000007
+EEADR                             00000FA9
+EECON1                            00000FA6
+EECON2                            00000FA7
+EEDATA                            00000FA8
+EEIE                              00000004
+EEIF                              00000004
+EEIP                              00000004
+EEPGD                             00000007
+FAST                              00000001
+FERR                              00000002
+FLTS                              00000002
+FREE                              00000004
+FSR0                              00000000
+FSR0H                             00000FEA
+FSR0L                             00000FE9
+FSR1                              00000001
+FSR1H                             00000FE2
+FSR1L                             00000FE1
+FSR2                              00000002
+FSR2H                             00000FDA
+FSR2L                             00000FD9
+GCEN                              00000007
+MPASM  5.05                         P18PT.ASM   10-19-2006  10:51:44         PAGE 27
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+GIE                               00000007
+GIEH                              00000007
+GIEL                              00000006
+GO                                00000001
+GO_DONE                           00000001
+HLVDCON                           00000FD2
+HLVDEN                            00000004
+HLVDIE                            00000002
+HLVDIF                            00000002
+HLVDIP                            00000002
+HLVDL0                            00000000
+HLVDL1                            00000001
+HLVDL2                            00000002
+HLVDL3                            00000003
+Hund                              00000011
+IBF                               00000007
+IBOV                              00000005
+IDLEN                             00000007
+INDF0                             00000FEF
+INDF1                             00000FE7
+INDF2                             00000FDF
+INT0                              00000000
+INT0E                             00000004
+INT0F                             00000001
+INT0IE                            00000004
+INT0IF                            00000001
+INT1                              00000001
+INT1E                             00000003
+INT1F                             00000000
+INT1IE                            00000003
+INT1IF                            00000000
+INT1IP                            00000006
+INT1P                             00000006
+INT2                              00000002
+INT2E                             00000004
+INT2F                             00000001
+INT2IE                            00000004
+INT2IF                            00000001
+INT2IP                            00000007
+INT2P                             00000007
+INTCON                            00000FF2
+INTCON2                           00000FF1
+INTCON3                           00000FF0
+INTEDG0                           00000006
+INTEDG1                           00000005
+INTEDG2                           00000004
+INTSRC                            00000007
+IOFS                              00000002
+IPEN                              00000007
+IPR1                              00000F9F
+IPR2                              00000FA2
+IRCF0                             00000004
+IRCF1                             00000005
+MPASM  5.05                         P18PT.ASM   10-19-2006  10:51:44         PAGE 28
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+IRCF2                             00000006
+IRVST                             00000005
+IVRST                             00000005
+KBI0                              00000004
+KBI1                              00000005
+KBI2                              00000006
+KBI3                              00000007
+LATA                              00000F89
+LATA0                             00000000
+LATA1                             00000001
+LATA2                             00000002
+LATA3                             00000003
+LATA4                             00000004
+LATA5                             00000005
+LATA6                             00000006
+LATA7                             00000007
+LATB                              00000F8A
+LATB0                             00000000
+LATB1                             00000001
+LATB2                             00000002
+LATB3                             00000003
+LATB4                             00000004
+LATB5                             00000005
+LATB6                             00000006
+LATB7                             00000007
+LATC                              00000F8B
+LATC0                             00000000
+LATC1                             00000001
+LATC2                             00000002
+LATC3                             00000003
+LATC4                             00000004
+LATC5                             00000005
+LATC6                             00000006
+LATC7                             00000007
+LATD                              00000F8C
+LATD0                             00000000
+LATD1                             00000001
+LATD2                             00000002
+LATD3                             00000003
+LATD4                             00000004
+LATD5                             00000005
+LATD6                             00000006
+LATD7                             00000007
+LATE                              00000F8D
+LATE0                             00000000
+LATE1                             00000001
+LATE2                             00000002
+LCDInit                           00000000
+LCDLine_1                         00000000
+LCDLine_2                         00000000
+LSD                               00000007
+LVDCON                            00000FD2
+LVDEN                             00000004
+MPASM  5.05                         P18PT.ASM   10-19-2006  10:51:44         PAGE 29
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+LVDIE                             00000002
+LVDIF                             00000002
+LVDIN                             00000005
+LVDIP                             00000002
+LVDL0                             00000000
+LVDL1                             00000001
+LVDL2                             00000002
+LVDL3                             00000003
+LVV0                              00000000
+LVV1                              00000001
+LVV2                              00000002
+LVV3                              00000003
+Lb1                               000007E2
+Lb2                               000007EA
+Lb3                               000007F2
+Lb4                               000007FA
+MCLR                              00000003
+MSD                               00000009
+MsD                               00000008
+N                                 00000004
+NOT_A                             00000005
+NOT_ADDRESS                       00000005
+NOT_BOR                           00000000
+NOT_CS                            00000002
+NOT_DONE                          00000001
+NOT_MCLR                          00000003
+NOT_PD                            00000002
+NOT_POR                           00000001
+NOT_RBPU                          00000007
+NOT_RD                            00000000
+NOT_RI                            00000004
+NOT_SS                            00000005
+NOT_T1SYNC                        00000002
+NOT_T3SYNC                        00000002
+NOT_TO                            00000003
+NOT_W                             00000002
+NOT_WR                            00000001
+NOT_WRITE                         00000002
+NumH                              0000000D
+NumL                              0000000E
+OBF                               00000006
+OERR                              00000001
+OSC1                              00000007
+OSC2                              00000006
+OSCCON                            00000FD3
+OSCFIE                            00000007
+OSCFIF                            00000007
+OSCFIP                            00000007
+OSCTUNE                           00000F9B
+OSTS                              00000003
+OV                                00000003
+Ones                              00000013
+P                                 00000004
+MPASM  5.05                         P18PT.ASM   10-19-2006  10:51:44         PAGE 30
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+P1B                               00000005
+P1C                               00000006
+P1D                               00000007
+P1M0                              00000006
+P1M1                              00000007
+PC                                00000FF9
+PCFG0                             00000000
+PCFG1                             00000001
+PCFG2                             00000002
+PCFG3                             00000003
+PCL                               00000FF9
+PCLATH                            00000FFA
+PCLATU                            00000FFB
+PD                                00000002
+PDC0                              00000000
+PDC1                              00000001
+PDC2                              00000002
+PDC3                              00000003
+PDC4                              00000004
+PDC5                              00000005
+PDC6                              00000006
+PEIE                              00000006
+PEN                               00000002
+PGC                               00000006
+PGD                               00000007
+PGM                               00000005
+PIE1                              00000F9D
+PIE2                              00000FA0
+PIR1                              00000F9E
+PIR2                              00000FA1
+PLLEN                             00000006
+PLUSW0                            00000FEB
+PLUSW1                            00000FE3
+PLUSW2                            00000FDB
+POR                               00000001
+PORTA                             00000F80
+PORTB                             00000F81
+PORTC                             00000F82
+PORTD                             00000F83
+PORTE                             00000F84
+POSTDEC0                          00000FED
+POSTDEC1                          00000FE5
+POSTDEC2                          00000FDD
+POSTINC0                          00000FEE
+POSTINC1                          00000FE6
+POSTINC2                          00000FDE
+PR2                               00000FCB
+PREINC0                           00000FEC
+PREINC1                           00000FE4
+PREINC2                           00000FDC
+PROD                              00000FF3
+PRODH                             00000FF4
+PRODL                             00000FF3
+MPASM  5.05                         P18PT.ASM   10-19-2006  10:51:44         PAGE 31
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+PRSEN                             00000007
+PSA                               00000003
+PSP0                              00000000
+PSP1                              00000001
+PSP2                              00000002
+PSP3                              00000003
+PSP4                              00000004
+PSP5                              00000005
+PSP6                              00000006
+PSP7                              00000007
+PSPIE                             00000007
+PSPIF                             00000007
+PSPIP                             00000007
+PSPMODE                           00000004
+PSSAC0                            00000002
+PSSAC1                            00000003
+PSSBD0                            00000000
+PSSBD1                            00000001
+PWM1CON                           00000FB7
+R                                 00000002
+RA0                               00000000
+RA1                               00000001
+RA2                               00000002
+RA3                               00000003
+RA4                               00000004
+RA5                               00000005
+RA6                               00000006
+RA7                               00000007
+RB0                               00000000
+RB1                               00000001
+RB2                               00000002
+RB3                               00000003
+RB4                               00000004
+RB5                               00000005
+RB6                               00000006
+RB7                               00000007
+RBIE                              00000003
+RBIF                              00000000
+RBIP                              00000000
+RBPU                              00000007
+RC0                               00000000
+RC1                               00000001
+RC2                               00000002
+RC3                               00000003
+RC4                               00000004
+RC5                               00000005
+RC6                               00000006
+RC7                               00000007
+RCEN                              00000003
+RCIDL                             00000006
+RCIE                              00000005
+RCIF                              00000005
+RCIP                              00000005
+MPASM  5.05                         P18PT.ASM   10-19-2006  10:51:44         PAGE 32
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+RCMT                              00000006
+RCON                              00000FD0
+RCREG                             00000FAE
+RCSTA                             00000FAB
+RD                                00000000
+RD0                               00000000
+RD1                               00000001
+RD16                              00000007
+RD2                               00000002
+RD3                               00000003
+RD4                               00000004
+RD5                               00000005
+RD6                               00000006
+RD7                               00000007
+RE0                               00000000
+RE1                               00000001
+RE2                               00000002
+RE3                               00000003
+RI                                00000004
+RSEN                              00000001
+RX                                00000007
+RX9                               00000006
+RX9D                              00000000
+R_W                               00000002
+S                                 00000003
+SBOREN                            00000006
+SCK                               00000003
+SCKP                              00000004
+SCL                               00000003
+SCS0                              00000000
+SCS1                              00000001
+SDA                               00000004
+SDI                               00000004
+SDO                               00000005
+SEN                               00000000
+SENDB                             00000003
+SMP                               00000007
+SP0                               00000000
+SP1                               00000001
+SP2                               00000002
+SP3                               00000003
+SP4                               00000004
+SPBRG                             00000FAF
+SPBRGH                            00000FB0
+SPEN                              00000007
+SREN                              00000005
+SS                                00000005
+SSPADD                            00000FC8
+SSPBUF                            00000FC9
+SSPCON1                           00000FC6
+SSPCON2                           00000FC5
+SSPEN                             00000005
+SSPIE                             00000003
+MPASM  5.05                         P18PT.ASM   10-19-2006  10:51:44         PAGE 33
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+SSPIF                             00000003
+SSPIP                             00000003
+SSPM0                             00000000
+SSPM1                             00000001
+SSPM2                             00000002
+SSPM3                             00000003
+SSPOV                             00000006
+SSPSTAT                           00000FC7
+STATUS                            00000FD8
+STKFUL                            00000007
+STKOVF                            00000007
+STKPTR                            00000FFC
+STKUNF                            00000006
+SWDTE                             00000000
+SWDTEN                            00000000
+SYNC                              00000004
+T08BIT                            00000006
+T0CKI                             00000004
+T0CON                             00000FD5
+T0CS                              00000005
+T0IE                              00000005
+T0IF                              00000002
+T0PS0                             00000000
+T0PS1                             00000001
+T0PS2                             00000002
+T0SE                              00000004
+T13CKI                            00000000
+T1CKI                             00000000
+T1CKPS0                           00000004
+T1CKPS1                           00000005
+T1CON                             00000FCD
+T1OSCEN                           00000003
+T1OSI                             00000001
+T1OSO                             00000000
+T1RUN                             00000006
+T1SYNC                            00000002
+T2CKPS0                           00000000
+T2CKPS1                           00000001
+T2CON                             00000FCA
+T2OUTPS0                          00000003
+T2OUTPS1                          00000004
+T2OUTPS2                          00000005
+T2OUTPS3                          00000006
+T3CCP1                            00000003
+T3CCP2                            00000006
+T3CKPS0                           00000004
+T3CKPS1                           00000005
+T3CON                             00000FB1
+T3SYNC                            00000002
+TABLAT                            00000FF5
+TBLPTR                            00000FF6
+TBLPTRH                           00000FF7
+TBLPTRL                           00000FF6
+MPASM  5.05                         P18PT.ASM   10-19-2006  10:51:44         PAGE 34
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+TBLPTRU                           00000FF8
+TMR0H                             00000FD7
+TMR0IE                            00000005
+TMR0IF                            00000002
+TMR0IP                            00000002
+TMR0L                             00000FD6
+TMR0ON                            00000007
+TMR1CS                            00000001
+TMR1H                             00000FCF
+TMR1IE                            00000000
+TMR1IF                            00000000
+TMR1IP                            00000000
+TMR1L                             00000FCE
+TMR1ON                            00000000
+TMR2                              00000FCC
+TMR2IE                            00000001
+TMR2IF                            00000001
+TMR2IP                            00000001
+TMR2ON                            00000002
+TMR3CS                            00000001
+TMR3H                             00000FB3
+TMR3IE                            00000001
+TMR3IF                            00000001
+TMR3IP                            00000001
+TMR3L                             00000FB2
+TMR3ON                            00000000
+TO                                00000003
+TOS                               00000FFD
+TOSH                              00000FFE
+TOSL                              00000FFD
+TOSU                              00000FFF
+TRISA                             00000F92
+TRISA0                            00000000
+TRISA1                            00000001
+TRISA2                            00000002
+TRISA3                            00000003
+TRISA4                            00000004
+TRISA5                            00000005
+TRISA6                            00000006
+TRISA7                            00000007
+TRISB                             00000F93
+TRISB0                            00000000
+TRISB1                            00000001
+TRISB2                            00000002
+TRISB3                            00000003
+TRISB4                            00000004
+TRISB5                            00000005
+TRISB6                            00000006
+TRISB7                            00000007
+TRISC                             00000F94
+TRISC0                            00000000
+TRISC1                            00000001
+TRISC2                            00000002
+MPASM  5.05                         P18PT.ASM   10-19-2006  10:51:44         PAGE 35
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+TRISC3                            00000003
+TRISC4                            00000004
+TRISC5                            00000005
+TRISC6                            00000006
+TRISC7                            00000007
+TRISD                             00000F95
+TRISD0                            00000000
+TRISD1                            00000001
+TRISD2                            00000002
+TRISD3                            00000003
+TRISD4                            00000004
+TRISD5                            00000005
+TRISD6                            00000006
+TRISD7                            00000007
+TRISE                             00000F96
+TRISE0                            00000000
+TRISE1                            00000001
+TRISE2                            00000002
+TRMT                              00000001
+TUN0                              00000000
+TUN1                              00000001
+TUN2                              00000002
+TUN3                              00000003
+TUN4                              00000004
+TX                                00000006
+TX9                               00000006
+TX9D                              00000000
+TXEN                              00000005
+TXIE                              00000004
+TXIF                              00000004
+TXIP                              00000004
+TXREG                             00000FAD
+TXSTA                             00000FAC
+TenK                              0000000F
+Tens                              00000012
+Thou                              00000010
+UA                                00000001
+UDIV1608L                         00000000
+UMUL0808L                         00000000
+VCFG0                             00000004
+VCFG1                             00000005
+VDIRMAG                           00000007
+VPP                               00000003
+VREFN                             00000002
+VREFP                             00000003
+W                                 00000000
+WCOL                              00000007
+WDTCON                            00000FD1
+WR                                00000001
+WREG                              00000FE8
+WREN                              00000002
+WRERR                             00000003
+WUE                               00000001
+MPASM  5.05                         P18PT.ASM   10-19-2006  10:51:44         PAGE 36
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+Z                                 00000002
+_BOREN_NOSLP_2L                   000000FD
+_BOREN_OFF_2L                     000000F9
+_BOREN_ON_2L                      000000FB
+_BOREN_SBORDIS_2L                 000000FF
+_BORV_0_2L                        000000E7
+_BORV_1_2L                        000000EF
+_BORV_2_2L                        000000F7
+_BORV_3_2L                        000000FF
+_CCP2MX_PORTBE_3H                 000000FE
+_CCP2MX_PORTC_3H                  000000FF
+_CONFIG1H                         00300001
+_CONFIG2H                         00300003
+_CONFIG2L                         00300002
+_CONFIG3H                         00300005
+_CONFIG4L                         00300006
+_CONFIG5H                         00300009
+_CONFIG5L                         00300008
+_CONFIG6H                         0030000B
+_CONFIG6L                         0030000A
+_CONFIG7H                         0030000D
+_CONFIG7L                         0030000C
+_CP0_OFF_5L                       000000FF
+_CP0_ON_5L                        000000FE
+_CP1_OFF_5L                       000000FF
+_CP1_ON_5L                        000000FD
+_CP2_OFF_5L                       000000FF
+_CP2_ON_5L                        000000FB
+_CP3_OFF_5L                       000000FF
+_CP3_ON_5L                        000000F7
+_CPB_OFF_5H                       000000FF
+_CPB_ON_5H                        000000BF
+_CPD_OFF_5H                       000000FF
+_CPD_ON_5H                        0000007F
+_DEBUG_OFF_4L                     000000FF
+_DEBUG_ON_4L                      0000007F
+_DEVID1                           003FFFFE
+_DEVID2                           003FFFFF
+_EBTR0_OFF_7L                     000000FF
+_EBTR0_ON_7L                      000000FE
+_EBTR1_OFF_7L                     000000FF
+_EBTR1_ON_7L                      000000FD
+_EBTR2_OFF_7L                     000000FF
+_EBTR2_ON_7L                      000000FB
+_EBTR3_OFF_7L                     000000FF
+_EBTR3_ON_7L                      000000F7
+_EBTRB_OFF_7H                     000000FF
+_EBTRB_ON_7H                      000000BF
+_FCMEN_OFF_1H                     000000BF
+_FCMEN_ON_1H                      000000FF
+_IDLOC0                           00200000
+_IDLOC1                           00200001
+_IDLOC2                           00200002
+MPASM  5.05                         P18PT.ASM   10-19-2006  10:51:44         PAGE 37
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+_IDLOC3                           00200003
+_IDLOC4                           00200004
+_IDLOC5                           00200005
+_IDLOC6                           00200006
+_IDLOC7                           00200007
+_IESO_OFF_1H                      0000007F
+_IESO_ON_1H                       000000FF
+_LPT1OSC_OFF_3H                   000000FB
+_LPT1OSC_ON_3H                    000000FF
+_LVP_OFF_4L                       000000FB
+_LVP_ON_4L                        000000FF
+_MCLRE_OFF_3H                     0000007F
+_MCLRE_ON_3H                      000000FF
+_OSC_ECIO6_1H                     000000F5
+_OSC_EC_1H                        000000F4
+_OSC_HSPLL_1H                     000000F6
+_OSC_HS_1H                        000000F2
+_OSC_INTIO67_1H                   000000F8
+_OSC_INTIO7_1H                    000000F9
+_OSC_LP_1H                        000000F0
+_OSC_RCIO6_1H                     000000F7
+_OSC_RC_1H                        000000F3
+_OSC_XT_1H                        000000F1
+_PBADEN_OFF_3H                    000000FD
+_PBADEN_ON_3H                     000000FF
+_PROG1_01F0                       000001F0
+_PROG1_01F6                       000001F6
+_PROG1_0214                       00000214
+_PROG1_0218                       00000218
+_PROG1_0238                       00000238
+_PROG1_023C                       0000023C
+_PROG1_0258                       00000258
+_PROG1_025C                       0000025C
+_PROG1_0278                       00000278
+_PROG1_0280                       00000280
+_PROG1_0298                       00000298
+_PROG1_0366                       00000366
+_PROG1_0370                       00000370
+_PROG1_03D6                       000003D6
+_PROG1_043C                       0000043C
+_PROG1_044A                       0000044A
+_PROG1_044E                       0000044E
+_PROG1_0452                       00000452
+_PROG1_0460                       00000460
+_PROG1_0464                       00000464
+_PROG1_0468                       00000468
+_PROG1_046E                       0000046E
+_PROG1_047C                       0000047C
+_PROG1_0480                       00000480
+_PROG1_0484                       00000484
+_PROG1_048A                       0000048A
+_PROG1_0494                       00000494
+_PROG1_049A                       0000049A
+MPASM  5.05                         P18PT.ASM   10-19-2006  10:51:44         PAGE 38
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+_PROG1_0536                       00000536
+_PROG1_054A                       0000054A
+_PROG1_0604                       00000604
+_PROG1_063C                       0000063C
+_PROG1_0646                       00000646
+_PROG1_067E                       0000067E
+_PROG1_0688                       00000688
+_PROG1_06C2                       000006C2
+_PROG1_06CA                       000006CA
+_PROG1_0708                       00000708
+_PROG1_0728                       00000728
+_PROG1_0766                       00000766
+_PROG1_0808                       00000808
+_PROG1_0818                       00000818
+_PROG1_081C                       0000081C
+_PROG1_0820                       00000820
+_PROG1_0830                       00000830
+_PROG1_0834                       00000834
+_PROG1_0838                       00000838
+_PROG1_0848                       00000848
+_PROG1_084C                       0000084C
+_PROG1_0850                       00000850
+_PROG1_0860                       00000860
+_PROG1_0864                       00000864
+_PROG1_0868                       00000868
+_PROG1_0870                       00000870
+_PWRT_OFF_2L                      000000FF
+_PWRT_ON_2L                       000000FE
+_STVREN_OFF_4L                    000000FE
+_STVREN_ON_4L                     000000FF
+_WDTPS_1024_2H                    000000F5
+_WDTPS_128_2H                     000000EF
+_WDTPS_16384_2H                   000000FD
+_WDTPS_16_2H                      000000E9
+_WDTPS_1_2H                       000000E1
+_WDTPS_2048_2H                    000000F7
+_WDTPS_256_2H                     000000F1
+_WDTPS_2_2H                       000000E3
+_WDTPS_32768_2H                   000000FF
+_WDTPS_32_2H                      000000EB
+_WDTPS_4096_2H                    000000F9
+_WDTPS_4_2H                       000000E5
+_WDTPS_512_2H                     000000F3
+_WDTPS_64_2H                      000000ED
+_WDTPS_8192_2H                    000000FB
+_WDTPS_8_2H                       000000E7
+_WDT_OFF_2H                       000000FE
+_WDT_ON_2H                        000000FF
+_WRT0_OFF_6L                      000000FF
+_WRT0_ON_6L                       000000FE
+_WRT1_OFF_6L                      000000FF
+_WRT1_ON_6L                       000000FD
+_WRT2_OFF_6L                      000000FF
+MPASM  5.05                         P18PT.ASM   10-19-2006  10:51:44         PAGE 39
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+_WRT2_ON_6L                       000000FB
+_WRT3_OFF_6L                      000000FF
+_WRT3_ON_6L                       000000F7
+_WRTB_OFF_6H                      000000FF
+_WRTB_ON_6H                       000000BF
+_WRTC_OFF_6H                      000000FF
+_WRTC_ON_6H                       000000DF
+_WRTD_OFF_6H                      000000FF
+_WRTD_ON_6H                       0000007F
+_XINST_OFF_4L                     000000BF
+_XINST_ON_4L                      000000FF
+__18F4520                         00000001
+b_wait                            0000022A
+bin16_bcd                         000007A0
+bin_bcd                           0000076A
+buzzer                            0000036E
+c_wait                            0000026E
+ccpr1l_out                        000003E8
+clk_done                          00000584
+clock                             00000548
+cmd_byte                          00000005
+col1                              000003F0
+convert_temp                      000004AE
+d100l1                            00000696
+d1l1                              000006AA
+d_write                           00000000
+delay_100ms                       0000068E
+delay_1s                          000006A0
+get_temp                          00000432
+ghundreth                         00000770
+gtenth                            0000077E
+hours                             0000000C
+i_write                           00000000
+inc_ccpr1l                        000003D8
+inc_dc                            000003D4
+inc_hours                         000006D6
+inc_mins                          00000706
+inc_minutes                       00000734
+menu                              000001EE
+menu_buz                          00000216
+menu_clock                        0000025A
+menu_temp                         0000023A
+minutes                           0000000B
+next_digit                        000006E2
+next_digit?                       00000740
+over                              0000078C
+overflow                          00000556
+pol1                              000003AC
+pr2_again                         00000396
+pr2_out                           000003A4
+prod_table                        00000000
+ptr_count                         00000001
+ptr_pos                           00000000
+MPASM  5.05                         P18PT.ASM   10-19-2006  10:51:44         PAGE 40
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+pwm_out                           00000418
+scroll                            PORTA,4
+scroll_dir                        TRISA,4
+seconds                           0000000A
+select                            PORTB,0
+select_dir                        TRISB,0
+set_time                          000006B8
+set_time_again                    000006C0
+set_time_done                     00000764
+ssprw                             
+stan_char_1                       0000060A
+stan_char_2                       0000064C
+stan_next_char_1                  00000628
+stan_next_char_2                  0000066A
+stan_table                        000000F0
+start                             000001B0
+t_wait                            0000024E
+temp                              0000041E
+temp_1                            00000002
+temp_2                            00000003
+temp_3                            00000004
+temp_now                          00000436
+temp_wr                           00000000
+temperature                       00000006
+v_wait                            0000020A
+voltmeter                         0000027E
+volts_again                       00000294
+write_eeprom                      00000804
+
+Errors   :     0
+Warnings :     0 reported,     0 suppressed
+Messages :     0 reported,     0 suppressed
+
+

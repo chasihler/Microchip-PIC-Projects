@@ -1,0 +1,12 @@
+
+USB FRAMEWORK
+--------------------------------------------------------------------------------
+no changes (at the moment ;-)
+
+
+
+BUT IN string.h of c18 :-(
+--------------------------------------------------------------------------------
+623 //VSK
+624 //MEM_MODEL rom char *memchrpgm (auto const MEM_MODEL rom char *s, auto const unsigned char c, auto sizerom_t n);
+

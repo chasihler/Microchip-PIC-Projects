@@ -1,0 +1,190 @@
+/*
+ * File:   main.c
+ * Author: Charles M Douvier  Contact at: http://iradan.com
+ *
+ * Created on April 4th, 2014
+ *
+ * Target Device: PIC Click
+ *
+ * Project: GPS2 
+ *
+ *
+ * Version:
+ * 1.0
+ *
+ */
+#ifndef _XTAL_FREQ
+#define _XTAL_FREQ 4000000 //4Mhz FRC internal osc
+#define __delay_us(x) _delay((unsigned long)((x)*(_XTAL_FREQ/4000000.0)))
+#define __delay_ms(x) _delay((unsigned long)((x)*(_XTAL_FREQ/4000.0)))
+#endif
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <xc.h>
+
+//config bits
+#pragma config WDTEN=OFF, CP0=OFF
+#pragma config STVREN=ON, IESO=OFF, FCMEN=OFF
+#pragma config XINST = OFF
+
+//WRT=OFF, FOSC=INTOSC, MCLRE=ON
+
+#define _XTAL_FREQ 4000000 //defined for delay
+
+int     an8_value, an9_value;          //value for a/d
+    char    buf[10];            //buff for iota
+    long int    fvar;           //long for format math
+    long int    tens;           //left of decm
+    long int    decm;           //decimal places
+    int     tempi;              //to add leadign zeros..
+    int     vtxdata;             //volts int for TX
+    int     itxdata;
+
+    unsigned char serialBuffer[10];
+    unsigned char serialByteCount;
+    static const unsigned char stateCount = 6;
+    volatile unsigned int uart_data;    // use 'volatile' qualifer as this is changed in ISR
+/*
+ *
+ */
+void interrupt ISR() {
+    if (PIR3bits.RC2IF)          // see if interrupt caused by incoming data
+    {
+        uart_data = RCREG2;     // read the incoming data
+        PIR3bits.RC2IF = 0;      // clear interrupt flag
+    }
+}
+void init_io(void) {
+    TRISAbits.TRISA0 = 0; // output
+    TRISAbits.TRISA1 = 0; // output
+    TRISAbits.TRISA2 = 0; // output
+    TRISAbits.TRISA3 = 0; // output
+    TRISAbits.TRISA5 = 0; // output
+    TRISAbits.TRISA6 = 0; // output
+    TRISAbits.TRISA7 = 0; // output
+
+    TRISBbits.TRISB1 = 0;   //P1C output
+    TRISBbits.TRISB2 = 0;  // P1B output
+    TRISBbits.TRISB3 = 1;  // AN9    speed control 0-5V
+    TRISBbits.TRISB4 = 0;  // P1D output
+    TRISBbits.TRISB5 = 1; // RB5 = nc
+    TRISBbits.TRISB6 = 0; // RB6 = nc
+    TRISBbits.TRISB7 = 0; // RB7 = nc
+
+    TRISCbits.TRISC0 = 0; // output to B2 .. reversed to stoke the right direction
+    TRISCbits.TRISC1 = 0; // output to B1
+    TRISCbits.TRISC2 = 0; // output to A2
+    TRISCbits.TRISC3 = 0; // output to A1
+    TRISCbits.TRISC6 = 0; // output
+    TRISCbits.TRISC7 = 0; // output
+
+    TRISDbits.TRISD0 = 0; // output to B2 .. reversed to stoke the right direction
+    TRISDbits.TRISD1 = 0; // output to B1
+    TRISDbits.TRISD5 = 1; // RX Pin Remap
+    TRISDbits.TRISD6 = 1; // TX Pin Remap
+
+    
+    PPSCONbits.IOLOCK = 0;      //unlocked
+    //RX2DT2R<4:0>: EUSART2 Synchronous/Asynchronous Receive (RX2/DT2) to the Corresponding RPn Pin bits
+    //RP22 000[RX2DT2R4 RX2DT2R3 RX2DT2R2 RX2DT2R1 RX2DT2R0]
+    //TX2/CK2 6 EUSART2 Asynchronous Transmit/Asynchronous Clock Output
+    //RP23 000 [RP6R4 RP6R3 RP6R2 RP6R1 RP6R0]
+    //RD5 RX
+    //RD6 TX
+    // Assign RX2 To Pin RP0
+    //MOVLW 0x00 MOVWF RPINR16, BANKED
+    // Assign TX2 To Pin RP1
+    //MOVLW 0x06 MOVWF RPOR1, BANKED
+
+    RPINR16 = 0x16;     //Pin 22 / RD5
+    RPOR23 = 0x06;      //Pin 23 / RD6
+
+    PPSCONbits.IOLOCK = 1;      //locked
+}
+void uart_xmit(unsigned int mydata_byte) {
+    while(!TXSTA2bits.TRMT);    // make sure buffer full bit is high before transmitting
+    TXREG2 = mydata_byte;       // transmit data
+}
+void serial_init(void)
+{
+    //9600 8N1
+    // calculate values of SPBRGL and SPBRGH based on the desired baud rate
+    //
+    // For 8 bit Async mode with BRGH=0: Desired Baud rate = Fosc/64([SPBRGH:SPBRGL]+1)
+    // For 8 bit Async mode with BRGH=1: Desired Baud rate = Fosc/16([SPBRGH:SPBRGL]+1)
+
+    //
+    //- SPEN bit (RCSTA2<7>) must be set (= 1)
+    //- TRIS bit for RPn2/RX2/DT2 = 1
+    //- TRIS bit for RPn1/TX2/CK2 = 0 for
+    //Asynchronous and Synchronous Master modes
+    //- TRISC<6> bit must be set (=
+
+    TXSTA2bits.BRGH=1;       // select low speed Baud Rate (see baud rate calcs below)
+    TXSTA2bits.TX9=0;        // select 8 data bits
+    TXSTA2bits.TXEN = 1;     // enable transmit
+    RCSTA2bits.SPEN=1;       // serial port is enabled
+    RCSTA2bits.RX9=0;        // select 8 data bits
+    RCSTA2bits.CREN=1;       // receive enabled
+    SPBRG1=25;  // here is calculated value of SPBRGH and SPBRGL
+    SPBRGH1=0;
+    PIR3bits.RC2IF=0;        // make sure receive interrupt flag is clear
+    PIE1bits.RCIE=1;        // enable UART Receive interrupt
+    INTCONbits.PEIE = 1;    // Enable peripheral interrupt
+    INTCONbits.GIE = 1;     // enable global interrupt
+    __delay_ms(50);        // give time for voltage levels on board to settle
+    uart_xmit('R');         // transmit some data
+}
+// All this motor and timer code is from Adam with very minor changes to fit the processor
+
+void t0Delay(unsigned int usec)
+{
+    unsigned int t0ticks; //16 microsecond timer0 ticks
+    unsigned char t0Preload;
+    if(usec<16)
+    {
+        t0ticks=1;
+    }
+    else
+    {
+        t0ticks = usec/16;
+    }
+    t0Preload = 0xFF - t0ticks;
+    INTCONbits.TMR0IF=0; //clear the flag
+    TMR0 = t0Preload;
+    while(INTCONbits.TMR0IF==0)
+    {
+        ;
+    }
+}
+
+int main(void) {
+    init_io();
+    serial_init();
+    // set up oscillator control register, using internal OSC at 4MHz.
+    OSCCONbits.IRCF = 0x05; //set OSCCON IRCF bits to select OSC frequency 4MHz
+    OSCCONbits.SCS = 0x02; //set the SCS bits to select internal oscillator block
+    ADCON0 = 0b00100101;                            //select AN9 and enable
+    ADCON1 = 0b00000000;                  //speed Vref=AVdd, VssRef=AVss
+    INTCONbits.TMR0IE = 0;
+    TMR0=0;
+    T0CONbits.T08BIT = 1;
+    T0CONbits.T0CS = 0;
+    T0CONbits.PSA = 0;
+    T0CONbits.T0PS = 0x04;
+    INTCONbits.TMR0IF = 0;
+    T0CONbits.TMR0ON = 1;
+    __delay_ms(149);
+
+    while (1) {
+        PORTAbits.RA0 = 1;      //heart beat
+        __delay_ms(100);
+        PORTAbits.RA0 = 0;
+        __delay_ms(100);
+
+        uart_xmit(uart_data);    // -->RS232
+   
+    }
+    return (EXIT_SUCCESS);
+}

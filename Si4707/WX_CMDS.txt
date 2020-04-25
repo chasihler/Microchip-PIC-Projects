@@ -1,0 +1,61 @@
+
+;POWER UP RADIO
+MOVLW   0x01        ;POWER UP RADIO
+;SEND
+MOVLW b'10010000'   ;ARG 1
+                    ;7: CTSIEN (CTS INT ENABLE)
+;SEND               ;6: GPO2 OUT EN
+                    ;5: PATCH ENABLE (0 = BOOT NORMAL)
+                    ;4: XOSCEN (1=USE XTAL OSC)
+                    ;3-0: 000
+MOVLW B'00000101'   ;ARG2
+                    ;ANALOG AUDIO OUT
+                    ;AN332 PAGE 65
+;SEND
+
+;SET FREQ
+MOVLW   0x50        ;SET FREQ CMD
+;SEND
+
+MOVLW 0x00          ;ARG1
+                    ;0 ALWAYS ZERO
+;SEND
+MOVLW 0xFF          ;ARG2/HI FREQ BYTE 64960-65020 (162400-16255)
+;SEND
+MOVLW 0xF           ;ARG3/LOW FREQ BYTE
+;SEND
+
+
+;STATUS     7:CTS       CLEAR TO SEND
+;           6:ERR       ERROR
+;
+;
+;           3:RSQINT    RX QUAL TRIGGERED
+;           2:SAMEINT   SAME INT1=TRIG
+;           1:ASQINT    AUDIO SIGNAL INT
+;           0:STCINT    TUNE COMPLETE
+
+
+OF INTEREST
+0x52        WB_TUNE_STATUS
+(RSSI)/(SNR), FREQ
+0x54        WB_SAME_STATUS PAGE 188 OF AN332
+0x80        GPIO_CTL
+
+
+// Command Bytes
+const COMMAND_POWER_UP = 0x01        // Powerup
+const COMMAND_GET_REV = 0x10         // Revision info
+const COMMAND_POWER_DOWN = 0x11      // Powerdown
+const COMMAND_SET_PROPERTY = 0x12    // Sets property value
+const COMMAND_GET_PROPERTY = 0x13    // Gets property value
+const COMMAND_GET_INT_STATUS = 0x14  // Read interrupt status bits
+const COMMAND_WB_TUNE_FREQ = 0x50    // Selects WB tuning frequency
+const COMMAND_WB_TUNE_STATUS = 0x52  // Gets status of previous WB_TUNE_FREQ
+const COMMAND_WB_RSQ_STATUS = 0x53   // RSQ of current channel
+const COMMAND_WB_SAME_STATUS = 0x54  // SAME info for current channel
+const COMMAND_WB_ASQ_STATUS = 0x55   // Gets status of 1050 Hz alert tone
+const COMMAND_WB_AGC_STATUS = 0x57   // Gets status of AGC
+const COMMAND_WB_AGC_OVERRIDE = 0x58 // Enable or disable WB AGC
+const COMMAND_GPO_CTL = 0x80         // Configures GPO3 as output or hi-z
+const COMMAND_GPO_SET = 0x81         // Sets GPO3 output level

@@ -1,0 +1,98 @@
+#include <p18f4520.h>
+#include "Application.h"
+#include "stdio.h"
+#include "string.h"
+#include <i2c.h>
+
+//Config fuses
+#pragma config WDT = OFF
+#pragma config WDTPS = 128
+#pragma config OSC = INTIO67
+#pragma config PWRT = OFF
+#pragma config LVP = OFF
+
+//Global buffer used for the Message routines
+char MsgBuffer[];
+
+void main()
+{
+    unsigned char x;
+    unsigned char y;
+
+    //Set the internal osc to 8 MHz
+    OSCCON =  0b01110000;    //8 MHz
+    //Turn on the PLL
+    OSCTUNEbits.PLLEN = 1;
+   
+    //Wait for osc to get stable
+    while(OSCCONbits.OSTS == 0);
+       
+    //Set the port direction bits
+    TRISA     = 0b00000000;
+    TRISB     = 0b00000000;   
+    TRISC     = 0b00000000;
+    TRISD    = 0b00000000;
+    TRISE    = 0b00000000;
+
+    //All Digital
+    ADCON1     = 0b00001111;
+   
+    //Set up the UART
+    initUART(9600);   
+
+    //Sign on to show UART is working
+    DelayMS(200);
+    SignOn();
+   
+    x = 0;
+    y = 0;
+   
+    OpenI2C(MASTER,SLEW_OFF);
+    SSPADD = 0x4E;
+    StopI2C();
+
+
+//main loop code goes here
+
+    while(1)   
+    {
+        ClrWdt();
+   
+        printf("Start\n\r");   
+        StartI2C();
+        IdleI2C();
+
+        WriteI2C(0x42);    //Send address
+        //IdleI2C();
+
+        WriteI2C(0x41);    //Send command "A"
+        //IdleI2C();
+
+        StopI2C();
+        DelayMS(10);    //wait at least 6000 uS
+
+        StartI2C();       
+        IdleI2C();
+
+        WriteI2C(0x43);    //Write read command
+        //IdleI2C();
+       
+        x = ReadI2C();    //Read first byte
+        IdleI2C();
+
+        AckI2C();
+        IdleI2C();
+
+        y = ReadI2C();    //Read second byte
+   ;     IdleI2C();
+    ;    AckI2C();
+     ;   IdleI2C();
+        NotAckI2C();
+        IdleI2C();
+       
+        StopI2C();
+
+        printf("X = %i Y = %i\n\r", x,y);
+        DelayMS(200);       
+    }
+}  

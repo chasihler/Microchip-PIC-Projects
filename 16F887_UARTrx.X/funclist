@@ -1,0 +1,14 @@
+__stringtab: STRING, 329 0 16
+_lcd_puts: CODE, 543 0 36
+__stringdata: STRING, 345 0 51
+_ISR: CODE, 453 0 53
+_main: CODE, 37 0 180
+__initialization: CODE, 21 0 12
+_lcd_clear: CODE, 613 0 20
+_lcd_goto: CODE, 649 0 10
+_serial_init: CODE, 579 0 34
+_lcd_write: CODE, 506 0 37
+_init_io: CODE, 396 0 57
+_lcd_strobe: CODE, 633 0 16
+_lcd_init: CODE, 217 0 112
+Total: 634

@@ -1,0 +1,99 @@
+list	p=18F1320
+	include	<p18f1320.inc>
+	CONFIG	OSC=INTIO2,WDT=OFF,MCLRE=ON,LVP=OFF,DEBUG=ON
+ 
+	cblock	0x00
+		d1,d2,d3,dec1,dec2,count,num
+	endc
+ 
+	org	0x0000
+init	bsf	OSCCON,IRCF2	;set to 8MHz clock
+	bsf	OSCCON,IRCF1
+	bsf	OSCCON,IRCF0
+	movlw	0x7f		;set PortA to all digital
+	movwf	ADCON1
+	clrf	TRISA		;set PortA pins to output
+	clrf	LATA		;turn off LEDs
+	clrf	count
+	movlw	b'00010010'	;set PortB - RB4=RX=input
+	movwf	TRISB
+	call	rs_init
+	bsf	TXSTA,TXEN	;transmit enable
+ 
+main	clrf	TBLPTRH
+	movlw	text
+	movwf	TBLPTRL
+next_ch	tblrd	*+
+	movf	TABLAT,W
+	bz	goagain
+	call	rs_send
+	goto	next_ch
+goagain	incf	num
+	movf	num,W
+	call	fix
+	movf	dec1,W
+	call	rs_send
+	movf	dec2,W
+	call	rs_send
+	movlw	0x0d
+	call	rs_send
+	movlw	0x0a
+	call	rs_send
+	call	delay
+	call	delay
+	call	delay
+	call	delay
+	goto	main
+ 
+;Sends byte in W to RS232
+rs_send	movwf	TXREG
+sdloop	btfss	TXSTA,TRMT
+	goto	sdloop
+	return
+ 
+text	db	"RS232 on the 8 MHz clocked PIC 18F1320!",0x0d,0x0a,"It is the  
+greatest!",0x0d,0x0a,0x0a
+ 
+rs_init	movlw	0x0c		;set for 9600 baud @ 8MHz clock
+	movwf	SPBRG
+	bcf	TXSTA,BRGH	;clear Baud Rate Select Bit (low speed)
+	bcf	BAUDCTL,BRG16	;select 8-bit baud rate generator
+	bcf	TXSTA,SYNC	;asynchronous mode
+	bsf	RCSTA,SPEN	;enable serial port
+	return
+ 
+;********************************************************* 
+;*fix - subroutine takes byte passed in W - splits it into 
+;*two ascii bytes in dec1 and dec2, representing decimal digits.	 
+fix	movwf	dec2		;put number in dec2
+	clrf	count		;count = 0 
+	movlw	10		;W = 10
+tens	subwf	dec2,F		;subtract 10 from number
+	btfsc	STATUS,C	;check if result <10 
+	goto	again		;no, go again 
+	movf	count,W		;yes, put count in W 
+	addlw	0x30		;add $30 to make it an ASCII number 
+	movwf	dec1		;and store it in dec1 
+	movf	dec2,W		;get remainder (2nd digit)
+	addlw	10		;put the last subtract back 
+	addlw	0x30		;add $30 to make it ASCII 
+	movwf	dec2		;store it back in dec2 
+	return			;and return
+again	incf	count,F		;increment count 
+	goto	tens		;go again 
+ 
+delay	movlw	0x01
+	movwf	d1
+	movlw	0x7f
+	movwf	d2
+	movlw	0x01
+	movwf	d3
+delay_0	decfsz	d1,f
+	goto	$+6
+	decfsz	d2,f
+	goto	$+6
+	decfsz	d3,f
+	goto	delay_0
+	return
+ 
+	end

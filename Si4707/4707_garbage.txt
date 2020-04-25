@@ -1,0 +1,686 @@
+
+
+0x50		//tune to freq
+	0x00
+	0x__		"" = 	64960 = 162.4
+	0X__				65020 = 162.55	
+---	
+	
+						60
+						15
+						162425
+						
+162400	64960	FDC0
+162425	64970	FDCA
+162450	64980	FDD4
+162475	64990	FDDE
+162500	65000	FDE8
+162525	65010	FDF2
+162550	65020	FDFC
+						
+
+0x52
+0x01
+	RCX
+	STATUS	//interrupts and errors
+	RSP1	//valid
+	RSP2 	FREQ1
+	RSP3	FREQ2
+	RSP4	RSSI
+	RSP5	SNR
+						
+0x54 SAME_STATUS query SAME_STATUS
+
+0x54
+	0x03	CLEAR SAME MESSAGE BUFFER OR 0x00 GENERAL READ
+	0x__	READ_ADDR, START ARE WHAT BYTE
+	RCX
+	STATUS<D2=SAME INT><D1=ASQ INT>
+	RSP1 <3>EOM, <2>STARTOFMSG, <1>PREAMBLE DETECT 
+	RSP2	STATE
+	RSP3	MSG LENGTH
+	RSP4	<CONFIDENCE METRICS 0-3
+	...		READ_ADDR+0 (DATA)
+	RSP13
+	
+	
+0x55 ASQ_STATUS query status of 1050Hz tone
+	0x00 <NORMAL>, 0x01<RST INTRPT>
+	RCX
+	STATUS
+	RSP1	<1>alertoff_int<0>aleton_int
+	RSP2 <D0> ALERT
+	
+STATUS:
+7 CTS
+Clear to Send.
+0 = Wait before sending next command.
+1 = Clear to send next command.
+6 ERR
+Error.
+0 = No error
+1 = Error
+5:4 Reserved Values may vary.
+3 RSQINT
+Received Signal Quality Interrupt.
+0 = Received Signal Quality measurement has not been triggered.
+1 = Received Signal Quality measurement has been triggered.
+2 SAMEINT
+SAME Interrupt (Si4707 Only).
+0 = SAME interrupt has not been triggered.
+1 = SAME interrupt has been triggered.
+1 ASQINT
+Audio Signal Quality Interrupt.
+0 = Audio Signal Quality measurement has not been triggered.
+1 = Audio Signal Quality measurement has been triggered.
+0 STCINT
+Seek/Tune Complete Interrupt.
+0 = Tune complete has not been triggered.
+1 = Tune complete interrupt has been triggered.
+
+0x4000	VOLUME
+0x0000 0-63 (63=default)
+
+0x4001	MUTE
+0x0003	MUTE L&R 0x0000 NO MUTE
+
+0x4000 output vol
+0x4001 hard mute
+
+
+
+unsigned long tuneFrequency = 162475;
+
+
+return command_Tune_Freq((freqKhz * 10)/25);
+
+void tuneWBFrequency(signed char increment)
+{
+  unsigned int freq = getWBFrequency();
+  freq += increment;
+  freq = constrain(freq, 64960, 65020);
+
+  command_Tune_Freq(freq);
+  
+  
+  
+  void setMuteVolume(boolean mute)
+{
+  // Mute left (bit 1) and right (bit 0) channels
+  setProperty(PROPERTY_RX_HARD_MUTE, (mute<<1) | (mute<<0));
+}
+
+// This functionn interacts with the RX_VOLUME property of the Si4707.
+//  Send a volume value (vol) between 0 (mute) and 63 (max volume).
+void setVolume(int vol)
+{
+  vol = constrain(vol, 0, 63); // vol should be between 0 and 63 
+  setProperty(PROPERTY_RX_VOLUME, vol);
+}
+
+
+
+/* Si4707_system_functions contains the nitty gritty system
+functions used to interface with the Si4707. High-level stuff,
+like constructing command strings, and parsing response strings.
+Also functions like sending commands, and waiting for the
+clear-to-send bit to be set.
+There are prettier wrappers for most of these functions in
+the example sketch.
+At the bottom of this sketch are functions used to interface
+with the Wire library - i2cWriteBytes and i2cReadBytes. */
+ 
+//////////////////////////////
+// High level functions //////
+//////////////////////////////
+
+// These arrays will be used by most command functions to construct
+// the command string and receive response bytes.
+byte rsp[15];
+byte cmd[8];
+
+/* powerup(): Sends the POWER_UP command to initiate the boot
+process, moving the Si4707 from powerdown to powerup mode.
+This performs critical operations in configuring the Si4707
+crystal oscillator, and turning on WB receive. */
+void powerUp(void)
+{
+  /* Power up (0x01) - initiate boot process.
+2 Arguments:
+ARG1: (CTSIEN)(GPO2OEN)(PATCH)(XOSCEN)(FUNC[3:0])
+ARG2: (OPMODE[7:0])
+Response: none (if FUNC = 3)*/
+  cmd[0] = COMMAND_POWER_UP; // Command 0x01: Power Up
+  cmd[1] = 0x53; // GP02 output enabled, crystal osc enabled, WB receive mode
+  cmd[2] = 0x05; // Use analog audio outputs
+  writeCommand(3, cmd, 0, rsp);
+  
+  delay(POWER_UP_TIME_MS);
+}
+
+/* command_Tune_Freq(uint16_t frequency) sends the WB_TUNE_FREQ command
+with freqeuncy as the arguments. After tuning, the WB_TUNE_STATUS
+command is sent to verify whether or not tuning was succesful.
+frequency should be a 16-bit value equal to the freq. you want to
+tune to divided by 2.5kHz.
+For example, for 162.4MHz send 64960 (162400000 / 2500 = 64960)
+For 162.55 MHz send 65020 (162550000 / 2500 = 65020).
+Return RESP1 byte of WB_TUNE_STATUS response (valid and afcrl bits) */
+byte command_Tune_Freq(unsigned int frequency)
+{
+  cmd[0] = COMMAND_WB_TUNE_FREQ;
+  cmd[1] = 0;
+  cmd[2] = (uint8_t)(frequency >> 8);
+  cmd[3] = (uint8_t)(frequency & 0x00FF);
+  writeCommand(4, cmd, 1, rsp);
+  
+  delay(500); // Delay required to allow time to tune
+  
+  return (command_Tune_Status(1, 1) >> 8);
+}
+
+/* WB_TUNE_STATUS (0x52) - Returns current frequency and RSSI/SNR
+at the moment of tune.
+Arguments (1 byte):
+(1) ARG1 - bit 0: INTACK (if set, clears seek/tune complete int)
+Response (6 bytes):
+(1) Status
+(2) bit 1: AFC rail indicator
+bit 0: Valid channel indicator
+(3) READFREQ(H) - Read frequency high byte
+(4) READFREQ(L) - Read frequency low byte
+(5) RSSI - Receive signal strength at frequency
+(6) SNR - Signal-to-noise ratio at frequency */
+unsigned int command_Tune_Status(byte intAck, byte returnIndex)
+{
+  cmd[0] = COMMAND_WB_TUNE_STATUS;
+  cmd[1] = (intAck & 0x01);
+  writeCommand(2, cmd, 6, rsp);
+  
+  return ((rsp[returnIndex] << 8) | rsp[returnIndex + 1]);
+}
+
+/* command_Get_Rev() sends the GET_REV command
+Response (9 bytes):
+(0) Status (Should have CTS bit (7) set)
+(1) PN[7:0] - Final two digits of part number
+(2) FWMAJOR[7:0] - Firmware major revision
+(3) FWMINOR[7:0] - Firmware minor revision
+(4) PATCH(H) - Patch ID high byte
+(5) PATCH(L) - Patch ID low byte
+(6) CMPMAJOR[7:0] - Component major revision
+(7) CMPMINOR[7:0] - Component minor revision
+(8) CHIPREV[7:0] - Chip revision
+Returns the response byte requested */
+byte command_Get_Rev(byte returnIndex)
+{
+  cmd[0] = COMMAND_GET_REV;
+  writeCommand(1, cmd, 9, rsp);
+  
+  return rsp[returnIndex];
+}
+/* command_SAME_Status() sends the WB_SAME_STATUS command and
+returns the requested byte in the response
+Arguments (2 bytes):
+(0): ()()()()()()(CLRBUF)(INTACK)
+(1): READADDR[7:0]
+Response (13 bytes):
+(0): Status byte
+(1): ()()()()(EMODET)(SOMDET)(PREDET)(HDRRDY)
+(2): STATE[7:0]
+(3): MSGLEN[7:0]
+(4): Confidence of data bytes 7-4
+(5): Confidence of data bytes 3-0
+(6-13): DATA0, DATA1, ..., DATA7
+This fucntion needs some work... */
+byte command_SAME_Status(byte returnIndex)
+{
+  cmd[0] = COMMAND_WB_SAME_STATUS;
+  cmd[1] = 0;
+  cmd[2] = 0;
+  
+  writeCommand(3, cmd, 14, rsp);
+  
+  return rsp[returnIndex];
+}
+/* WB_RSQ_STATUS (0x53) - Returns status information about
+received signal quality - RSSI, SNR, freq offset.
+Argument (1 byte):
+(0) bit 0: Interrupt acknowledge
+Response (8 bytes):
+(0) Status (Should have CTS bit (7) set)
+(1) RESP1: ()()()()(SNRHINT)(SNRLINT)(RSSIHINT)(RSSILINT)
+(2) RESP2: ()()()()()()(AFCRL)(VALID)
+(3) Nothing
+(4) RSSI[7:0] - Received signal strength indicator
+(5) SNR[7:0] - Signal-to-noise metric
+(6) Nothing
+(7) FREQOFF[7:0] - signed frequency offset in kHz */
+byte command_RSQ_Status(byte returnIndex)
+{
+
+  cmd[0] = COMMAND_WB_RSQ_STATUS;
+  cmd[1] = 0;
+  
+  writeCommand(2, cmd, 8, rsp);
+  
+  return rsp[returnIndex];
+}
+
+/* command_Get_Int_Status() sends the GET_INT_STATUS command and returns
+the byte from the commands response
+*/
+byte command_Get_Int_Status(void)
+{
+  cmd[0] = COMMAND_GET_INT_STATUS;
+  cmd[1] = 0;
+  rsp[1] = 0;
+  
+  writeCommand(1, cmd, 1, rsp);
+  
+  return rsp[0];
+}
+
+// This function will wait until the CTS (clear-to-send) bit has
+// been set (or will timeout after 500 ms)
+void waitForCTS(void)
+{
+  byte status = 0;
+  int i = 1000;
+  
+  while (--i && !(status&0x80))
+  {
+    i2cReadBytes(1, &status);
+    delayMicroseconds(500);
+  }
+}
+
+// This function will write a command string with a given size
+// And retrun a filled reply string with replySize bytes in it.
+void writeCommand(byte cmdSize, byte * command, byte replySize, byte * reply)
+{
+  waitForCTS();
+  i2cWriteBytes(cmdSize, command);
+  waitForCTS();
+  if (replySize)
+  {
+    i2cReadBytes(replySize, reply);
+  }
+  
+  for (int i=0; i<replySize; i++)
+  {
+    reply[i] += 1;
+    reply[i] -= 1;
+  }
+}
+
+// This function returns a two-byte property from the requested
+// property address.
+unsigned int getProperty(unsigned int property)
+{
+  cmd[0] = COMMAND_GET_PROPERTY;
+  cmd[1] = 0;
+  cmd[2] = (byte)((property & 0xFF00) >> 8);
+  cmd[3] = (byte)(property & 0x00FF);
+  writeCommand(4, cmd, 4, rsp);
+  
+  return ((rsp[2] << 8) | rsp[3]);
+}
+
+// This function sets a property to the given two-byte property
+// value.
+void setProperty(unsigned int propNumber, unsigned int propValue)
+{
+  cmd[0] = COMMAND_SET_PROPERTY;
+  cmd[1] = 0;
+  cmd[2] = (uint8_t)(propNumber >> 8);
+  cmd[3] = (uint8_t)(propNumber & 0x00FF);
+  cmd[4] = (uint8_t)(propValue >> 8);
+  cmd[5] = (uint8_t)(propValue & 0x00FF);
+  
+  writeCommand(6, cmd, 1, rsp);
+}
+
+//////////////////////////////
+// Low level functions ///////
+//////////////////////////////
+
+// Read a specified number of bytes via the I2C bus.
+// Will timeout if there is no response from the address.
+void i2cReadBytes(byte number_bytes, byte * data_in)
+{
+  int timeout = 1000;
+  
+  Wire.requestFrom((byte) SI4707_ADDRESS, number_bytes);
+  while ((Wire.available() < number_bytes) && (--timeout))
+    ;
+  while((number_bytes--) && timeout)
+  {
+    *data_in++ = Wire.read();
+  }
+  Wire.endTransmission();
+}
+
+// Write a specified number of bytes to the Si4707.
+void i2cWriteBytes(uint8_t number_bytes, uint8_t *data_out)
+{
+  Wire.beginTransmission(SI4707_ADDRESS);
+  while (number_bytes--)
+  {
+    Wire.write(*data_out++);
+  }
+  Wire.endTransmission();
+}
+
+
+
+/* Si4707 Breakout Example Code - I2C version
+by: Jim Lindblom
+SparkFun Electronics
+date: February 28, 2012
+license: Beerware. Please use, re-use, and modify this code without
+restriction! We hope you find it useful. If you do, feel free to buy us
+a beer when we meet :).
+This example code shows off some of the functionality of the Si4707
+weather band receiver IC. Throw this code on your favorite Arduino
+and connect it like so:
+Si4707 Breakout -------------- Arduino
+3.3V ---------------------- 3.3V
+GND ---------------------- GND
+SDIO ---------------------- SDA (A4 on older 'duinos)
+SCLK ---------------------- SCL (A5 on older 'duinos
+RST ---------------------- 4 (can be any digital pin)
+
+Any other pins on the Si4707 breakout can be left unconnected.
+The SEN pin is pulled high, which will affect the I2C address.
+The GPO1/2 pins are not used as outputs, and their default
+states set the Si4707 into I2C mode.
+For more information on the Si4707, check out the abundance of
+information provided by Silicon Labs:
+https://www.silabs.com/products/audiovideo/amfmreceivers/Pages/Si4707.aspx
+Specifically, check out the Programming Guide (AN332).
+When you start up the sketch, it will attempt to initialize the
+Si4707 and tune to the frequency defined by the tuneFrequency
+global variable. After tuning a menu will be printed to the
+serial monitor, have fun interacting with the options presented!
+*/
+#include "si4707_definitions.h"
+#include <Wire.h>
+
+// In 2-wire mode, connecting the SEN pin to the Arduino is optional.
+// If it's not connected, make sure SEN_ADDRESS is defined as 1
+// assuming SEN is pulled high as on the breakout board.
+#define SEN_ADDRESS 1
+// In two-wire mode: if SEN is pulled high
+#if SEN_ADDRESS
+#define SI4707_ADDRESS 0b1100011
+#else // Else if SEN is pulled low
+#define SI4707_ADDRESS 0b0010001
+#endif
+  
+// Pin definitions:
+// (If desired, these pins can be moved to other digital pins)
+// SEN is optional, if not used, make sure SEN_ADDRESS is 1
+const int senPin = 5;
+const int rstPin = 4;
+// Not defined, because they must be connected to A4 and A5,
+// are SDIO and SCLK.
+
+// Put the WB frequency you'd like to tune to here:
+// The value should be in kHz, so 162475 equates to 162.475 MHz
+// The sketch will attempt to tune to this frequency when it starts.
+// Find your frequency here: http://www.nws.noaa.gov/nwr/indexnw.htm
+unsigned long tuneFrequency = 162475; // 162.475 MHz
+
+// Initial volume level:
+int rxVolume = 63; // Maximum loudness (should be between 0 and 63)
+
+// The setup function initializes Serial, the Si4707, and tunes the Si4707
+// to the WB station defined at the top of this sketch (tuneFrequency).
+// To finish, it prints out the interaction menu over serial.
+void setup()
+{
+  // Serial is used to interact with the menu, and to print debug info
+  Serial.begin(9600);
+  
+  // First, initSi4707() must be called. The function returns the value
+  // of the Part Number reported by the Si4707, which can be checked
+  // to verify communication. It should always be 7.
+  byte partNumber = initSi4707();
+  if (partNumber == 7)
+    Serial.println("Successfully connected to Si4707");
+  else
+  {
+    Serial.print("Didn't connect to an Si4707...Error: ");
+    Serial.println(partNumber);
+    while(1)
+      ;
+  }
+  
+  // After initializing, we can tune to a WB frequency. Use the
+  // setWBFrequency() function to tune to a frequency. The frequency
+  // parameter given to the function should be your chosen frequency in
+  // kHz. So to tune to 162.55 MHz, send 162550. The tuneFrequency
+  // variable is defined globablly near the top of this sketch.
+  if (setWBFrequency(tuneFrequency))
+  {
+    Serial.println(F("Tune Success!"));
+  }
+  else
+    Serial.println(F("Tune unsuccessful"));
+  
+  // After tuning, check out the serial monitor to interact with the menu.
+  printMenu();
+}
+
+void loop()
+{
+  // Wait for a serial byte to be received:
+  while( !Serial.available() )
+    ;
+  char c = Serial.read();
+  // Once received, act on the serial input:
+  switch (c)
+  {
+  case 'u':
+    tuneWBFrequency(1); // Tune up 1 increment (2.5kHz)
+    break;
+  case 'd':
+    tuneWBFrequency(-1); // Tune down 1 increment (2.5kHz)
+    break;
+  case 'U':
+    tuneWBFrequency(10); // Tune up 10 increments (25kHz)
+    break;
+  case 'D':
+    tuneWBFrequency(-10); // Tune down 10 increments (25kHz)
+    break;
+  case 's':
+    printSAMEStatus();
+    break;
+  case 'r':
+    Serial.print("RSSI = ");
+    Serial.println(getRSSI());
+    break;
+  case 'S':
+    Serial.print("SNR = ");
+    Serial.println(getSNR());
+    break;
+  case 'o':
+    Serial.print("Frequency offset = ");
+    Serial.println(getFreqOffset());
+    break;
+  case 'f':
+    Serial.print("Frequency = ");
+    // getWBFrequency() returns the 2-byte frequency code sent
+    // to the Si4707. To get a real-looking freq, multiply by .0025
+    Serial.print((float) getWBFrequency() * 0.0025, 4);
+    Serial.println(" MHz");
+    break;
+  case 'm':
+    setMuteVolume(1); // Turn mute on
+    break;
+  case 'M':
+    setMuteVolume(0); // Turn mute off
+    break;
+  case '+':
+    setVolume(++rxVolume); // increment volume
+    break;
+  case '-':
+    setVolume(--rxVolume); // decrement volume
+    break;
+  case 'h':
+    printMenu(); // print the help menu
+  }
+}
+
+void printMenu()
+{
+  Serial.println();
+  Serial.println(F("Si4707 Weather Band Example Code Menu"));
+  Serial.println(F("====================================="));
+  Serial.println(F("\t u) Fine tune up (+2.5kHz)"));
+  Serial.println(F("\t d) Fine tune down (-2.5kHz)"));
+  Serial.println(F("\t U) Coarse tune up (+25kHz)"));
+  Serial.println(F("\t D) Coarse tune down (-25kHz)"));
+  Serial.println(F("\t s) Get SAME status"));
+  Serial.println(F("\t r) Get RSSI"));
+  Serial.println(F("\t S) Get SNR"));
+  Serial.println(F("\t o) Get Frequency offset"));
+  Serial.println(F("\t f) Get Tune Frequency"));
+  Serial.println(F("\t m) Mute audio output"));
+  Serial.println(F("\t M) Un-mute audio output"));
+  Serial.println(F("\t +) Increase volume"));
+  Serial.println(F("\t -) Decrease volume"));
+  Serial.println(F("\t h) Re-print this menu"));
+  Serial.println();
+}
+
+// initSi4707 performs the following functions, in sequence:
+// * Initialize all pins connected to Si4707 (SEN, SCLK, SDIO, and RST)
+// * Starts up the Wire class - used for two-wire communication
+// * Applies a reset signal to the Si4707
+// * Sends the Power Up command to the Si4707
+// * Sends the GET REV command to verify communication, returns the final
+// two digits of the Part Number (should be 7)
+byte initSi4707()
+{
+  // Set initial pin value: RST (Active-low reset)
+  pinMode(rstPin, OUTPUT); // Reset
+  digitalWrite(rstPin, LOW); // Keep the SI4707 in reset
+  
+  // Set initial pin value: SEN (I2C Address select)
+  pinMode(senPin, OUTPUT); // Serial enable
+  if (SEN_ADDRESS)
+    digitalWrite(senPin, HIGH);
+  else
+    digitalWrite(senPin, LOW);
+  
+  // Set initial pin values: SDIO and SCLK (serial data and clock lines)
+  // Wire.begin() will take care of this
+  Wire.begin();
+  delay(1); // Short delay before we take reset up
+  
+  // Raise RST, SCLK must not rise within 300ns before RST rises
+  digitalWrite(rstPin, HIGH);
+  delay(1); // Give Si4707 a little time to reset
+  
+  // First, send the POWER UP command to turn on the Si4707.
+  // The Si4707 must be powered up before sending any further commands.
+  powerUp();
+  
+  // See Si4707_system_functions.ino for info on command_Get_Rev
+  return command_Get_Rev(1);
+}
+
+// Ths function sets the Si4707 to the freq it receives.
+// freq should represent the frequency desired in kHz.
+// e.g. 162400 will tune the radio to 162.400 MHz.
+byte setWBFrequency(long freq)
+{
+  // Keep tuned frequency between valid limits (162.4 - 162.55 MHz)
+  long freqKhz = constrain(freq, 162400, 162550);;
+    
+  Serial.print("Tuning to: ");
+  Serial.print((float) freqKhz / 1000.0, 4);
+  Serial.println(" MHz");
+  
+  // See si4707_system_functions.ino for info on command_Tune_Freq
+  return command_Tune_Freq((freqKhz * 10)/25);
+}
+
+// This function does incremental tunes on the Si4707. Send a
+// signed value representing how many increments you'd like to go
+// (up is positive, down is negative). Each increment is 2.5kHz.
+void tuneWBFrequency(signed char increment)
+{
+  unsigned int freq = getWBFrequency();
+  freq += increment;
+  freq = constrain(freq, 64960, 65020);
+    
+  Serial.print("Tuning to: ");
+  Serial.print((float) freq * 0.0025, 4);
+  Serial.println(" MHz");
+  
+  // See si4707_system_functions.ino for info on command_Tune_Freq
+  command_Tune_Freq(freq);
+}
+
+// Returns the two-byte Si4707 representation of the frequency.
+unsigned int getWBFrequency()
+{
+  // See si4707_system_functions.ino for info on command_Tune_Status
+  return command_Tune_Status(0, 2);
+}
+
+// Returns the recieved signal strength reported by Si4707
+byte getRSSI()
+{
+  // See si4707_system_functions.ino for info on command_RSQ_Status
+  return command_RSQ_Status(4);
+}
+
+// Returns the signal-to-noise ratio reported by the Si4707
+byte getSNR()
+{
+  // See si4707_system_functions.ino for info on command_RSQ_Status
+  return command_RSQ_Status(5);
+}
+
+// Returns the frequency offset reported by the Si4707
+signed char getFreqOffset()
+{
+  // See si4707_system_functions.ino for info on command_RSQ_Status
+  return (signed char) command_RSQ_Status(7);
+}
+
+// Prints the status value of the SAME status command
+// Work still do be done on this function. (Haven't had a WSW recently!)
+void printSAMEStatus()
+{
+  byte sameStatus = command_SAME_Status(2);
+  if (!sameStatus)
+    Serial.println("No SAME message detected");
+  else
+  {
+    Serial.print("SAME status: ");
+    Serial.println(sameStatus);
+    Serial.print("Message length: ");
+    Serial.println(command_SAME_Status(3));
+  }
+}
+
+// Depending on the value of the mute boolean, this function will either
+// mute (mute=1) or un-mute (mute=0) the Si4707's audio output.
+void setMuteVolume(boolean mute)
+{
+  // Mute left (bit 1) and right (bit 0) channels
+  setProperty(PROPERTY_RX_HARD_MUTE, (mute<<1) | (mute<<0));
+}
+
+// This functionn interacts with the RX_VOLUME property of the Si4707.
+// Send a volume value (vol) between 0 (mute) and 63 (max volume).
+void setVolume(int vol)
+{
+  vol = constrain(vol, 0, 63); // vol should be between 0 and 63
+  setProperty(PROPERTY_RX_VOLUME, vol);
+}

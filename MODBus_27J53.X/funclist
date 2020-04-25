@@ -1,0 +1,15 @@
+__stringdata: SMALLCONST, 3841 0 8
+_ISR: CODE, 8 0 314
+_main: CODE, 4114 0 188
+___delay_10ms: CODE, 5036 0 28
+_check_master_crc: CODE, 4630 0 162
+_modbus_crc: CODE, 4302 0 166
+_respond_input_status: CODE, 3850 0 264
+__initialization: CODE, 4854 0 44
+_check_my_address: CODE, 4468 0 162
+_serial_init: CODE, 4998 0 38
+_run_timer: CODE, 4958 0 40
+_write_uart: CODE, 4912 0 46
+_init_io: CODE, 4792 0 62
+_uart_xmit: CODE, 5064 0 10
+Total: 1532

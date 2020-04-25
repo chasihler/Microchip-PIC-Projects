@@ -1,0 +1,7 @@
+_clk: CODE, 1955 0 4
+_main: CODE, 1983 0 30
+__initialization: CODE, 2045 0 0
+_latch: CODE, 1951 0 4
+_shift_out: CODE, 2013 0 32
+_init_io: CODE, 1959 0 24
+Total: 94

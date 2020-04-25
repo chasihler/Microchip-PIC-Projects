@@ -1,0 +1,5 @@
+_main: CODE, 2002 0 43
+__initialization: CODE, 2045 0 0
+_init_dac: CODE, 1969 0 5
+_init_io: CODE, 1974 0 28
+Total: 76

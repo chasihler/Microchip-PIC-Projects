@@ -1,0 +1,16 @@
+_I2C_Start_Bit: CODE, 1432 0 15
+_poll_lcd: CODE, 1389 0 1
+_Tune550: CODE, 1535 0 51
+_main: CODE, 1871 0 159
+_RST_4707: CODE, 1418 0 14
+_Send_I2C_Data: CODE, 1396 0 9
+__initialization: CODE, 2030 0 15
+___lldiv: CODE, 1652 0 82
+_I2C_Stop_Bit: CODE, 1405 0 13
+_I2C_Control_Write: CODE, 1447 0 16
+___llmod: CODE, 1586 0 66
+_ltoa: CODE, 1487 0 48
+_ultoa: CODE, 1734 0 137
+_init_io: CODE, 1463 0 24
+_lcd_init: CODE, 1388 0 1
+Total: 651

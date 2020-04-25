@@ -1,0 +1,1380 @@
+ title  "Cheap Logic Analyzer Version 2.0 with 18F2620"
+
+;
+; c:\Program Files\Microchip\MPASM Suite\MPASMWIN.exe /pPIC18F2620 /q /aINHX32 /rDEC /t3 /x CheapLA_18F.asm
+; Version 0.50
+;  Ted Rossin: 8-16-2010
+;	           12-03-2010
+;
+; Data input on PORTB
+; Use a 10MHz crystal (uses 4xPLL for 40MHz operation --> 100ns/cycle)
+;    
+; ToDo:
+;  0. Add trigger found code for slow sampling rates
+;	   movlw	2					; Tell host trigger found
+;	   call	SendRS232Byte
+;      make sample   ;  Not good for 2us/sample mode but would be nice for 250us/sample same code so bummer.  
+;  1. Think about adding 4,2 and 1 channel modes.  
+;  2. Slow sampling rates of (Delay+1)*250us sample rate
+;
+; 2M sample/sec 4 channel mode
+;	movf	PORTB,w 
+;	movwf	IND0
+;	swapf	IND0
+;	nop
+;	nop
+;	movf	PORTB,w
+;	iorwf	POSTINC0
+;	decfsz	Loop,f,1
+;	  bra	$-16
+;
+;
+; Recent changes:
+;   12-02-2010: Added ability to read all 5 A/D channels quickly
+;   12-01-2010: Fixed Read of ADC (must write ADCON0 last)
+;   11-30-2010: Added Read ADC
+;   11-28-2010: Added (Delay+1)us/sample code
+;   11-27-2010: Added 1us/sample code.
+;   9-25-2010:  Fixed Firmware download command decode to be in private space
+;   9-18-2010:  Fixed code for RLE.
+;   9-12-2010:  Adding code for RLE.
+;   9-10-2010:  Added weak pullup on port B!
+;   9-03-2010:  Added Firmware upload/download and ability to read all samples
+;   8-31-2010:  Added 5M Sample/sec mode
+;   8-27-2010:  Converted to use BSR of 0xf to put variables at 0xf70 to 0xf7f and samples
+;               are located from location 0 to 0xf6f
+;   8-26-2010:  Adding code to read stored samples.
+;   8-20-2010:  Adding code to perform 256 samples at 500ns/sample
+;   8-19-2010:  Added new command decoder using dcfsnz instruction
+;   8-17-2010:  Adding simple commands
+;
+; Note:
+;   a=0 0 to 127 is RAM from bank 0, 128 to 255 is special func regs (PORTA ..)
+;   a=1 BSR[3:0] reg selects bank.  would require me to remember to put a ,1 after
+;      every mov which will really suck.  But would allow me to put temp variables
+;      in bank 15 and have banks 0 to 14 be the sample buffer.  This may make it easier
+;      to make a single loop to get samples using FSRH0 but it seems that it may not be
+;      better than 16 loops.
+
+	LIST R=DEC
+
+#include "p18f2620.inc"
+
+	CONFIG IESO		= OFF
+	CONFIG FCMEN	= OFF
+	CONFIG OSC		= HSPLL
+
+	CONFIG BORV		= 3
+	CONFIG BOREN	= ON		
+	CONFIG PWRT		= ON
+
+	CONFIG WDTPS	= 32768
+	CONFIG WDT    	= OFF
+
+	CONFIG MCLRE  	= ON ; Set to OFF to enable extra input pin
+	CONFIG LPT1OSC	= OFF
+	CONFIG PBADEN	= OFF
+	CONFIG CCP2MX	= PORTC
+	
+	CONFIG DEBUG	= OFF
+	CONFIG XINST	= OFF
+	CONFIG LVP		= OFF
+	CONFIG STVREN	= ON
+	
+	CONFIG CP3		= OFF
+	CONFIG CP2		= OFF
+	CONFIG CP1		= OFF
+	CONFIG CP0		= OFF
+	
+	CONFIG CPD		= OFF
+	CONFIG CPB		= OFF
+	
+	CONFIG WRT3		= OFF
+	CONFIG WRT2		= OFF
+	CONFIG WRT1		= OFF
+	CONFIG WRT0		= OFF
+
+	CONFIG WRTD		= OFF
+	CONFIG WRTB		= OFF
+	CONFIG WRTC		= OFF
+	
+	CONFIG EBTR3	= OFF
+	CONFIG EBTR2	= OFF
+	CONFIG EBTR1	= OFF
+	CONFIG EBTR0	= OFF
+	
+	CONFIG EBTRB	= OFF		
+
+
+#define D_BUS		PORTB
+
+#define MAJOR_VERSION	4
+#define MINOR_VERSION	0
+
+    ; Note: Send a byte of 0x00 value after an ARM to cancel arm
+
+#define FIRMWARE_START		0x200
+
+#define CMD_NOP      	    0x00
+#define CMD_SET_DELAY       0x01    ; Delay-1 in microseconds
+#define CMD_SET_TRIGGER	    0x02    ; mask,value,edge
+#define CMD_ARM_1000  	    0x03    ; 8 channel 1000 KHz sample rate
+#define CMD_ARM_500         0x04    ; 8 channel 500 KHz sample rate
+#define CMD_ARM_N	        0x05    ; 8 channel 1/(Delay+1)us sample rate
+#define CMD_4_ARM_500       0x06    ; 4 channel 500 KHz sample rate
+#define CMD_4_ARM_N	        0x07    ; 4 channel 1/(Delay+2) sample rate
+#define CMD_2_ARM_500       0x08    ; 2 channel 500 KHz sample rate
+#define CMD_2_ARM_N	        0x09    ; 2 channel 1/(Delay+2) sample rate
+#define CMD_1_ARM_500       0x0a    ; 1 channel 500 KHz sample rate
+#define CMD_1_ARM_N	        0x0b    ; 1 channel 1/(Delay+2) sample rate
+#define CMD_RESET_READ_PTR  0x0c    ; Clears read pointer
+#define CMD_READ_SAMPLES    0x0d    ; returns 16 bytes and advances read pointer
+#define CMD_READ_DELAY      0x0e    ; returns 1 byte Delay value
+#define CMD_READ_NUM_SAMPLES 0x0f   ; returns the number of samples stored (2 bytes)
+#define CMD_READ_ADC        0x10    ; returns 8-bit ADC value
+#define CMD_ARM_250_N	    0x11    ; 8 channel 250us * (Delay+1) sample rate
+#define CMD_4_ARM_250_N	    0x12    ; 4 channel 250us * (Delay+1) sample rate
+#define CMD_2_ARM_250_N	    0x13    ; 2 channel 250us * (Delay+1) sample rate
+#define CMD_1_ARM_250_N	    0x14    ; 1 channel 250us * (Delay+1) sample rate
+#define CMD_UPDATE_FIRMWARE 0x15	; Update program
+#define CMD_ARM_2500		0x16	; 8 channel 2500 KHz sample rate
+#define CMD_READ_VERSION    0x17    ; returns two byte version number
+
+#define CMD_ARM_2000  	    0x18    ; 8 channel 2000 KHz sample rate
+#define CMD_WRITE_SAMPLES	0x19	; Write 16 bytes and advance read pointer
+#define CMD_ARM_5000  	    0x1a    ; 8 channel 5000 KHz sample rate
+#define CMD_READ_ALL_SAMPLES 0x1b   ; returns all samples
+#define CMD_READ_NUM_COMP_BITS 0x1c ; returns the number of bits samples compressed (high then low)
+#define CMD_READ_COMP_SAMPLES 0x1d  ; returns the number of bytes
+#define CMD_ENABLE_ADC		0x1e	; Turn on A/D converter
+#define CMD_SELECT_ADC_CHAN	0x1f	; Select an A/D channel
+#define CMD_READ_ALL_ADC_CHAN 0x20 ; Sample all A/D channels and return (5 bytes)
+
+#define CMD_ERASE_FLASH_ROW	0xf0	; Erase one row of flash memory
+#define CMD_WRITE_FLASH_ROW	0xf1	; Write one row of flash memory
+#define CMD_READ_FLASH_ROW	0xf2	; Read one row of flash memory
+
+
+
+#define REG_START		0x0f60
+#define NUM_SAMPLES		3936
+#define NUM_SAMP_REMAINDER	96		; 15*256 + 96
+#define BUFFER_START	0
+
+	cblock	REG_START
+		Command
+		Tmp,Tmp2
+		Delay
+    	TriggerMask
+    	TriggerValue
+    	TriggerEdge
+		Loop, Loop2
+			; Variables used by RLE
+		FetchCount
+		PackedBitsHigh,PackedBitsLow
+		PackBuf
+		PackBit
+		RepCount
+		Last
+ 	endc
+	 
+	org     0
+
+Startup:
+	bra  Main
+	
+	org     0x0008
+	retfie
+	
+	org		0x0018
+	retfie
+
+Main:
+	clrf	FSR0H
+	clrf	FSR1H
+	clrf	FSR2H
+
+	movlw	BUFFER_START
+	movwf	FSR0L
+	movlw	BUFFER_START
+	movwf	FSR1L
+	
+    movlw	0xf
+    movwf	BSR
+
+		; By default port A is an input port (may be for alt trigger one day)
+	movlw	0xf
+	movwf	ADCON1		; turn off A/D and configure as digital I/O
+    movlw	0xff
+    movwf	TRISA		; Port A is an input
+		
+;	movlw	0xaa
+;	movwf	PORTA		; Access bit is 0
+;	movwf	PORTA,0		; Access bit is 0
+;	movwf	PORTA,1     ; Access bit is 1 (BSR is used to select upper RAM)
+;	movlw	0x25
+;	movwf	PORTC
+			
+    movlw   0xff
+    movwf   TRISB      	; Port B is an input
+    movlw   0xbf	    ; Port C is an input except RS-232 Tx
+    movwf   TRISC   
+
+;  goto	CmdSampleAllAdcChan
+	bcf		INTCON2,RBPU	; Enable port B pull up FETs
+    call 	InitRS232
+	goto	GetNewCommand
+
+; ************************************************************************
+; ** CmdEraseFlashRow: Get High address then low address and erase the	**
+; **             	   row of 64 bytes.  Bits 6:0 of the address are 	**
+; **				   ignored.  0 is returned to signal the operation 	**
+; **				   has finished.									**
+; ************************************************************************		
+CmdEraseFlashRow:
+	clrf 	TBLPTRU 		; address of the memory block
+	call	GetRS232Byte 	; Fetch high address[15:8]
+	movwf 	TBLPTRH
+	call	GetRS232Byte 	; Fetch low address[7:6] [5:0] are ignored
+	movwf 	TBLPTRL
+
+	bsf 	EECON1, EEPGD ; point to Flash program memory
+	bcf 	EECON1, CFGS ; access Flash program memory
+	bsf 	EECON1, WREN ; enable write to memory
+	bsf 	EECON1, FREE ; enable Row Erase operation
+;	bcf 	INTCON, GIE ; disable interrupts
+	movlw 	0x55
+	movwf	EECON2 ; write 55h
+	movlw 	0xaa
+	movwf 	EECON2 ; write 0AAh
+	bsf 	EECON1, WR ; start erase (CPU stall)
+;	bsf 	INTCON, GIE ; re-enable interrupts
+	
+	movlw	0
+	call	SendRS232Byte	; Return ok signal
+	bra		GetNewCommand
+
+; ************************************************************************
+; ** CmdWriteFlashRow: Get High address then low address and 64 bytes   **
+; **                   of data and write flash memory.  Bits 6:0 of the **
+; ** 				   address are ignored.	0 is returned to signal the **
+; **				   operation has finished.							**
+; ************************************************************************	
+CmdWriteFlashRow:
+	clrf 	TBLPTRU ; address of the memory block
+	call	GetRS232Byte 	; Fetch high address[15:8]
+	movwf 	TBLPTRH
+	call	GetRS232Byte 	; Fetch low address[7:6] [5:0] are ignored
+	andlw	0xc0
+	movwf 	TBLPTRL
+	
+		; Write data to internal flash buffer
+	movlw	64
+	movwf	Tmp
+CmdWriteFlashRowLoop:		
+	call	GetRS232Byte	; Get data to write
+	movwf 	TABLAT 			; present data to table latch
+	TBLWT*+ 				; write data, perform a short write
+							; to internal TBLWT holding register.	
+	decfsz	Tmp
+	bra		CmdWriteFlashRowLoop
+	
+	TBLRD*-					; Point back to original row
+	
+		; Write internal buffer to flash memory
+	bsf 	EECON1, EEPGD ; point to Flash program memory
+	bcf 	EECON1, CFGS ; access Flash program memory
+	bsf 	EECON1, WREN ; enable write to memory
+;	bcf 	INTCON, GIE ; disable interrupts
+	movlw 	55h
+	movwf 	EECON2 ; write 55h
+	movlw 	0AAh
+	movwf 	EECON2 ; write 0AAh
+	bsf 	EECON1, WR ; start program (CPU stall)
+;	bsf 	INTCON, GIE ; re-enable interrupts
+	bcf 	EECON1, WREN ; disable write to memory
+
+	movlw	0
+	call	SendRS232Byte	; Return ok signal		
+	bra		GetNewCommand	  
+
+; ************************************************************************
+; ** CmdReadFlashRow: Get High address then low address then return 64  **
+; ** 				   bytes of data from flash memory.  Bits 6:0 of the**
+; ** 				   address are ignored.								**
+; ************************************************************************	
+CmdReadFlashRow:
+	clrf 	TBLPTRU ; address of the memory block
+	call	GetRS232Byte 	; Fetch high address[15:8]
+	movwf 	TBLPTRH
+	call	GetRS232Byte 	; Fetch low address[7:6] [5:0] are ignored
+	movwf 	TBLPTRL
+	movlw	64
+	movwf	Tmp
+CmdReadFlashRowLoop:	
+	TBLRD*+ 				; read into TABLAT and increment
+	movf	TABLAT, w 		; get data
+	call	SendRS232Byte	; Return data
+	decfsz	Tmp
+	  bra	CmdReadFlashRowLoop
+	bra		GetNewCommand
+
+; ************************************************************************
+; ** GetRS232Byte: Waits for a byte to be received and then returns it	**
+; **               in w.												**
+; ************************************************************************
+
+GetRS232Byte:
+	btfss	PIR1,RCIF	; Wait for byte to show up.
+	  bra	GetRS232Byte
+	movf	RCREG,w
+	bcf	PIR1,RCIF	; Clear the recieved data flag
+	return
+
+; ************************************************************************
+; ** SendRS232Byte: Waits for transmit to be ready and then sends byte	**
+; **                in w to the RS-232 port								**
+; ************************************************************************
+
+SendRS232Byte:
+	btfss	PIR1,TXIF
+	  bra	SendRS232Byte
+	movwf	TXREG
+	return	
+
+; ************************************************************************
+; ** InitRS232: Sets up RS232 port for 115.2K baud						**
+; ************************************************************************
+
+InitRS232:
+	; Configure RS-232 connection
+	movlw	0x24	; 0010 0100 
+	movwf	TXSTA
+	movlw	0x90	; 1001 0000
+	movwf	RCSTA
+	movlw	0x08	;	0000 1000
+	movwf	BAUDCON
+		; Baud Reg is (Fosc/4)/BaudRate - 1
+		; For 115.2K baud at 10.0 MHz with 4x PLL that is (40,000/4)/115.2 - 1 = 86.8-1 or 86
+	movlw	86
+	movwf	SPBRG
+	movlw	0
+	movwf	SPBRGH
+  	return
+
+
+GetNewCommand:	
+	call	GetRS232Byte
+
+	movwf	Command,1		; Save Command
+
+	movf	Command,w
+	sublw	CMD_ERASE_FLASH_ROW	
+	btfsc	STATUS,Z
+	  bra	CmdEraseFlashRow
+
+	movf	Command,w
+	sublw	CMD_WRITE_FLASH_ROW	
+	btfsc	STATUS,Z
+	  bra	CmdWriteFlashRow
+
+	movf	Command,w
+	sublw	CMD_READ_FLASH_ROW	
+	btfsc	STATUS,Z
+	  bra	CmdReadFlashRow
+	bra	BaseCommands
+	  
+	org		FIRMWARE_START
+
+BaseCommands:
+    dcfsnz	Command,f,1
+	  bra	CmdSetDelay		; 0x01  CMD_SET_DELAY
+	dcfsnz	Command,f,1
+	  bra	CmdSetTrigger 	; 0x02  CMD_SET_TRIGGER
+	dcfsnz	Command,f,1
+  	  bra	CmdArm1000 		; 0x03  CMD_ARM_1000
+	dcfsnz	Command,f,1
+  bra	GetNewCommand 		; 0x04  CMD_ARM_500	(NOT USED nor needed)
+	dcfsnz	Command,f,1
+  	bra		CmdArmN 		; 0x05  CMD_ARM_N (NOT USED)
+	dcfsnz	Command,f,1
+  bra	GetNewCommand 		; 0x06  CMD_4_ARM_500 (NOT USED)
+	dcfsnz	Command,f,1
+  bra	GetNewCommand 		; 0x07  CMD_4_ARM_N (NOT USED)
+	dcfsnz	Command,f,1
+  bra	GetNewCommand 		; 0x08  CMD_2_ARM_500 (NOT USED nor needed)
+	dcfsnz	Command,f,1
+  bra	GetNewCommand 		; 0x09  CMD_2_ARM_N (NOT USED)
+	dcfsnz	Command,f,1
+  bra	GetNewCommand 		; 0x0a  CMD_1_ARM_500 (NOT USED nor needed)
+	dcfsnz	Command,f,1
+  bra	GetNewCommand 		; 0x0b  CMD_1_ARM_N (NOT USED)
+	dcfsnz	Command,f,1
+	  bra	CmdResetReadPtr ; 0x0c  CMD_RESET_READ_PTR
+	dcfsnz	Command,f,1
+      bra	CmdReadSamples	; 0x0d  CMD_READ_SAMPLES
+	dcfsnz	Command,f,1
+	  bra	CmdReadDelay 	; 0x0e  CMD_READ_DELAY
+	dcfsnz	Command,f,1
+	  bra	CmdReadNumSamples ;0x0f CMD_READ_NUM_SAMPLES
+	dcfsnz	Command,f,1
+  	  bra	CmdReadAdc 		; 0x10  CMD_READ_ADC
+	dcfsnz	Command,f,1
+  bra	GetNewCommand 		; 0x11  CMD_ARM_250_N (NOT USED)
+	dcfsnz	Command,f,1
+  bra	GetNewCommand 		; 0x12  CMD_4_ARM_250_N (NOT USED)
+	dcfsnz	Command,f,1
+  bra	GetNewCommand 		; 0x13  CMD_2_ARM_250_N (NOT USED)
+	dcfsnz	Command,f,1
+  bra	GetNewCommand 		; 0x14  CMD_1_ARM_250_N (NOT USED)
+	dcfsnz	Command,f,1
+  bra	GetNewCommand 		; 0x15  CMD_UPDATE_FIRMWARE (NOT USED)
+	dcfsnz	Command,f,1
+  bra	GetNewCommand 		; 0x16  CMD_ARM_2500 (NOT USED)
+	dcfsnz	Command,f,1
+	  bra	CmdReadVersion 	; 0x17  CMD_READ_VERSION
+	dcfsnz	Command,f,1
+	  bra	CmdArm2000 		; 0x18  CMD_ARM_2000
+	dcfsnz	Command,f,1
+	  bra	CmdWriteSamples ; 0x19  CMD_WRITE_SAMPLES
+	dcfsnz	Command,f,1
+	  bra	CmdArm5000 		; 0x1a  CMD_ARM_5000
+	dcfsnz	Command,f,1
+      bra	CmdReadAllSamples ; 0x1b  CMD_READ_ALL_SAMPLES
+	dcfsnz	Command,f,1
+      bra	CmdReadNumCompBits ; 0x1c  CMD_READ_NUM_COMP_BITS
+	dcfsnz	Command,f,1
+      bra	CmdReadCompSamples ; 0x1d  CMD_READ_COMP_SAMPLES
+	dcfsnz	Command,f,1
+	  bra	CmdEnableAdc		; 0x1e CMD_ENABLE_ADC
+	dcfsnz	Command,f,1
+	  bra	CmdSelectAdcChan	; 0x1f CMD_SELECT_ADC_CHAN
+	dcfsnz	Command,f,1
+	  bra	CmdReadAllAdcChan	; 0x20 CMD_READ_ALL_ADC_CHAN
+	bra		GetNewCommand	; Invalid command
+
+; ************************************************************************
+; **									                                **
+; ** CmdEnableAdc:							                            **
+; **	This sets up the ADC for 8-bit mode with 5 channels.	        **
+; **									                                **          
+; ************************************************************************
+
+CmdEnableAdc:
+	movlw	0xff
+	movwf	TRISA		; Port A is input
+
+	movlw	0x0a		; 5 A/D channels.  Voltage ref is Vcc and Vss (dirty dirty dirty)
+	movwf	ADCON1
+	movlw	0x12		; {0,x,010,010} = 0x12
+						; left justified (FOSC/32)  Tad=800ns = 1/(40/32)
+						; At room temp the acq time is 2.4us so a setting 
+						; of 4 Tad (2) would do the trick.  Hotter temps it
+						; is quicker.  Colder, it is the same.
+						; This is new for the 18F parts so there is no need
+						; to do a manual wait between samples.  If there is
+						; something else to do then this could be set to 0.
+	movwf	ADCON2
+						; If a scope mode is added one day, the FetchADC
+						; code will need to be self timed to get regular
+						; sampling rates.  For now, the A/D is being used
+						; for a whimpy volt meter.
+	; Turns out that ADCON0 with ADON=1 has to be after setting the other values!
+	movlw   0x01		; Select channel=0, ADON=1
+	movwf	ADCON0
+    bra		GetNewCommand
+
+; ************************************************************************
+; **									                                **
+; ** FetchADC:								                            **
+; **	This function returns the ADC value in the W reg		        **
+; **									                                **          
+; ************************************************************************
+
+FetchADC:
+        ; Wait not required due to time delay of RS-232 commands
+;	call	Delay12us		; Wait for sample cap to charge
+	bsf	    ADCON0,GO		; Start conversion
+FetchAdcWait:
+	btfsc	ADCON0,GO		; Wait for finish
+	  bra	FetchAdcWait
+	movf	ADRESH,w		; Fetch high 8 bits of result
+    return
+
+CmdSelectAdcChan:
+    call    GetRS232Byte
+	movwf	Tmp,1
+	rlncf	Tmp,f,1
+	rlncf	Tmp,w,1
+	movwf	ADCON0
+	bsf		ADCON0,ADON
+	bra		GetNewCommand
+
+CmdReadAdc:
+	call	FetchADC
+    call    SendRS232Byte
+    bra		GetNewCommand
+
+CmdReadAllAdcChan:
+	clrf	FSR0H
+	movlw	BUFFER_START
+	movwf	FSR0L
+    movlw   5
+	movwf   Loop,1
+	movlw   0x01		; Select channel=0, ADON=1
+	movwf	ADCON0
+CmdReadAllAdcLoop1:
+	call	FetchADC
+	movwf	POSTINC0
+	movlw	4
+	addwf	ADCON0
+	decfsz	Loop,f,1
+	  bra	CmdReadAllAdcLoop1
+	clrf	FSR1H
+	movlw	BUFFER_START
+	movwf	FSR1L
+    movlw   5
+	movwf   Loop,1
+CmdReadAllAdcChanLoop2:
+	movf	POSTINC1,w
+	call    SendRS232Byte
+	decfsz	Loop,f,1
+	  bra	CmdReadAllAdcChanLoop2
+	bra		GetNewCommand
+	
+CmdSetDelay:
+	call	GetRS232Byte
+	movwf	Delay,1
+	bra		GetNewCommand
+
+CmdReadDelay:
+    movf    Delay,w,1
+    call    SendRS232Byte
+    bra		GetNewCommand
+    
+CmdSetTrigger:
+    call    GetRS232Byte
+    movwf   TriggerMask,1
+    call    GetRS232Byte
+    movwf   TriggerValue,1
+    call    GetRS232Byte
+    andlw   0x03
+    movwf   TriggerEdge,1
+    bra		GetNewCommand
+
+CmdResetReadPtr:
+	clrf	FSR1H
+	movlw	BUFFER_START
+	movwf	FSR1L
+	bra		GetNewCommand
+
+    ;
+    ; Send data back in chunks of 16 so as not to overrun PC buffer
+    ;
+
+CmdReadSamples:
+    movlw   16
+	movwf   Loop,1
+CmdReadSamplesLoop1:
+	movf	POSTINC1,w
+	call    SendRS232Byte
+	decfsz	Loop,f,1
+	  bra	CmdReadSamplesLoop1
+	bra		GetNewCommand
+
+CmdReadAllSamples:
+	clrf	FSR1H
+	movlw	BUFFER_START
+	movwf	FSR1L
+CmdReadAllSamplesLoop1:
+	movf	POSTINC1,w
+	call    SendRS232Byte
+	movlw	15			; Loop till pointing to last page
+	cpfseq	FSR1H,1
+	  bra	CmdReadAllSamplesLoop1
+    movlw   NUM_SAMPLES-((NUM_SAMPLES/256)*256);
+	movwf   Loop,1
+CmdReadAllSamplesLoop2:
+	movf	POSTINC1,w
+	call    SendRS232Byte
+	decfsz	Loop,f,1
+	  bra	CmdReadAllSamplesLoop2
+	bra		GetNewCommand
+
+CmdWriteSamples:
+    movlw   16
+	movwf   Loop,1
+CmdWriteSamplesLoop1:
+	call    GetRS232Byte
+	movwf	POSTINC1
+	decfsz	Loop,f,1
+	  bra	CmdWriteSamplesLoop1
+	bra		GetNewCommand
+
+CmdReadNumSamples:	; 3936
+    movlw   15
+    call    SendRS232Byte
+    movlw   NUM_SAMP_REMAINDER
+    call    SendRS232Byte
+    bra		GetNewCommand
+
+CmdReadVersion:
+    movlw   MAJOR_VERSION
+    call    SendRS232Byte
+    movlw   MINOR_VERSION
+    call    SendRS232Byte
+    bra		GetNewCommand
+
+CmdReadNumCompBits:
+	movlw	1
+	call	Compress
+	movf	PackedBitsHigh,w,1
+	call	SendRS232Byte
+	movf	PackedBitsLow,w,1
+	call	SendRS232Byte
+	bra		GetNewCommand
+
+CmdReadCompSamples:
+	movlw	0
+	call	Compress
+	bra		GetNewCommand
+
+        ; Wait routines
+
+CmdArmWaitFalse:
+    btfsc	PIR1,RCIF	; skip if no RS-232 byte is waiting
+	  bra	ArmCancel
+    movf    PORTB,w
+    andwf   TriggerMask,w,1
+    subwf   TriggerValue,w,1
+    btfsc   STATUS,Z
+      bra  CmdArmWaitFalse
+    return
+
+CmdArmWaitTrue:
+    btfsc	PIR1,RCIF	; skip if no RS-232 byte is waiting
+	  bra	ArmCancel
+    movf    PORTB,w
+    andwf   TriggerMask,w,1
+    subwf   TriggerValue,w,1
+    btfss   STATUS,Z
+      bra  CmdArmWaitTrue
+    return
+
+	; It would be nice to Ack the cancel but for now the host code will figure this out
+	; by sending a read num samples command and loop waiting for the two bytes.  Once it
+	; gets them it knows that either the cancel was acked or the samples are finished being
+	; acquired.  Then it flushes the RS-232 input buffer to get rid of the possible byte
+	; left over from the sample complete signal.  This is stupid but it works.  For sample
+	; rates that can take longer than a second to get all the samples it is nicer to have
+	; the display say trigger found waiting for samples to be acquired using the trigger ack
+	; technique.     
+ArmCancel:
+    call    GetRS232Byte    ; Toss cancel byte
+;	movlw	0xaa
+;	call	SendRS232Byte	; Ack the cancel
+    bra		GetNewCommand
+    
+SampleComplete:
+    movlw   0x01
+    call    SendRS232Byte
+    bra		GetNewCommand
+
+
+; ************************************************************************
+; ** 	8 channel N Sample/sec	(1/(Delay+1)							**
+; ************************************************************************
+
+CmdArmN:
+    movlw   0
+	movwf	FSR0H
+	movlw	BUFFER_START
+	movwf	FSR0L
+	btfsc	TriggerEdge,1,1
+	  bra	CmdArmNLevelWait		; 0x02,0x03
+	btfss	TriggerEdge,0,1
+	  bra	CmdArmNRisingWait	; 0x00
+	bra		CmdArmNFallingWait	; 0x01
+
+CmdArmNRisingWait:
+    call    CmdArmWaitFalse
+    call    CmdArmWaitTrue
+    call	SampleNKHz	; Note: Call lets me jump to entire 64K memory range
+    bra		SampleComplete
+
+CmdArmNFallingWait:
+    call    CmdArmWaitTrue
+    call    CmdArmWaitFalse
+   	call	SampleNKHz
+    bra		SampleComplete
+
+CmdArmNLevelWait:
+    call    CmdArmWaitTrue
+    call	SampleNKHz
+    bra		SampleComplete
+
+SampleNKHz:
+	movlw	0	; Acts like 256
+	movwf	Loop,1
+	movlw	0x60
+	movwf	Loop2,1
+ local i=0;
+while i<15;
+;GetSamplesNK_?:
+    movf	PORTB,w
+	movwf	POSTINC0
+
+	movf	Delay,w
+	movwf	Tmp
+;NKHzDelay1:	; 1us loop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	decfsz	Tmp,f
+	  bra	$-16
+
+	nop
+	nop
+	nop
+	nop
+	decfsz	Loop,f,1
+	  bra	$-36	;GetSamplsNK_?
+	nop
+i+=1;
+endw;
+GetSamplesN_15:
+    movf	PORTB,w
+	movwf	POSTINC0
+
+	movf	Delay,w
+	movwf	Tmp
+;NKHzDelay2:	; 1us loop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	decfsz	Tmp,f
+	  bra	$-16	; NKHzDelay2
+
+	nop
+	nop
+	nop
+	nop
+	decfsz	Loop2,f,1
+	  bra	GetSamplesN_15
+	return
+
+; ************************************************************************
+; ** 	8 channel 1 MSample/sec 										**
+; ************************************************************************
+
+CmdArm1000:
+    movlw   0
+	movwf	FSR0H
+	movlw	BUFFER_START
+	movwf	FSR0L
+	btfsc	TriggerEdge,1,1
+	  bra	CmdArm1000LevelWait		; 0x02,0x03
+	btfss	TriggerEdge,0,1
+	  bra	CmdArm1000RisingWait	; 0x00
+	bra		CmdArm1000FallingWait	; 0x01
+
+CmdArm1000RisingWait:
+    call    CmdArmWaitFalse
+    call    CmdArmWaitTrue
+    call	Sample1000KHz	; Note: Call lets me jump to entire 64K memory range
+    bra		SampleComplete
+
+CmdArm1000FallingWait:
+    call    CmdArmWaitTrue
+    call    CmdArmWaitFalse
+   	call	Sample1000KHz
+    bra		SampleComplete
+
+CmdArm1000LevelWait:
+    call    CmdArmWaitTrue
+    call	Sample1000KHz
+    bra		SampleComplete
+
+Sample1000KHz:
+	movlw	0	; Acts like 256
+	movwf	Loop,1
+	movlw	0x60
+	movwf	Loop2,1
+ local i=0;
+ while i<15;
+;GetSamples1M_?:
+    movf	PORTB,w
+	movwf	POSTINC0
+	nop
+	nop
+	nop
+	nop
+	nop
+	decfsz	Loop,f,1
+	  bra	$-16	;GetSampls1M_?
+	nop
+i+=1;
+ endw;
+GetSamples1M_15:
+    movf	PORTB,w
+	movwf	POSTINC0
+	nop
+	nop
+	nop
+	nop
+	nop
+	decfsz	Loop2,f,1
+	  bra	GetSamples1M_15
+	return
+
+; ************************************************************************
+; ** 	8 channel 2 MSample/sec 										**
+; ************************************************************************
+
+CmdArm2000:
+    movlw   0
+	movwf	FSR0H
+	movlw	BUFFER_START
+	movwf	FSR0L
+	btfsc	TriggerEdge,1,1
+	  bra	CmdArm2000LevelWait		; 0x02,0x03
+	btfss	TriggerEdge,0,1
+	  bra	CmdArm2000RisingWait	; 0x00
+	bra		CmdArm2000FallingWait	; 0x01
+
+CmdArm2000RisingWait:
+    call    CmdArmWaitFalse
+    call    CmdArmWaitTrue
+    call	Sample2000KHz	; Note: Call lets me jump to entire 64K memory range
+    bra		SampleComplete
+
+CmdArm2000FallingWait:
+    call    CmdArmWaitTrue
+    call    CmdArmWaitFalse
+   	call	Sample2000KHz
+    bra		SampleComplete
+
+CmdArm2000LevelWait:
+    call    CmdArmWaitTrue
+    call	Sample2000KHz
+    bra		SampleComplete
+
+Sample2000KHz:
+	movlw	0	; Acts like 256
+	movwf	Loop,1
+	movlw	0x60
+	movwf	Loop2,1
+ local i=0;
+ while i<15;
+;GetSamples2M_?:
+    movf	PORTB,w
+	movwf	POSTINC0
+	decfsz	Loop,f,1
+	  bra	$-6	;GetSampls2M_?
+	nop
+i+=1;
+ endw;
+GetSamples2M_15:
+    movf	PORTB,w
+	movwf	POSTINC0
+	decfsz	Loop2,f,1
+	  bra	GetSamples2M_15
+	return
+
+; ************************************************************************
+; ** 	8 channel 5 MSample/sec 										**
+; ************************************************************************
+
+CmdArm5000:
+    movlw   0
+	movwf	FSR0H
+	movlw	BUFFER_START
+	movwf	FSR0L
+	btfsc	TriggerEdge,1,1
+	  bra	CmdArm5000LevelWait		; 0x02,0x03
+	btfss	TriggerEdge,0,1
+	  bra	CmdArm5000RisingWait	; 0x00
+	bra		CmdArm5000FallingWait	; 0x01
+
+CmdArm5000RisingWait:
+    call    CmdArmWaitFalse
+    call    CmdArmWaitTrue
+    call	Sample5000KHz	; Note: Call lets me jump to entire 64K memory range
+    bra		SampleComplete
+
+CmdArm5000FallingWait:
+    call    CmdArmWaitTrue
+    call    CmdArmWaitFalse
+   	call	Sample5000KHz
+    bra		SampleComplete
+
+CmdArm5000LevelWait:
+    call    CmdArmWaitTrue
+    call	Sample5000KHz
+    bra		SampleComplete
+
+Sample5000KHz:
+		; Stupid assembler blows chunks on nested loops!  Had to unwind.
+	; Bank 0
+ local i=0;
+ while i<256;
+	movf	PORTB,w 
+	movwf	POSTINC0
+i+=1;
+ endw;
+	; Bank 1
+ local i=0;
+ while i<256;
+	movf	PORTB,w 
+	movwf	POSTINC0
+i+=1;
+ endw;
+	; Bank 2
+ local i=0;
+ while i<256;
+	movf	PORTB,w 
+	movwf	POSTINC0
+i+=1;
+ endw;
+	; Bank 3
+ local i=0;
+ while i<256;
+	movf	PORTB,w 
+	movwf	POSTINC0
+i+=1;
+ endw;
+	; Bank 4
+ local i=0;
+ while i<256;
+	movf	PORTB,w 
+	movwf	POSTINC0
+i+=1;
+ endw;
+	; Bank 5
+ local i=0;
+ while i<256;
+	movf	PORTB,w 
+	movwf	POSTINC0
+i+=1;
+ endw;
+	; Bank 6
+ local i=0;
+ while i<256;
+	movf	PORTB,w 
+	movwf	POSTINC0
+i+=1;
+ endw;
+	; Bank 7
+ local i=0;
+ while i<256;
+	movf	PORTB,w 
+	movwf	POSTINC0
+i+=1;
+ endw;
+	; Bank 8
+ local i=0;
+ while i<256;
+	movf	PORTB,w 
+	movwf	POSTINC0
+i+=1;
+ endw;
+	; Bank 9
+ local i=0;
+ while i<256;
+	movf	PORTB,w 
+	movwf	POSTINC0
+i+=1;
+ endw;
+	; Bank 10
+ local i=0;
+ while i<256;
+	movf	PORTB,w 
+	movwf	POSTINC0
+i+=1;
+ endw;
+	; Bank 11
+ local i=0;
+ while i<256;
+	movf	PORTB,w 
+	movwf	POSTINC0
+i+=1;
+ endw;
+	; Bank 12
+ local i=0;
+ while i<256;
+	movf	PORTB,w 
+	movwf	POSTINC0
+i+=1;
+ endw;
+	; Bank 13
+ local i=0;
+ while i<256;
+	movf	PORTB,w 
+	movwf	POSTINC0
+i+=1;
+ endw;
+	; Bank 14
+ local i=0;
+ while i<256;
+	movf	PORTB,w 
+	movwf	POSTINC0
+i+=1;
+ endw;
+	; Bank 15
+ local i=0;
+ while i<NUM_SAMPLES-((NUM_SAMPLES/256)*256);
+	movf	PORTB,w 
+	movwf	POSTINC0
+i+=1;
+ endw;
+	return
+
+
+; Run Length Encoding Compression
+
+;********************************************
+; XmitCompBit(unsigned char Val)
+;********************************************
+XmitCompBit:	; w is Val
+		; if(!FetchCount){
+	btfsc FetchCount,0,1
+	  bra	XmitCompBitSkip
+		;     PackBuf |= (Val<<PackBit);
+	movwf	Tmp,1
+	movf	PackBit,w,1
+	btfsc	STATUS,Z
+	  bra	XmitCompBitSkip2
+	movwf	Loop,1
+XmitCompBitShift:
+	rlncf	Tmp,f,1
+	decfsz	Loop,f,1
+	  bra	XmitCompBitShift
+XmitCompBitSkip2:
+	movf	Tmp,w,1
+	iorwf	PackBuf,f,1
+		;     if(PackBit==0){
+	movf	PackBit,f,1
+	btfss	STATUS,Z
+	  bra	XmitCompBitSkip3
+		;         PackBit = 7;
+	movlw	8			; Fall through will dec down to 7
+	movwf	PackBit,1
+		;         output PackBuf
+	movf	PackBuf,w,1
+    call	SendRS232Byte
+		;         PackBuf = 0;
+	clrf	PackBuf,1
+		;     }
+		;     else{
+XmitCompBitSkip3:
+		;        PackBit--;
+	decf	PackBit,f,1
+		;     }
+		; }
+XmitCompBitSkip:
+		; PackedBits++;
+	incf	PackedBitsLow,f,1
+	btfsc	STATUS,C
+	  incf	PackedBitsHigh,f,1
+	return
+
+;********************************************
+;void Xmit(unsigned char Val)
+;********************************************
+Xmit:
+		; if(!FetchCount){
+	btfsc FetchCount,0,1
+	  bra	XmitSkip
+	movwf	Tmp,1	; Save Val
+	movwf	Tmp2,1
+;		PackBuf |= (Val>>(7-PackBit));
+	movlw	7
+	bsf		STATUS,C
+	subfwb	PackBit,w,1
+	btfsc	STATUS,Z
+	  bra	XmitSkip2
+	movwf	Loop,1
+XmitShift:
+	bcf		STATUS,C
+	rrcf	Tmp,f,1
+	decfsz	Loop,f,1
+	  bra	XmitShift
+XmitSkip2:
+	movf	Tmp,w,1
+	iorwf	PackBuf,w,1
+;		Output PackBuf;
+    call	SendRS232Byte
+;		PackBuf = (Val<<(PackBit+1)) & 0xff;
+	incf	PackBit,w,1
+	btfsc	STATUS,Z
+	  bra	XmitSkip3
+	movwf	Loop,1
+XmitShift2:
+	bcf		STATUS,C
+	rlcf	Tmp2,f,1
+	decfsz	Loop,f,1
+	  bra	XmitShift2
+XmitSkip3:
+	movf	Tmp2,w,1
+	movwf	PackBuf,1
+;   }
+XmitSkip:
+		; PackedBits+=8;
+	movlw	8
+	addwf	PackedBitsLow,f,1
+	btfsc	STATUS,C
+	  incf	PackedBitsHigh,f,1
+	return
+
+;********************************************
+;void XmitFlush(void)
+;********************************************
+XmitFlush:
+		; if(!FetchCount){
+	btfsc FetchCount,0,1
+	  bra	XmitFlushSkip
+		;     if(PackBit != 7){  // PackBit<7
+	movlw	7
+	cpfslt	PackBit,1	; f<w
+	  bra	XmitFlushSkip
+		;          Output PackBuf;
+	movf	PackBuf,w,1
+    call	SendRS232Byte
+		;    }
+		; }
+XmitFlushSkip:
+	return
+
+;********************************************
+;void XmitRep(void)
+;********************************************
+XmitRep:
+		; if(!RepCount) return;
+	movf	RepCount,w,1
+	btfsc	STATUS,Z
+	  return
+		; XmitCompBit(1);
+	movlw	1
+	call	XmitCompBit
+		; Xmit(RepCount+1);
+	incf	RepCount,w,1
+	call	Xmit
+		; Xmit(Last);
+	movf	Last,w,1
+	call	Xmit
+		; RepCount = 0;
+	clrf	RepCount,1
+	return
+
+;********************************************
+;void XmitSingle(void)
+;********************************************
+XmitSingle:
+		; Last = Raw[Index];
+	movf	POSTINC1,w
+	movwf	Last,1
+		; if(Index+1==NumRaw || Raw[Index] != Raw[Index+1]){
+		; At this point value of INDF1 is Index+1
+	movlw	15			; Loop till pointing to last page
+	cpfseq	FSR1H,1
+	  bra	XmitSingleSkip1
+	movlw	NUM_SAMP_REMAINDER
+	cpfslt	FSR1L,1
+	  bra	XmitSingleNoComp
+XmitSingleSkip1:  ; Now check Raw[Index] != Raw[Index+1]
+	movf	POSTDEC1,w	; Fetch Raw[Index+1] and restore INDF1 to be Index
+	cpfseq	Last
+	  bra	XmitSingleNoComp
+	bra	XmitSingleDone
+XmitSingleNoComp:
+		; XmitCompBit(0);
+	movlw	0
+	call	XmitCompBit
+		; Xmit(Last);
+	movf	Last,w,1
+	call	Xmit
+XmitSingleDone:
+	return
+
+;********************************************
+;int Compress(int GetCount)
+;********************************************
+Compress:
+;    FetchCount = GetCount;
+	movwf	FetchCount,1
+;    RepCount = 0;
+	clrf	RepCount,1
+;    PackedBits = 0;
+	clrf	PackedBitsHigh,1
+	clrf	PackedBitsLow,1
+;    Last = Raw[0];
+	clrf	FSR1H
+	movlw	BUFFER_START
+	movwf	FSR1L
+	movf	POSTINC1,w
+	movwf	Last,1
+;    PackBit = 7;
+	movlw	7
+	movwf	PackBit,1
+;    PackBuf = 0;
+	clrf	PackBuf,1
+;    if(Last != Raw[1]){
+	movf	INDF1,w	;
+	cpfseq	Last
+	  bra	CompressXmitFirst
+	bra	CompressHead
+CompressXmitFirst:
+;	     XmitCompBit(0);
+	movlw	0
+	call	XmitCompBit
+		; Xmit(Last);
+	movf	Last,w,1
+	call	Xmit
+;    }
+;   for(Index=1;Index<NumRaw;Index++){
+CompressHead:
+	movlw	15			; Loop till pointing to last page
+	cpfseq	FSR1H,1
+	  bra	XmitCompressSkip1
+	movlw	NUM_SAMP_REMAINDER
+	cpfslt	FSR1L,1		; Skip if f<w
+	  bra	CompressLoopExit
+XmitCompressSkip1
+;	    if(Raw[Index]==Last){
+	movf	INDF1,w	;
+	cpfseq	Last
+	  bra	CompressNoMatch
+;	        RepCount++;
+	incf	RepCount,f,1
+;	        if(RepCount==0xfe){
+	movlw	0xfe
+	cpfseq	RepCount,1
+	  bra	CompressLoopEnd
+;		        XmitRep();
+	call	XmitRep
+;		        Index++;
+	movf	POSTINC1,w
+;		        XmitSingle();
+	call	XmitSingle
+;	        }
+;	    }
+	bra		CompressLoopEnd
+;	    else{
+CompressNoMatch:
+;	        XmitRep();
+	call	XmitRep
+;	        XmitSingle();
+	call	XmitSingle
+;	    }
+CompressLoopEnd:
+	movf	POSTINC1,w		; Index++
+	bra		CompressHead
+;    }
+CompressLoopExit:
+;    XmitRep();
+	call	XmitRep
+;    XmitFlush();
+	call	XmitFlush
+;    return((PackedBits+7)>>3);
+	return
+	
+; Run Length Encoding Compression C Source code
+
+
+;void XmitCompBit(unsigned char Val)
+;{
+;    if(!FetchCount){
+;		printf("%d ",Val);
+;		PackBuf |= (Val<<PackBit);
+;		if(PackBit==0){
+;	    	PackBit = 7;
+;	    	printf("    0x%02x\n",PackBuf);
+;	    	PackBuf = 0;
+;		}
+;		else{
+;	    	PackBit--;
+;		}
+;    }
+;    PackedBits++;
+;}
+;
+;void Xmit(unsigned char Val)
+;{
+;    if(!FetchCount){
+;		printf("0x%02x\n",Val);
+;		PackBuf |= (Val>>(7-PackBit));
+;		printf("    0x%02x\n",PackBuf);
+;		PackBuf = (Val<<(PackBit+1)) & 0xff;
+;    }
+;    PackedBits += 8;
+;}
+;
+;void XmitFlush(void)
+;{
+;    if(!FetchCount){
+;       if(PackBit != 7){
+;	      printf("    0x%02x\n",PackBuf);
+;       }
+;    }
+;}
+;
+;void XmitRep(void)
+;{
+;    if(!RepCount) return;
+;    XmitCompBit(1);
+;    Xmit(RepCount+1);
+;    Xmit(Last);
+;    RepCount = 0;
+;}
+;
+;void XmitSingle(void)
+;{
+;    Last = Raw[Index];
+;    if(Index+1==NumRaw || Raw[Index] != Raw[Index+1]){
+;	    XmitCompBit(0);
+;	    Xmit(Last);
+;    }
+;}
+;
+;int Compress(int GetCount)
+;{
+;    RepCount = 0;
+;    PackedBits = 0;
+;    FetchCount = GetCount;
+;    Last = Raw[0];
+;    PackBit = 7;
+;    PackBuf = 0;
+;
+;    if(Last != Raw[1]){
+;	     XmitCompBit(0);
+;	     Xmit(Last);
+;    }
+;    for(Index=1;Index<NumRaw;Index++){
+;	  if(Raw[Index]==Last){
+;	    RepCount++;
+;	    if(RepCount==0xfe){
+;		XmitRep();
+;		Index++;
+;		XmitSingle();
+;	    }
+;	  }
+;	  else{
+;	    XmitRep();
+;	    XmitSingle();
+;	  }
+;    }
+;    XmitRep();
+;    XmitFlush();
+;    return((PackedBits+7)>>3);
+;}
+
+	
+	end

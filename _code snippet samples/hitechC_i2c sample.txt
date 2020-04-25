@@ -1,0 +1,519 @@
+/** \file  
+    \brief PIC micro C file.  
+      
+    This file contains the functionality that is specific to the PIC microcontrollers.  
+    Such functions include support for all PIC peripherals as well as some variables  
+    declarations to make access to certain PIC registers easier in C.  
+*/   
+   
+#include <pic.h>   
+#include "$$root$$.h"   
+#include "picc.h"   
+   
+volatile UINT16 timer1_clone @ 0x0E;   
+/**< Points to the TMR1L:TMRH register pair to facilitate access in C to the timer1 counter.*/   
+volatile UINT16 ccpr1_clone @ 0x15;   
+/**< Points to the CCPR1L:CCPR1H register pair to facilitate access in C to the CCP1 counter.*/   
+volatile UINT16 ccpr2_clone @ 0x16;   
+/**< Points to the CCPR2L:CCPR2H register pair to facilitate access in C to the CCP2 counter.*/   
+   
+$$IF(USE_I2C_SOFTWARE)   
+void delay_10us( void ) {   
+    UBYTE c = $$DELAY_10US$$;   
+    while ( --c );   
+}   
+   
+/** \defgroup i2c_software I2C by Software  
+  
+  Functions that implements the I2C communication protocol for PIC devices that  
+  does not have a master I2C implemented in hardware. These functions were modified  
+  from Hi-Tech (tm) source code samples (i2c.c & i2c.h).  
+*/   
+   
+/** \brief Sends a stop signal to the I2C bus.  
+  
+  This function is meant to be used by higher level  
+  funtions to communicate with a I2C device.  
+  \sa i2c_wait_for_scl(), i2c_read_acknowledge(),  
+  i2c_send_byte(), i2c_read_byte(), i2c_open().  
+  \ingroup i2c_software  
+*/   
+void i2c_stop( void ) {   
+    I2C_SCL_LOW();          // assume SCL is high on entry   
+    I2C_SDA_LOW();          // ensure the data is low first   
+    I2C_DELAY_1uS();   
+    I2C_SCL_DIR = I2C_INPUT;   
+    delay_10us();   
+    I2C_SDA_HIGH();         // the low->high data transistion   
+    delay_10us();           // bus free time before next start   
+}   
+   
+/** \brief Waits for the clock to be released by the slave device.  
+  
+  This function is meant to be used by higher level  
+  funtions to communicate with a I2C device.  
+  \sa i2c_stop(), i2c_read_acknowledge(),  
+  i2c_send_byte(), i2c_read_byte(), i2c_open().  
+  \return TRUE if the wait failed, FALSE otherwise.  
+  \ingroup i2c_software  
+*/   
+UBYTE i2c_wait_for_scl( void ) {   
+    if ( !I2C_SCL ) {       // SCL_DIR should be input here   
+        delay_10us();   
+        if ( !I2C_SCL ) {   // if the clock is still low -> bus error   
+            return TRUE;   
+        }   
+    }   
+    return FALSE;   
+}   
+   
+/** \brief Reads acknowledge signal from slave device.  
+  
+  This function is meant to be used by higher level  
+  funtions to communicate with a I2C device.  
+  \return I2C_ERROR if bus error or,  
+  if slave acknowledges it returns ack = 0, ack = 1 otherwise.  
+  \sa i2c_stop(), i2c_wait_for_scl(),  
+  i2c_send_byte(), i2c_read_byte(), i2c_open().  
+  \ingroup i2c_software  
+*/   
+UBYTE i2c_read_acknowledge( void ) {   
+    UBYTE ack;   
+   
+    I2C_SCL_LOW();   
+    I2C_SDA_DIR = I2C_INPUT;// disable data line - listen for ack   
+    delay_10us();               // SCL low to data out valid   
+    I2C_SCL_DIR = I2C_INPUT;// float clock high   
+    delay_10us();   
+    ack = I2C_SDA;          // read the acknowledge   
+    if ( i2c_wait_for_scl() )   
+        return I2C_ERROR;   
+    return ( ack );   
+}   
+   
+/** \brief Sends a byte through the I2C bus.  
+  
+  This function is meant to be used by higher level  
+  funtions to communicate with a I2C device.  
+  \param byte_to_send Specifies the byte to send.  
+  \return I2C_ERROR if bus error or,  
+  it returns the output of i2c_read_acknowledge().  
+  \sa i2c_stop(), i2c_read_acknowledge(), i2c_wait_for_scl(),  
+  i2c_read_acknowledge(), i2c_read_byte(), i2c_open().  
+  \ingroup i2c_software  
+*/   
+UBYTE i2c_send_byte( UBYTE byte_to_send ) {   
+    SBYTE i;   
+   
+    for ( i=7; i>=0; i-- ) {   
+        I2C_SCL_LOW();                          // ensure clock is low   
+        I2C_SDA_DIR = ((byte_to_send>>i)&0x01);   // bit to send   
+        I2C_DELAY_1uS();   
+        I2C_SCL_DIR = I2C_INPUT;                // float clock high   
+        if ( i2c_wait_for_scl() )   
+            return I2C_ERROR;   
+        delay_10us();                               // clock high time   
+    }   
+    return ( i2c_read_acknowledge() );          // returns ack, ~ack   
+}   
+   
+/** \brief Reads a byte on the I2C bus.  
+  
+  This function is meant to be used by higher level  
+  funtions to communicate with a I2C device.  
+  \return I2C_ERROR if bus error or,  
+  it returns the byte read.  
+  \sa i2c_stop(), i2c_read_acknowledge(), i2c_wait_for_scl(),  
+  i2c_read_acknowledge(), i2c_send_byte(), i2c_open().  
+  \ingroup i2c_software  
+*/   
+UBYTE i2c_read_byte( void ) {   
+    SBYTE i;   
+    UBYTE _byte;   
+       
+    _byte = 0;   
+    for ( i=7;i>=0;i-- ) {   
+        I2C_SCL_LOW();              // ensure clock is low   
+        delay_10us();                   // min clock low  period   
+        I2C_SDA_DIR = I2C_INPUT;    // release data line   
+        I2C_SCL_DIR = I2C_INPUT;    // float clock high   
+        if ( i2c_wait_for_scl() )   
+            return I2C_ERROR;   
+        delay_10us();   
+        _byte    = _byte << 1;        // read the next bit   
+        _byte   |= I2C_SDA;   
+    }   
+    return _byte;   
+}             
+   
+/** \brief Opens and send the control byte to the I2C bus.  
+  
+  This function is meant to be used by higher level  
+  funtions to communicate with a I2C device.  
+  \param control_byte Specifies the device's control byte.  
+  \return The output of i2c_send_byte().  
+  \sa i2c_stop(), i2c_read_acknowledge(), i2c_wait_for_scl(),  
+  i2c_read_acknowledge(), i2c_send_byte(), i2c_read_byte().  
+  \ingroup i2c_software  
+*/   
+UBYTE i2c_open( UBYTE control_byte ) {   
+    I2C_SCL_LOW();                  // ensure clock is low   
+    I2C_SDA_HIGH();                 // ensure data is high   
+    I2C_DELAY_1uS();   
+    I2C_SCL_DIR = I2C_INPUT;        // clock pulse high   
+    delay_10us();   
+    I2C_SDA_LOW();                  // the high->low transition   
+    delay_10us();   
+    return ( i2c_send_byte(control_byte) );   
+}   
+#endif   
+       
+/** \brief Writes data to an I2C EEPROM device.  
+  
+  This function uses the I2C support functions to communicate  
+  with an I2C EEPROM made by Microchip (tm).  
+  \sa i2c_stop(), i2c_read_acknowledge(), i2c_wait_for_scl(),  
+  i2c_read_acknowledge(), i2c_send_byte(), i2c_read_byte().  
+  \ingroup i2c_software  
+*/   
+void EEPROMPageWrite( UBYTE cbyte, UBYTE addr, UBYTE size, bank1 UBYTE* ram ) {   
+    CLRWDT();   
+    INTERRUPT_GLOBAL_DISABLE();   
+    while ( i2c_open(cbyte) );   
+    i2c_send_byte( addr );   
+    while ( size-- ) {   
+        i2c_send_byte(*ram);   
+        ram++;   
+    }   
+    i2c_stop();   
+    INTERRUPT_GLOBAL_ENABLE();   
+}   
+   
+/** \brief Reads data to an I2C EEPROM device.  
+  
+  This function uses the I2C support functions to communicate  
+  with an I2C EEPROM made by Microchip (tm).  
+  \sa i2c_stop(), i2c_read_acknowledge(), i2c_wait_for_scl(),  
+  i2c_read_acknowledge(), i2c_send_byte(), i2c_read_byte().  
+  \ingroup i2c_software  
+*/   
+void EEPROMSequentialRead( UBYTE cbyte, UBYTE addr, UBYTE size, bank1 UBYTE* ram ) {   
+    CLRWDT();   
+    INTERRUPT_GLOBAL_DISABLE();   
+    while ( i2c_open(cbyte) );   
+    i2c_send_byte( addr );   
+    cbyte |= 1;   
+    while ( i2c_open(cbyte) );   
+    while ( size-- ) {   
+        *ram = i2c_read_byte();   
+        ram++;   
+        I2C_SCL_LOW();   
+        I2C_SDA_DIR = size?LOW:HIGH;    // drive line low -> more to come   
+        I2C_DELAY_1uS();   
+        I2C_SCL_DIR = I2C_INPUT;        // float clock high   
+        delay_10us();   
+    }   
+    i2c_stop();   
+    INTERRUPT_GLOBAL_ENABLE();   
+}   
+$$ENDIF   
+   
+/** \defgroup gp_functions General Purpose Support  
+  
+  Functions that serve general purposes such as delays, serial output. etc.  
+*/   
+   
+$$IF(USE_DELAY)   
+/** \brief Similar to the C Sleep funtion.  
+  
+  This function performs a series of internal loops to implement  
+  software delays with milliseconds resolution from 1 up to 65,535.  
+  \param sleep_ms Specifies the desired delay time in milliseconds.  
+  \ingroup gp_functions  
+*/   
+void Sleep( UINT16 sleep_ms ) {   
+    UINT16 a;   
+    a = $$DELAY_MS$$;   
+#asm   
+    clrwdt   
+    movlw   255   
+    addwf   ?_Sleep+2, F   
+    btfss   3, 0   
+    decf    ?_Sleep+3, F   
+    movf    ?_Sleep+3, W   
+    iorwf   ?_Sleep+2, W   
+    btfss   3, 2   
+    goto    $-7   
+    movlw   255   
+    addwf   ?_Sleep, F   
+    btfss   3, 0   
+    decf    ?_Sleep+1, F   
+    movf    ?_Sleep+1, W   
+    iorwf   ?_Sleep, W   
+    btfsc   3, 2   
+    return   
+    goto    _Sleep   
+#endasm   
+}   
+$$ENDIF   
+   
+$$IF(USE_RS232)   
+/** \brief Puts a character in the serial TX register.  
+  
+  This function takes a byte and writes it to the microcontroller's Transmit  
+  Register so it's sent out serially. This function is also called by the  
+  C function printf() to send more complex info out. Modify this function to be used  
+  by printf() if the data has to be sent out to a different device such as an LCD.  
+  \param byte_to_send A byte (or character) to be sent out through the serial port.  
+  \ingroup gp_functions  
+*/   
+void putch( UBYTE byte_to_send ) {   
+    while ( !TXIF )   
+        CLRWDT();   
+    TXREG = byte_to_send;   
+}   
+$$ENDIF   
+   
+$$IF(USE_SLEEP)   
+/** \brief Executes when PIC micro is about to go into sleep mode.  
+  
+  This function executes just before going into sleep mode (power saving).  
+  The user can add custom code to set the PIC's peripherals to a state  
+  in which minimum current is consumed during sleep.  
+  \ingroup gp_functions  
+*/   
+void on_sleep_mode( void ) {   
+    // TODO: add your code to prepare PIC micro   
+    // to go into sleep mode. Setup peripherals to save the   
+    // maximum amount of current   
+    PORT_A_IO_SET(255);   
+    PORT_B_IO_SET(255);   
+    PORT_C_IO_SET(255);   
+    TIMER1_DISABLE();   
+    TIMER2_DISABLE();   
+}   
+   
+/** \brief Executes when PIC micro wakes up from sleep.  
+  
+  This function executes every time there's an event that wakes up  
+  the PIC from its sleep mode. The user can add its code to decide  
+  whether the PIC should continue in sleep mode or wake up completely.  
+  \return SLEEP_CONTINUE to return micro into sleep mode. SLEEP_WAKEUP to avoid next  
+  sleep and continue normal code execution.  
+  \ingroup gp_functions  
+*/   
+UBYTE on_wake_up( void ) {   
+    // TODO:  add your code to decide if micro continues   
+    //  in sleep mode or fully wakes up.   
+    //  If micro should wake up return SLEEP_WAKEUP;   
+    on_init();   
+    return SLEEP_CONTINUE;   
+}   
+   
+/** \brief Drives PIC micro into power saving mode.  
+  
+  This function takes the PIC into sleep mode. The user should call  
+  this function if the PIC should go into power saving mode.  
+  \ingroup gp_functions  
+*/   
+void sleep_mode( void ) {   
+    do {   
+        on_sleep_mode();   
+        asm("sleep");   
+        asm("nop");   
+    }while ( !on_wake_up() );   
+}   
+$$ENDIF   
+   
+$$IF(USE_EEPROMI)   
+/** \defgroup eeprom_functions EEPROM Support  
+  
+  Basic support functions to have read and write access to the internal's  
+  microcontroller Electrical Erasable Programmable Read Only Memory.  
+*/   
+   
+/** \brief Low level read from internal EEPROM.  
+  
+  This function controls the micro EEPROM internal registers to read a byte from the  
+  specified address.  
+  \param addr A byte specifying EEPROM address to read from.  
+  \return The byte read from EEPROM.  
+  \sa EEPROMRead()  
+  \ingroup eeprom_functions  
+*/   
+UBYTE _EEPROMRead( UBYTE addr ) {   
+    EEADR = addr;   
+    EEPGD = 0;   
+    RD = 1;   
+    return EEDATA;   
+}   
+   
+/** \brief Low level write from internal EEPROM.  
+  
+  This function controls the micro EEPROM internal registers to write a byte data  
+  to the specified address.  
+  \param addr A byte specifying EEPROM address to write data to.  
+  \param data The byte to write to addr.  
+  \return Nothing.  
+  \sa EEPROMWrite()  
+  \ingroup eeprom_functions  
+*/   
+void _EEPROMWrite( UBYTE addr, UBYTE data ) {   
+    EEADR = addr;   
+    EEDATA = data;   
+    EEPGD = 0;   
+    WREN = 1;   
+    GIE = 0;   
+    EECON2 = 0x55;   
+    EECON2 = 0xAA;   
+    WR = 1;   
+    GIE = 1;   
+    while ( WR );   
+    WREN = 0;   
+}   
+   
+/** \brief High level read from internal EEPROM.  
+  
+  This function is the user interface to read data from the  
+  internal EEPROM.  
+  \param addr A byte specifying the starting address to read from.  
+  \param data A pointer to a buffer to receive read data.  
+  \param size A byte specifying the number of bytes to read.  
+  \return Nothing.  
+  \sa _EEPROMRead()  
+  \ingroup eeprom_functions  
+*/   
+void EEPROMRead( UBYTE addr, UBYTE size, UBYTE* data ) {   
+    while ( size-- ) {   
+        *data = _EEPROMRead( addr );   
+        addr++;   
+        data++;   
+    }   
+}   
+   
+/** \brief High level write to internal EEPROM.  
+  
+  This function is the user interface to write data to the  
+  internal EEPROM.  
+  \param addr A byte specifying the starting address to write to.  
+  \param data A pointer to a buffer containing the data to write.  
+  \param size A byte specifying the number of bytes to write.  
+  \return Nothing.  
+  \sa _EEPROMWrite()  
+  \ingroup eeprom_functions  
+*/   
+void EEPROMWrite( UBYTE addr, UBYTE size, UBYTE* data ) {   
+    while ( size-- ) {   
+        _EEPROMWrite( addr, *data );   
+        addr++;   
+        data++;   
+    }   
+}   
+$$ENDIF   
+   
+$$IF(USE_ADC)   
+/** \defgroup adc_functions ADC Support  
+  
+  Basic support functions to control the Analog-to-Digital  
+  Converter that is internal to the microcontroller.  
+*/   
+   
+/** \brief High level read from ADC (interrupt version).  
+  
+  This function is the user interface to read data from the  
+  internal Analog-to-Digital Converter when using ADC interrupts.  
+  \return A 16-bit unsigned integer containing the 10-bit or 8-bit ADC reading.  
+  \sa adc_start(), adc_read().  
+  \ingroup adc_functions  
+*/   
+void adc_init_channels( void ) {   
+$$BEGINLOOP(ADC_SIGNALS_DEF,ADC_CHANNELS)   
+    adc.ui8_Channel[$$ADC_SIGNALS_DEF$$] = $$ADC_CHANNELS$$;   
+$$ENDLOOP   
+}   
+   
+/** \brief High level read from ADC (interrupt version).  
+  
+  This function is the user interface to read data from the  
+  internal Analog-to-Digital Converter when using ADC interrupts.  
+  \return A 16-bit unsigned integer containing the 10-bit or 8-bit ADC reading.  
+  \sa adc_start(), adc_read().  
+  \ingroup adc_functions  
+*/   
+UBYTE adc_continue( void ) {   
+    if ( ++adc.ui8_Index < ADC_SIGNALS )   
+        adc_start( ADC_AUTO );   
+    else   
+        adc.ui8_Index = 0;   
+    return adc.ui8_Index;   
+}   
+   
+/** \brief High level read from ADC (interrupt version).  
+  
+  This function is the user interface to read data from the  
+  internal Analog-to-Digital Converter when using ADC interrupts.  
+  \return A 16-bit unsigned integer containing the 10-bit or 8-bit ADC reading.  
+  \sa adc_start(), adc_read().  
+  \ingroup adc_functions  
+*/   
+UINT16 adc_get_adres( void ) {   
+    UINT16 _adres;   
+    if ( ADCON1&0x80 ) {   
+        LowByte(_adres) = ADRESL;   
+        HighByte(_adres) = ADRESH;   
+    }   
+    else {   
+        // Assumes that by justifying to the left   
+        // an ADC resolution of 8-bit is desired   
+        _adres = ADRESH;   
+    }   
+    return _adres;   
+}   
+   
+/** \brief Initiates an ADC sampling and conversion (interrupt version).  
+  
+  This function is the user interface to start up an ADC sampling and reading.  
+  It is used for both interrupt and polling methods for handling the ADC. The difference  
+  is that for the polling version the user does not need to call this function as it's  
+  called by the adc_read() function.  
+  \param adc_ch A byte specifying the channel to read.  
+  \return Nothing.  
+  \sa adc_read(), adc_get_adres().  
+  \ingroup adc_functions  
+*/   
+void adc_start( UBYTE adc_ch ) {   
+    ADCON0 &= 0xC7;   
+    if ( ADC_AUTO == adc_ch ) {   
+        adc_ch = adc.ui8_Channel[adc.ui8_Index];   
+    }   
+    ADCON0 |= adc_ch;   
+    // REMOVE and add better delay code   
+    asm("nop");   
+    for ( adc_ch=0;adc_ch<50;adc_ch++ );   
+    asm("nop");   
+    ADGO = 1;   
+}   
+   
+/** \brief High level read from ADC (polling version).  
+  
+  This function is the user interface to read data from the  
+  internal Analog-to-Digital Converter by selecting a channel. Use  
+  this function when ADC does not interrupt PIC when reading is ready.  
+  \param adc_ch A byte specifying the channel to read.  
+  \return A 16-bit unsigned integer containing the 10-bit or 8-bit ADC reading.  
+  \sa adc_start(), adc_get_adres().  
+  \ingroup adc_functions  
+*/   
+UINT16 adc_read( UBYTE adc_ch ) {   
+    adc_start( adc_ch );   
+    while ( ADGO );   
+    if ( ADC_AUTO == adc_ch ) {   
+        do {   
+            adc.ui16_Signal[adc.ui8_Index] = adc_get_adres();   
+        }while ( adc_continue() );   
+    }   
+    return adc_get_adres();   
+}   
+$$ENDIF   
+
+ 

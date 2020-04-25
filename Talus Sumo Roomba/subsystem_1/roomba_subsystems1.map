@@ -1,0 +1,144 @@
+MPLINK 4.45, Linker
+Linker Map File - Created Thu Feb 07 19:06:01 2013
+
+                                 Section Info
+                  Section       Type    Address   Location Size(Bytes)
+                ---------  ---------  ---------  ---------  ---------
+                   .org_0       code   0x000000    program   0x000004
+                   .cinit    romdata   0x000002    program   0x000004
+                   .org_1       code   0x000004    program   0x000326
+  .config_2007_MAIN_V0X.O       code   0x002007    program   0x000002
+                   .udata      udata   0x000020       data   0x000003
+
+
+
+                              Program Memory Usage 
+                               Start         End      
+                           ---------   ---------      
+                            0x000000    0x000196      
+                            0x002007    0x002007      
+            408 out of 4359 program addresses used, program memory utilization is 9%
+
+
+
+                              Symbols - Sorted by Name
+                     Name    Address   Location    Storage File                     
+                ---------  ---------  ---------  --------- ---------                
+                 AN4_READ   0x00003f    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+                 AN5_READ   0x00004e    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+                    CVDEC   0x00005d    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+                  CVDEC00   0x000063    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+                  CVDEC01   0x000067    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+                  CVDEC02   0x00006d    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+                  CVDEC03   0x000075    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+                  CVDEC04   0x00007d    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+                  CVDEC05   0x000087    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+                  CVDEC06   0x000091    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+                  CVDEC07   0x000099    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+                  CVDEC08   0x0000a1    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+             _.org_1_0035   0x000035    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+             _.org_1_0046   0x000046    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+             _.org_1_0055   0x000055    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+             _.org_1_00A5   0x0000a5    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+             _.org_1_00AB   0x0000ab    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+             _.org_1_00B1   0x0000b1    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+             _.org_1_00B7   0x0000b7    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+             _.org_1_00BD   0x0000bd    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+             _.org_1_0111   0x000111    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+             _.org_1_0150   0x000150    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+             _.org_1_0154   0x000154    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+             _.org_1_0158   0x000158    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+             _.org_1_015C   0x00015c    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+             _.org_1_0160   0x000160    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+             _.org_1_0164   0x000164    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+             _.org_1_0168   0x000168    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+             _.org_1_016C   0x00016c    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+             _.org_1_0170   0x000170    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+             _.org_1_0174   0x000174    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+             _.org_1_0178   0x000178    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+             _.org_1_017C   0x00017c    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+             _.org_1_0180   0x000180    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+             _.org_1_0184   0x000184    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+             _.org_1_0188   0x000188    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+             _.org_1_018C   0x00018c    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+             _.org_1_0190   0x000190    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+             _.org_1_0194   0x000194    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+               init_ports   0x000006    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+                  led_off   0x0000cc    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+                   led_on   0x0000ca    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+                     main   0x000116    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+                 poll_18f   0x0000ce    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+             poll_bumpers   0x0000fd    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+        poll_cliffsensors   0x000106    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+               poll_power   0x0000d5    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+              receive_232   0x000039    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+           send232_status   0x0000e0    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+                 send_232   0x00002f    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+                 send_adc   0x0000f1    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+                    start   0x00010d    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+                       d1   0x000020       data     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+                       d2   0x000021       data     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+                       d3   0x000022       data     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+
+
+
+                              Symbols - Sorted by Address
+                     Name    Address   Location    Storage File                     
+                ---------  ---------  ---------  --------- ---------                
+               init_ports   0x000006    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+                 send_232   0x00002f    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+             _.org_1_0035   0x000035    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+              receive_232   0x000039    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+                 AN4_READ   0x00003f    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+             _.org_1_0046   0x000046    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+                 AN5_READ   0x00004e    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+             _.org_1_0055   0x000055    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+                    CVDEC   0x00005d    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+                  CVDEC00   0x000063    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+                  CVDEC01   0x000067    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+                  CVDEC02   0x00006d    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+                  CVDEC03   0x000075    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+                  CVDEC04   0x00007d    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+                  CVDEC05   0x000087    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+                  CVDEC06   0x000091    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+                  CVDEC07   0x000099    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+                  CVDEC08   0x0000a1    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+             _.org_1_00A5   0x0000a5    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+             _.org_1_00AB   0x0000ab    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+             _.org_1_00B1   0x0000b1    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+             _.org_1_00B7   0x0000b7    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+             _.org_1_00BD   0x0000bd    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+                   led_on   0x0000ca    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+                  led_off   0x0000cc    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+                 poll_18f   0x0000ce    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+               poll_power   0x0000d5    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+           send232_status   0x0000e0    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+                 send_adc   0x0000f1    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+             poll_bumpers   0x0000fd    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+        poll_cliffsensors   0x000106    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+                    start   0x00010d    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+             _.org_1_0111   0x000111    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+                     main   0x000116    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+             _.org_1_0150   0x000150    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+             _.org_1_0154   0x000154    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+             _.org_1_0158   0x000158    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+             _.org_1_015C   0x00015c    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+             _.org_1_0160   0x000160    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+             _.org_1_0164   0x000164    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+             _.org_1_0168   0x000168    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+             _.org_1_016C   0x00016c    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+             _.org_1_0170   0x000170    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+             _.org_1_0174   0x000174    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+             _.org_1_0178   0x000178    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+             _.org_1_017C   0x00017c    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+             _.org_1_0180   0x000180    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+             _.org_1_0184   0x000184    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+             _.org_1_0188   0x000188    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+             _.org_1_018C   0x00018c    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+             _.org_1_0190   0x000190    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+             _.org_1_0194   0x000194    program     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+                       d1   0x000020       data     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+                       d2   0x000021       data     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+                       d3   0x000022       data     static C:\Users\CHAS\Documents\Development\PIC\roomb_1\subsystem_1\main_v0x.asm
+
+

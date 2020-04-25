@@ -1,0 +1,9 @@
+_WCLK: CODE, 486 0 22
+_ISR: CODE, 8 0 126
+_main: CODE, 138 0 258
+_RST: CODE, 508 0 22
+__initialization: CODE, 552 0 12
+_serial_init: CODE, 444 0 42
+_FQ_UD: CODE, 530 0 22
+_init_io: CODE, 396 0 48
+Total: 552

@@ -1,0 +1,320 @@
+[p LITE_MODE AUTOSTATIC PIC14 PIC14E ]
+[d version 1.1 ]
+[d edition pro ]
+[d chip 16F1509 ]
+[s S19 . 1 `uc 1 SCS 1 0 :2:0 
+`uc 1 . 1 0 :1:2 
+`uc 1 IRCF 1 0 :4:3 
+]
+[s S23 . 1 `uc 1 SCS0 1 0 :1:0 
+`uc 1 SCS1 1 0 :1:1 
+`uc 1 . 1 0 :1:2 
+`uc 1 IRCF0 1 0 :1:3 
+`uc 1 IRCF1 1 0 :1:4 
+`uc 1 IRCF2 1 0 :1:5 
+`uc 1 IRCF3 1 0 :1:6 
+]
+[u S31 . 1 `S19 1 . 1 0 `S23 1 . 1 0 ]
+"1509 C:\Program Files (x86)\Microchip\xc8\v1.12\include\pic16f1509.h
+[s S47 . 1 `uc 1 HFIOFS 1 0 :1:0 
+`uc 1 LFIOFR 1 0 :1:1 
+`uc 1 . 1 0 :2:2 
+`uc 1 HFIOFR 1 0 :1:4 
+`uc 1 OSTS 1 0 :1:5 
+`uc 1 . 1 0 :1:6 
+`uc 1 SOSCR 1 0 :1:7 
+]
+[u S55 . 1 `S47 1 . 1 0 ]
+"1569
+[s S66 . 1 `uc 1 PS 1 0 :3:0 
+`uc 1 PSA 1 0 :1:3 
+`uc 1 TMR0SE 1 0 :1:4 
+`uc 1 TMR0CS 1 0 :1:5 
+`uc 1 INTEDG 1 0 :1:6 
+`uc 1 nWPUEN 1 0 :1:7 
+]
+[s S73 . 1 `uc 1 PS0 1 0 :1:0 
+`uc 1 PS1 1 0 :1:1 
+`uc 1 PS2 1 0 :1:2 
+`uc 1 . 1 0 :1:3 
+`uc 1 T0SE 1 0 :1:4 
+`uc 1 T0CS 1 0 :1:5 
+]
+[u S80 . 1 `S66 1 . 1 0 `S73 1 . 1 0 ]
+"1093
+[s S100 . 1 `uc 1 . 1 0 :4:0 
+`uc 1 ANSB4 1 0 :1:4 
+`uc 1 ANSB5 1 0 :1:5 
+]
+[s S104 . 1 `uc 1 . 1 0 :4:0 
+`uc 1 ANSB 1 0 :4:4 
+]
+[u S107 . 1 `S100 1 . 1 0 `S104 1 . 1 0 ]
+"695
+[s S130 . 1 `uc 1 IOCIF 1 0 :1:0 
+`uc 1 INTF 1 0 :1:1 
+`uc 1 TMR0IF 1 0 :1:2 
+`uc 1 IOCIE 1 0 :1:3 
+`uc 1 INTE 1 0 :1:4 
+`uc 1 TMR0IE 1 0 :1:5 
+`uc 1 PEIE 1 0 :1:6 
+`uc 1 GIE 1 0 :1:7 
+]
+[s S139 . 1 `uc 1 . 1 0 :2:0 
+`uc 1 T0IF 1 0 :1:2 
+`uc 1 . 1 0 :2:3 
+`uc 1 T0IE 1 0 :1:5 
+]
+[u S144 . 1 `S130 1 . 1 0 `S139 1 . 1 0 ]
+"22 main.c
+[v F4247 `[2]us  2a t 4 ]
+"234
+[v F4269 `(v  1 t 0 ]
+"3 C:\Program Files (x86)\Microchip\xc8\v1.12\sources\bmul.c
+[v ___bmul `(uc  1 e 1 0 ]
+"5 C:\Program Files (x86)\Microchip\xc8\v1.12\sources\abdiv.c
+[v ___abdiv `(c  1 e 1 0 ]
+"5 C:\Program Files (x86)\Microchip\xc8\v1.12\sources\abmod.c
+[v ___abmod `(c  1 e 1 0 ]
+"34 C:\Program Files (x86)\Microchip\xc8\v1.12\sources\abtoft.c
+[v ___abtoft `(f  1 e 3 0 ]
+"5 C:\Program Files (x86)\Microchip\xc8\v1.12\sources\aldiv.c
+[v ___aldiv `(l  1 e 4 0 ]
+"5 C:\Program Files (x86)\Microchip\xc8\v1.12\sources\almod.c
+[v ___almod `(l  1 e 4 0 ]
+"43 C:\Program Files (x86)\Microchip\xc8\v1.12\sources\altoft.c
+[v ___altoft `(f  1 e 3 0 ]
+"5 C:\Program Files (x86)\Microchip\xc8\v1.12\sources\atdiv.c
+[v ___atdiv `(m  1 e 3 0 ]
+"5 C:\Program Files (x86)\Microchip\xc8\v1.12\sources\atmod.c
+[v ___atmod `(m  1 e 3 0 ]
+"38 C:\Program Files (x86)\Microchip\xc8\v1.12\sources\attoft.c
+[v ___attoft `(f  1 e 3 0 ]
+"5 C:\Program Files (x86)\Microchip\xc8\v1.12\sources\awdiv.c
+[v ___awdiv `(i  1 e 2 0 ]
+"5 C:\Program Files (x86)\Microchip\xc8\v1.12\sources\awmod.c
+[v ___awmod `(i  1 e 2 0 ]
+"33 C:\Program Files (x86)\Microchip\xc8\v1.12\sources\awtoft.c
+[v ___awtoft `(f  1 e 3 0 ]
+"63 C:\Program Files (x86)\Microchip\xc8\v1.12\sources\float.c
+[v ___ftpack `(f  1 e 3 0 ]
+"87 C:\Program Files (x86)\Microchip\xc8\v1.12\sources\ftadd.c
+[v ___ftadd `(f  1 e 3 0 ]
+"50 C:\Program Files (x86)\Microchip\xc8\v1.12\sources\ftdiv.c
+[v ___ftdiv `(f  1 e 3 0 ]
+"5 C:\Program Files (x86)\Microchip\xc8\v1.12\sources\ftge.c
+[v ___ftge `(b  1 e 0 0 ]
+"52 C:\Program Files (x86)\Microchip\xc8\v1.12\sources\ftmul.c
+[v ___ftmul `(f  1 e 3 0 ]
+"16 C:\Program Files (x86)\Microchip\xc8\v1.12\sources\ftneg.c
+[v ___ftneg `(f  1 e 3 0 ]
+"17 C:\Program Files (x86)\Microchip\xc8\v1.12\sources\ftsub.c
+[v ___ftsub `(f  1 e 3 0 ]
+"45 C:\Program Files (x86)\Microchip\xc8\v1.12\sources\fttol.c
+[v ___fttol `(l  1 e 4 0 ]
+"5 C:\Program Files (x86)\Microchip\xc8\v1.12\sources\lbdiv.c
+[v ___lbdiv `(uc  1 e 1 0 ]
+"5 C:\Program Files (x86)\Microchip\xc8\v1.12\sources\lbmod.c
+[v ___lbmod `(uc  1 e 1 0 ]
+"28 C:\Program Files (x86)\Microchip\xc8\v1.12\sources\lbtoft.c
+[v ___lbtoft `(f  1 e 3 0 ]
+"5 C:\Program Files (x86)\Microchip\xc8\v1.12\sources\lldiv.c
+[v ___lldiv `(ul  1 e 4 0 ]
+"5 C:\Program Files (x86)\Microchip\xc8\v1.12\sources\llmod.c
+[v ___llmod `(ul  1 e 4 0 ]
+"36 C:\Program Files (x86)\Microchip\xc8\v1.12\sources\lltoft.c
+[v ___lltoft `(f  1 e 3 0 ]
+"3 C:\Program Files (x86)\Microchip\xc8\v1.12\sources\lmul.c
+[v ___lmul `(ul  1 e 4 0 ]
+"5 C:\Program Files (x86)\Microchip\xc8\v1.12\sources\ltdiv.c
+[v ___ltdiv `(um  1 e 3 0 ]
+"5 C:\Program Files (x86)\Microchip\xc8\v1.12\sources\ltmod.c
+[v ___ltmod `(um  1 e 3 0 ]
+"31 C:\Program Files (x86)\Microchip\xc8\v1.12\sources\lttoft.c
+[v ___lttoft `(f  1 e 3 0 ]
+"5 C:\Program Files (x86)\Microchip\xc8\v1.12\sources\lwdiv.c
+[v ___lwdiv `(ui  1 e 2 0 ]
+"5 C:\Program Files (x86)\Microchip\xc8\v1.12\sources\lwmod.c
+[v ___lwmod `(ui  1 e 2 0 ]
+"29 C:\Program Files (x86)\Microchip\xc8\v1.12\sources\lwtoft.c
+[v ___lwtoft `(f  1 e 3 0 ]
+"3 C:\Program Files (x86)\Microchip\xc8\v1.12\sources\tmul.c
+[v ___tmul `(um  1 e 3 0 ]
+"3 C:\Program Files (x86)\Microchip\xc8\v1.12\sources\wmul.c
+[v ___wmul `(ui  1 e 2 0 ]
+"40 main.c
+[v _main `(i  1 e 2 0 ]
+"129
+[v _zeroMotor `(v  1 e 0 0 ]
+"145
+[v _t0Delay `(v  1 e 0 0 ]
+"167
+[v _moveMotor `(v  1 e 0 0 ]
+"234
+[v _isr `II(v  1 e 0 0 ]
+[s S130 . 1 `uc 1 IOCIF 1 0 :1:0 
+`uc 1 INTF 1 0 :1:1 
+`uc 1 TMR0IF 1 0 :1:2 
+`uc 1 IOCIE 1 0 :1:3 
+`uc 1 INTE 1 0 :1:4 
+`uc 1 TMR0IE 1 0 :1:5 
+`uc 1 PEIE 1 0 :1:6 
+`uc 1 GIE 1 0 :1:7 
+]
+"355 C:\Program Files (x86)\Microchip\xc8\v1.12\include\pic16f1509.h
+[s S139 . 1 `uc 1 . 1 0 :2:0 
+`uc 1 T0IF 1 0 :1:2 
+`uc 1 . 1 0 :2:3 
+`uc 1 T0IE 1 0 :1:5 
+]
+[u S144 . 1 `S130 1 . 1 0 `S139 1 . 1 0 ]
+[v _INTCONbits `VES144  1 e 1 @11 ]
+"695
+[v _TMR0 `VEuc  1 e 1 @21 ]
+"1093
+[v _TRISC `VEuc  1 e 1 @142 ]
+[s S66 . 1 `uc 1 PS 1 0 :3:0 
+`uc 1 PSA 1 0 :1:3 
+`uc 1 TMR0SE 1 0 :1:4 
+`uc 1 TMR0CS 1 0 :1:5 
+`uc 1 INTEDG 1 0 :1:6 
+`uc 1 nWPUEN 1 0 :1:7 
+]
+"1315
+[s S73 . 1 `uc 1 PS0 1 0 :1:0 
+`uc 1 PS1 1 0 :1:1 
+`uc 1 PS2 1 0 :1:2 
+`uc 1 . 1 0 :1:3 
+`uc 1 T0SE 1 0 :1:4 
+`uc 1 T0CS 1 0 :1:5 
+]
+[u S80 . 1 `S66 1 . 1 0 `S73 1 . 1 0 ]
+[v _OPTION_REGbits `VES80  1 e 1 @149 ]
+[s S19 . 1 `uc 1 SCS 1 0 :2:0 
+`uc 1 . 1 0 :1:2 
+`uc 1 IRCF 1 0 :4:3 
+]
+"1509
+[s S23 . 1 `uc 1 SCS0 1 0 :1:0 
+`uc 1 SCS1 1 0 :1:1 
+`uc 1 . 1 0 :1:2 
+`uc 1 IRCF0 1 0 :1:3 
+`uc 1 IRCF1 1 0 :1:4 
+`uc 1 IRCF2 1 0 :1:5 
+`uc 1 IRCF3 1 0 :1:6 
+]
+[u S31 . 1 `S19 1 . 1 0 `S23 1 . 1 0 ]
+[v _OSCCONbits `VES31  1 e 1 @153 ]
+[s S47 . 1 `uc 1 HFIOFS 1 0 :1:0 
+`uc 1 LFIOFR 1 0 :1:1 
+`uc 1 . 1 0 :2:2 
+`uc 1 HFIOFR 1 0 :1:4 
+`uc 1 OSTS 1 0 :1:5 
+`uc 1 . 1 0 :1:6 
+`uc 1 SOSCR 1 0 :1:7 
+]
+"1569
+[u S55 . 1 `S47 1 . 1 0 ]
+[v _OSCSTATbits `VES55  1 e 1 @154 ]
+"1896
+[v _LATC `VEuc  1 e 1 @270 ]
+[s S100 . 1 `uc 1 . 1 0 :4:0 
+`uc 1 ANSB4 1 0 :1:4 
+`uc 1 ANSB5 1 0 :1:5 
+]
+"2542
+[s S104 . 1 `uc 1 . 1 0 :4:0 
+`uc 1 ANSB 1 0 :4:4 
+]
+[u S107 . 1 `S100 1 . 1 0 `S104 1 . 1 0 ]
+[v _ANSELBbits `VES107  1 e 1 @397 ]
+"2826
+[v _TXREG `VEuc  1 e 1 @410 ]
+"2845
+[v _SPBRGL `VEuc  1 e 1 @411 ]
+"2864
+[v _SPBRGH `VEuc  1 e 1 @412 ]
+"9751
+[v _BRG16 `VEb  1 e 0 @3323 ]
+"9753
+[v _BRGH `VEb  1 e 0 @3314 ]
+"9869
+[v _CREN `VEb  1 e 0 @3308 ]
+"10929
+[v _SPEN `VEb  1 e 0 @3311 ]
+"10959
+[v _SYNC `VEb  1 e 0 @3316 ]
+"11055
+[v _TRISB5 `VEb  1 e 0 @1133 ]
+"11081
+[v _TRMT `VEb  1 e 0 @3313 ]
+"11095
+[v _TXEN `VEb  1 e 0 @3317 ]
+"22 main.c
+[v _defaultAccelTable `[7][2]us  1 e 28 0 ]
+"32
+[v _currentStep `ui  1 e 2 0 ]
+"33
+[v _currentState `uc  1 e 1 0 ]
+"34
+[v _stateMap `[6]uc  1 e 6 0 ]
+"35
+[v _stateCount `DCCuc  1 s 1 stateCount ]
+"40
+[v _main `(i  1 e 2 0 ]
+{
+"42
+[v main@rxByte `uc  1 a 1 11 ]
+"119
+} 0
+"129
+[v _zeroMotor `(v  1 e 0 0 ]
+{
+"130
+[v zeroMotor@i `ui  1 a 2 0 ]
+"141
+} 0
+"167
+[v _moveMotor `(v  1 e 0 0 ]
+{
+"172
+[v moveMotor@stepsLeft `ui  1 a 2 7 ]
+"168
+[v moveMotor@dir `ui  1 a 2 5 ]
+"169
+[v moveMotor@curDelay `ui  1 a 2 3 ]
+"170
+[v moveMotor@speedIndex `uc  1 a 1 10 ]
+"171
+[v moveMotor@stepsAtThisSpeed `uc  1 a 1 9 ]
+"167
+[v moveMotor@targetStep `ui  1 p 2 8 ]
+"230
+} 0
+"145
+[v _t0Delay `(v  1 e 0 0 ]
+{
+"147
+[v t0Delay@t0ticks `ui  1 a 2 6 ]
+"148
+[v t0Delay@t0Preload `uc  1 a 1 5 ]
+"145
+[v t0Delay@usec `ui  1 p 2 1 ]
+"164
+} 0
+"5 C:\Program Files (x86)\Microchip\xc8\v1.12\sources\awmod.c
+[v ___awmod `(i  1 e 2 0 ]
+{
+"6
+[v ___awmod@sign `uc  1 a 1 7 ]
+[v ___awmod@counter `uc  1 a 1 6 ]
+"5
+[v ___awmod@divisor `i  1 p 2 1 ]
+[v ___awmod@dividend `i  1 p 2 3 ]
+"30
+} 0
+"234 main.c
+[v _isr `II(v  1 e 0 0 ]
+{
+"236
+} 0

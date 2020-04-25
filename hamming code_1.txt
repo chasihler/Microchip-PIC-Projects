@@ -1,0 +1,75 @@
+Six months ago, I posted some code for a simple 4,7 Hamming
+encoder/decoder.  I was looking at that email today and noticed that
+there were errors in one of the tables... So here, on the slim chance
+that someone else will ever want to use the code, is a corrected
+version of the thing:
+
+       RADIX = DEC
+
+   ; Encode 4 input bits to 7 output bits.  Enter with 4 bits
+   ; in W's lo-nibble (all zeroes in W's hi-nibble).  Exits
+   ; with a 7-bit codeword in the low 7 bits of W (W's MSB = 0).
+
+   ENCODE:
+
+       ADDWF   PCL,W
+
+   ;            CCCDDDD     C1 = D4 + D2 + D1
+   ;            3214321     C2 = D4 + D3 + D1
+   ;                        C3 = D4 + D3 + D2
+       RETLW   00000000B
+       RETLW   00110001B
+       RETLW   01010010B
+       RETLW   01100011B
+       RETLW   01100100B
+       RETLW   01010101B
+       RETLW   00110110B
+       RETLW   00000111B
+       RETLW   01111000B
+       RETLW   01001001B
+       RETLW   00101010B
+       RETLW   00011011B
+       RETLW   00011100B
+       RETLW   00101101B
+       RETLW   01001110B
+       RETLW   01111111B
+
+   ; Decode a 7-bit codeword into a 4-bit output, correcting any
+   ; one-bit error if necessary.  Enter with the 7-bit codeword
+   ; in the low 7 bits of RCVDATA.  Exits with the 4-bit corrected
+   ; output in RCVDATA's lo-nibble.
+
+   DECODE:
+
+       MOVF    RCVDATA,W   ;W = RECEIVED DATA.
+       ANDLW   00001111B   ;MASK OFF ALL THE CHECK BITS.
+       CALL    ENCODE      ;ENCODE WHAT'S LEFT.
+
+       XORWF   RCVDATA     ;COMPARE IT TO THE RECEIVED DATA.
+       SWAPF   RCVDATA,W   ;W = BIT POSITION OF THE ERROR
+       ANDLW   00000111B   ;    (1-7), W = 0 IF NO ERROR.
+       CALL    BITMASK     ;CONVERT BIT POSITION TO BITMASK.
+
+       XORWF   RCVDATA     ;RCVDATA = CORRECTED DATA.
+
+       RETURN              ;RETURN.
+
+   ; The DECODE routine needs this lookup table.
+
+   BITMASK:
+
+       ADDWF   PCL,W
+       RETLW   00000000B   ;NO ERROR.
+       RETLW   00010000B   ;ERROR IN C1.
+       RETLW   00100000B   ;ERROR IN C2.
+       RETLW   00000001B   ;ERROR IN D1.
+       RETLW   01000000B   ;ERROR IN C3.
+       RETLW   00000010B   ;ERROR IN D2.
+       RETLW   00000100B   ;ERROR IN D3.
+       RETLW   00001000B   ;ERROR IN D4.
+
+-Andy
+
+=== Andrew Warren -- aiwspamcypress.com
+=== Principal Design Engineer
+=== Cypress Semiconductor Corporation

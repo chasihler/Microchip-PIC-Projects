@@ -1,0 +1,25 @@
+_ISR: CODE, 8 0 134
+_motor_rev_timeron: CODE, 902 0 54
+_clear_drive: CODE, 1306 0 16
+_set_drive: CODE, 468 0 138
+_main: CODE, 146 0 322
+_motor_rev_timeroff: CODE, 1336 0 14
+_measure_sonar: CODE, 838 0 64
+__initialization: CODE, 1288 0 12
+_pulse_sonar: CODE, 1266 0 22
+_determine_drive_by_cliff: CODE, 956 0 46
+_motor_stop: CODE, 1188 0 26
+_checkleftcliffsensor: CODE, 1370 0 10
+_serial_init: CODE, 1002 0 44
+_motor_left_fwd_quarter: CODE, 1240 0 26
+_determine_drive_by_sonar: CODE, 606 0 126
+_motor_controller_reset: CODE, 1090 0 38
+_motor_left_rev_quarter: CODE, 1158 0 30
+_stop_and_wait: CODE, 1322 0 14
+_motor_right_fwd_quarter: CODE, 1214 0 26
+_checkrightcliffsensor: CODE, 1360 0 10
+_motor_right_rev_quarter: CODE, 1128 0 30
+_init_io: CODE, 1046 0 44
+_uart_xmit: CODE, 1350 0 10
+_init_motor_controller: CODE, 732 0 106
+Total: 1362

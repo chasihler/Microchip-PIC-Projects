@@ -1,0 +1,1759 @@
+MPASM  5.47                             M.ASM   2-8-2013  16:28:28         PAGE  1
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+                      00001 ;---------------------------------------------------------------------------------------------
+                      00002 ;Roomba Main Board Controller by Charles M Douvier
+                      00003 ;Robot Name: Talus (man of iron)
+                      00004 ;version=0.x
+                      00005 ;
+                      00006 ;Roomba Sumo Bot Firmware for main board to operator motors in responce to sensors
+                      00007 ;for sumo competition.
+                      00008 ;
+                      00009 ;Device PIC 18F2331
+                      00010 ;
+                      00011 ;v0.01  01/14/13        Part on board.. first .asm save.
+                      00012 ;v0.02  01/16/13        Blinking LED "Hello World" (Had A_VDD at 0v.. wouldn't prgm
+                      00013 ;v0.03  01/18/13        Start of RS-232 code, proper port commenting and initialization, 
+                      00014 ;                                       commenting and routinue structure
+                      00015 ;v0.04  01/18/2013      Initialization of serial rs232 motor controller.
+                      00016 ;v0.05  01/20/2013      motor commands
+                      00017 ;v0.06  2/7/2013        Power_En wait w/ delay (2 seconds right now)
+                      00018 ;v0.07  2/7/2013        switch and LED output properly sequence.. just turning in circles for now.
+                      00019 ;
+                      00020 ;
+                      00021 ;       PIN DIAGRAM
+                      00022 ;
+                      00023 ;       RA0     O       |Seek/Attack    RB0     O       LTACH                   RC0 I   _______         
+                                            
+                      00024 ;       RA1     O       LED1                    RB1     O       RTACH                   RC1 I   CCP2
+                      00025 ;       RA2     O       LED2                    RB2     I       LFCS                    RC2 I   CCP1
+                      00026 ;       RA3     O       LED3                    RB3     I       LRCS                    RC3 I   INT0    
+                                            RE3 I   /MCLR|Vpp
+                      00027 ;       RA4     I       POWER_EN                RB4     I       RFCS                    RC4 I   LBUMP
+                      00028 ;       RA5     I       ______                  RB5     I       RRCS                    RC5 I   RBUMP
+                      00029 ;       RA6 I   XTAL 16MHZ              RB6     I       PGM/PGC                 RC6     I(O)RS232 TX
+                      00030 ;       RA7 I   XTAL                    RB7     I       PGM/PGD                 RC7     I       RS232 RX
+                                    
+                      00031 ;
+                      00032 ;
+                      00033 ;
+                      00034 ;
+                      00035 ;TODO Reseach "new" way to write configure and upgrade code
+                      00036 ;
+                      00037 ;       Bumper Inputs
+                      00038 ;       Cliff Sensors 
+                      00039 ;       Poll Them
+                      00040 ;       React to them 
+                      00041 ;       Tachometers --> PWM out x2
+                      00042 ;
+                      00043 ;
+                      00044 ;---------------------------------------------------------------------------------------------
+                      00045         errorlevel -230
+                      00046 
+                      00047         LIST R=DEC
+                      00048 
+                      00049 #include "p18f2331.inc"
+                      00001         LIST
+MPASM  5.47                             M.ASM   2-8-2013  16:28:28         PAGE  2
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+                      00002 
+                      00003 ;==========================================================================
+                      00004 ;  MPASM PIC18F2331 processor include
+                      00005 ; 
+                      00006 ;  (c) Copyright 1999-2012 Microchip Technology, All rights reserved
+                      00007 ;==========================================================================
+                      00008 
+                      01422         LIST
+                      00050 
+                      00051 
+                      00052 
+300000 B2FF           00053         __CONFIG _CONFIG1H, _IESO_ON_1H & _FCMEN_OFF_1H & _OSC_HS_1H 
+                      00054         __CONFIG _CONFIG2L, _PWRTEN_OFF_2L & _BOREN_OFF_2L
+300002 FEFD           00055         __CONFIG _CONFIG2H, _WDTEN_OFF_2H
+300004 FF3C           00056         __CONFIG _CONFIG3H, _MCLRE_ON_3H
+300006 FFFA           00057         __CONFIG _CONFIG4L, _DEBUG_OFF_4L & _LVP_OFF_4L & _STVREN_OFF_4L
+                      00058         __CONFIG _CONFIG5L, _CP0_OFF_5L & _CP1_OFF_5L
+300008 FFFF           00059         __CONFIG _CONFIG5H, _CPB_OFF_5H & _CPD_OFF_5H
+                      00060         __CONFIG _CONFIG6L, _WRT0_OFF_6L & _WRT1_OFF_6L
+30000A FFFF           00061         __CONFIG _CONFIG6H, _WRTC_OFF_6H & _WRTB_OFF_6H & _WRTD_OFF_6H
+                      00062         __CONFIG _CONFIG7L, _EBTR0_OFF_7L & _EBTR1_OFF_7L
+30000C FFFF           00063         __CONFIG _CONFIG7H, _EBTRB_OFF_7H 
+                      00064 
+                      00065 ;_OSC_IRCIO_1H          
+                      00066 
+                      00067 
+                      00068         cblock  0x20
+  00000020            00069                 CNT1                                                            ;Delay Counter
+  00000021            00070                 CNT2                                                            ;Delay Counter
+  00000022            00071                 CNT3                                                            ;Delay Counter
+  00000023            00072                 LEncCountH                                                      ;Left Encoder Val High
+  00000024            00073                 LEncCountL                                                      ;Left Encoder Val Low   
+  00000025            00074                 REncCountH                                                      ;Right Encoder Val High
+  00000026            00075                 REncCountL                                                      ;Right Encoder Val Low
+  00000027            00076                 temp_wr                                                         ;rs232 byte to send
+  00000028            00077                 myflags                                                         ;cliff and bumper status
+                      00078         endc
+                      00079         
+                      00080 #define cliff_left myflags,0                            
+                      00081 #define cliff_right myflags,1
+                      00082 
+                      00083         org 0
+000000 0000           00084                 NOP
+000002 D???           00085                 bra start
+                      00086         
+                      00087         org 8
+000008 0000           00088                 NOP
+                      00089                 ;TODO INT0  Handler  tied to OR gate to bumpers/edge sensors
+                      00090                 ;
+00000A 0010           00091         RETFIE          
+                      00092 
+                      00093 ;-------------------------------------------------------
+                      00094 ;Reset Encoder Counters
+MPASM  5.47                             M.ASM   2-8-2013  16:28:28         PAGE  3
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+                      00095 ;
+                      00096 ;-------------------------------------------------------
+                      00097 
+00000C                00098 init_ports
+                      00099 
+                      00100 ;       PORTA
+00000C 6A80           00101                 CLRF    PORTA
+                      00102                 
+00000E 6E92           00103                 movwf   TRISA
+000010 8680           00104                 bsf             PORTA,3
+                      00105 ;               MOVLW 0x3F                      ; Configure A/D
+000012 6AB8           00106                 CLRF    ANSEL0
+                      00107 ;               MOVWF ANSEL0 ;          for digital inputs
+000014 0EF0           00108                 movlw   b'11110000'
+                      00109                                                         ;MOVLW 0xCF ; Value used to
+                      00110                                                         ; initialize data
+                      00111                                                         ; direction
+000016 6E92           00112                 MOVWF TRISA ; Set RA<3:0> as outputs
+                      00113 
+                      00114 ;       PORTB
+000018 6A81           00115                 CLRF    PORTB
+00001A 0EFC           00116                 movlw   0xFC            ;<7:2> pins inputs, <1:0>  outputs
+00001C 6E93           00117                 movwf   TRISB
+00001E 6A8A           00118                 clrf    LATB
+000020 0E03           00119                 movlw   b'00000011' 
+000022 6E81           00120                 movwf   PORTB
+                      00121 ;       PORTC                           
+000024 6A82           00122                 CLRF    PORTC   
+000026 0EFF           00123                 MOVLW   0xFF            ;RC0:7 inputs
+000028 6E94           00124                 MOVWF   TRISC
+                      00125 
+00002A 0012           00126                 return
+                      00127 
+                      00128 
+                      00129 ;-------------------------------------------------------
+                      00130 ;Reset Encoder Counters
+                      00131 ;
+                      00132 ;-------------------------------------------------------
+                      00133 
+00002C                00134 init_EncCount
+00002C 6A23           00135                 clrf    LEncCountH
+00002E 6A24           00136                 clrf    LEncCountL
+000030 6A25           00137                 clrf    REncCountH
+000032 6A26           00138                 clrf    REncCountL
+000034 0012           00139                 return  
+                      00140 
+                      00141 ;-------------------------------------------------------
+                      00142 ;Delays
+                      00143 ;
+                      00144 ;-------------------------------------------------------
+                      00145 
+000036                00146 delay_1s:
+000036 0E05           00147                 MOVLW d'5'
+MPASM  5.47                             M.ASM   2-8-2013  16:28:28         PAGE  4
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+000038 6E20           00148                 MOVWF CNT1
+00003A                00149 LOOP1:
+00003A 0EFF           00150                         MOVLW d'255'
+00003C 6E21           00151                         MOVWF CNT2
+00003E                00152 LOOP2:
+00003E 0EFF           00153                         MOVLW d'255'
+000040 6E22           00154                         MOVWF CNT3
+000042                00155 LOOP3:
+000042 2E22           00156                         DECFSZ CNT3,F
+000044 EF?? F???      00157                 GOTO LOOP3
+000048 2E21           00158                         DECFSZ CNT2,F
+00004A EF?? F???      00159                 GOTO LOOP2
+00004E 2E20           00160                         DECFSZ CNT1,F
+000050 EF?? F???      00161                 GOTO LOOP1
+000054 0012           00162         return
+                      00163 
+                      00164 ;-------------------------------------------------------
+                      00165 ;RS-232 initialization
+                      00166 ;Port Map
+                      00167 ;               bit7    bit6    bit5    bit4    bit3    bit2    bit1    bit0
+                      00168 ;TXSTA  CSRC    TX9     TXEN    SYNC    SENDB   BRGH    TRMT    TX9D    0000 0010
+                      00169 ;RCSTA  SPEN    RX9     SREN    CREN    ADDEN   FERR    OERR    RX9D    0000 000X
+                      00170 ;
+                      00171 ;TXSTA
+                      00172 ;
+                      00173 ;bit 7 CSRC: Clock Source Select bit
+                      00174 ;       Asynchronous mode:
+                      00175 ;       Don’t care.
+                      00176 ;       Synchronous mode:
+                      00177 ;       1 = Master mode (clock generated internally from BRG)
+                      00178 ;       0 = Slave mode (clock from external source)
+                      00179 ;bit 6 TX9: 9-Bit Transmit Enable bit
+                      00180 ;       1 = Selects 9-bit transmission
+                      00181 ;       0 = Selects 8-bit transmission
+                      00182 ;bit 5 TXEN: Transmit Enable bit(1)
+                      00183 ;       1 = Transmit enabled
+                      00184 ;       0 = Transmit disabled
+                      00185 ;bit 4 SYNC: EUSART Mode Select bit
+                      00186 ;       1 = Synchronous mode
+                      00187 ;       0 = Asynchronous mode
+                      00188 ;bit 3 SENDB: Send Break Character bit
+                      00189 ;       Asynchronous mode:
+                      00190 ;       1 = Send Sync Break on next transmission (cleared by hardware upon completion)
+                      00191 ;       0 = Sync Break transmission completed
+                      00192 ;       Synchronous mode:
+                      00193 ;       Don’t care.
+                      00194 ;bit 2 BRGH: High Baud Rate Select bit
+                      00195 ;       Asynchronous mode:
+                      00196 ;       1 = High speed
+                      00197 ;       0 = Low speed
+                      00198 ;       Synchronous mode:
+                      00199 ;       Unused in this mode.
+                      00200 ;bit 1 TRMT: Transmit Shift Register Status bit
+MPASM  5.47                             M.ASM   2-8-2013  16:28:28         PAGE  5
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+                      00201 ;       1 = TSR is empty
+                      00202 ;       0 = TSR is full
+                      00203 ;bit 0 TX9D: 9th Bit of Transmit Data
+                      00204 ;       Can be address/data bit or a parity bit
+                      00205 ;
+                      00206 ;
+                      00207 ;
+                      00208 ;RCSTA
+                      00209 ;
+                      00210 ;bit 7 SPEN: Serial Port Enable bit
+                      00211 ;       1 = Serial port enabled
+                      00212 ;       0 = Serial port disabled
+                      00213 ;bit 6 RX9: 9-Bit Receive Enable bit
+                      00214 ;       1 = Selects 9-bit reception
+                      00215 ;       0 = Selects 8-bit reception
+                      00216 ;bit 5 SREN: Single Receive Enable bit
+                      00217 ;       Asynchronous mode:
+                      00218 ;       Don’t care.
+                      00219 ;       Synchronous mode – Master:
+                      00220 ;       1 = Enables single receive
+                      00221 ;       0 = Disables single receive
+                      00222 ;       This bit is cleared after reception is complete.
+                      00223 ;       Synchronous mode – Slave:
+                      00224 ;       Don’t care.
+                      00225 ;bit 4 CREN: Continuous Receive Enable bit
+                      00226 ;       Asynchronous mode:
+                      00227 ;       1 = Enables receiver
+                      00228 ;       0 = Disables receiver
+                      00229 ;       Synchronous mode:
+                      00230 ;       1 = Enables continuous receive until enable bit, CREN, is cleared (CREN overrides SREN)
+                      00231 ;       0 = Disables continuous receive
+                      00232 ;bit 3 ADDEN: Address Detect Enable bit
+                      00233 ;       Asynchronous mode 9-Bit (RX9 = 1):
+                      00234 ;       1 = Enables address detection, enables interrupt and loads the receive buffer when RSR<8> is set
+                      00235 ;       0 = Disables address detection, all bytes are received and ninth bit can be used as parity bit
+                      00236 ;       Asynchronous mode 8-Bit (RX9 = 0):
+                      00237 ;       Don’t care.
+                      00238 ;bit 2 FERR: Framing Error bit
+                      00239 ;       1 = Framing error (can be cleared by reading RCREGx register and receiving next valid byte)
+                      00240 ;       0 = No framing error
+                      00241 ;bit 1 OERR: Overrun Error bit
+                      00242 ;       1 = Overrun error (can be cleared by clearing bit, CREN)
+                      00243 ;       0 = No overrun error
+                      00244 ;bit 0 RX9D: 9th Bit of Received Data
+                      00245 ;       This can be address/data bit or a parity bit and must be calculated by user firmware.
+                      00246 ;
+                      00247 ;
+                      00248 ;Clock Frequence Determination
+                      00249 ;       For a device with FOSC of 16 MHz, desired baud rate of 9600, Asynchronous mode, 8-bit BRG:
+                      00250 ;       Desired Baud Rate = FOSC/(64 ([SPBRGH:SPBRG] + 1))
+                      00251 ;       Solving for SPBRGH:SPBRG:
+                      00252 ;       X = ((FOSC/Desired Baud Rate)/64) – 1
+                      00253 ;       = ((16000000/9600)/64) – 1
+MPASM  5.47                             M.ASM   2-8-2013  16:28:28         PAGE  6
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+                      00254 ;       = [25.042] = 25
+                      00255 ;       Calculated Baud Rate = 16000000/(64 (25 + 1))
+                      00256 ;       = 9615
+                      00257 ;       Error = (Calculated Baud Rate – Desired Baud Rate)/Desired Baud Rate
+                      00258 ;       = (9615 – 9600)/9600 = 0.16%
+                      00259 ;
+                      00260 ;
+                      00261 ;-------------------------------------------------------
+                      00262 
+000056                00263 init_232
+000056 0EA4           00264         movlw    B'10100100'        ;initialize USART
+000058 6EAC           00265     movwf    TXSTA              ;8-bit, Async, High Speed, tx enable
+                      00266 ;   movlw    .25
+                      00267 ;       movlw   .26
+00005A 0E67           00268         movlw    .103                           ;9600 Baud
+00005C 6EAF           00269     movwf    SPBRG              ;into 8bit baud rate generator
+00005E 0E90           00270     movlw    B'10010000'
+000060 6EAB           00271     movwf    RCSTA                              ;Enable Port SPEN&CREN
+000062 0012           00272         return
+                      00273 
+                      00274 ;       • SPEN (RCSTA<7>) bit must be set ( = 1),
+                      00275 ;       • TRISC<6> bit must be set ( = 1), and
+                      00276 ;       • TRISC<7> bit must be set ( = 1).
+                      00277 
+                      00278 
+                      00279 ;-------------------------------------------------------
+                      00280 ;Initialize Motor Controller
+                      00281 ;Polou Serial Controller requires 'AA' before any other
+                      00282 ;signal to detect baud/initialize
+                      00283 ;
+                      00284 ;-------------------------------------------------------
+                      00285 
+                      00286 
+000064                00287 init_motor_controller
+000064 0EAA           00288         movlw    .170            ;Move "AA" to TXREG
+000066 6EAD           00289         movwf    TXREG  
+000068 A2AC           00290     btfss    TXSTA,TRMT         
+00006A EF?? F???      00291     goto    $-2
+                      00292 
+00006E 0012           00293     return
+                      00294 ;-----------------------------------------------------
+                      00295 ;Motor Commands
+                      00296 ;
+                      00297 ;M0 = Left Motor
+                      00298 ;M1 = Right Motor
+                      00299 ;
+                      00300 ;Command 0x88: Motor M0 Forward
+                      00301 ;Compact protocol: 0x88, motor speed
+                      00302 ;
+                      00303 ;Command 0x8A: Motor M0 Reverse
+                      00304 ;Compact protocol: 0x8A, motor speed
+                      00305 ;
+                      00306 ;Motor M1 Commands;
+MPASM  5.47                             M.ASM   2-8-2013  16:28:28         PAGE  7
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+                      00307 ;
+                      00308 ;Command 0x8C: Motor M1 Forward/140
+                      00309 ;Compact protocol: 0x8C, motor speed
+                      00310 ;
+                      00311 ;
+                      00312 ;
+                      00313 ;Command 0x8E: Motor M1 Reverse
+                      00314 ;Compact protocol: 0x8E, motor speed
+                      00315 ;
+                      00316 
+                      00317 ;-------------------------------------------------------
+                      00318 ;Right Motor Stop
+                      00319 ;Polou Serial Controller requires 'AA' before any other
+                      00320 ;signal to detect baud/initialize
+                      00321 ;
+                      00322 ;-------------------------------------------------------
+000070                00323 motor_right_stop                        
+                      00324                                                         ;0x87/135
+000070 0E87           00325         movlw    .135            ;Move "0x87" to TXREG
+000072 6EAD           00326         movwf    TXREG  
+000074 A2AC           00327     btfss    TXSTA,TRMT         
+000076 EF?? F???      00328     goto    $-2
+                      00329 
+00007A 0012           00330         return
+                      00331 ;-------------------------------------------------------
+                      00332 ;Left Motor Stop
+                      00333 ;Polou Serial Controller requires 'AA' before any other
+                      00334 ;signal to detect baud/initialize
+                      00335 ;
+                      00336 ;-------------------------------------------------------
+00007C                00337 motor_left_stop
+                      00338                                                         ;0x86/134
+00007C 0E86           00339         movlw    .134            ;Move "0x88" to TXREG
+00007E 6EAD           00340         movwf    TXREG  
+000080 A2AC           00341     btfss    TXSTA,TRMT         
+000082 EF?? F???      00342     goto    $-2
+000086 0012           00343         return
+                      00344 
+                      00345 ;-------------------------------------------------------
+                      00346 ;Left Motor Forward Full Speed
+                      00347 ;Polou Serial Controller requires 'AA' before any other
+                      00348 ;signal to detect baud/initialize
+                      00349 ;
+                      00350 ;-------------------------------------------------------
+                      00351 
+                      00352 
+000088                00353 motor_left_fwd_full                     ;M0 0x88-0x7F
+000088 0E88           00354         movlw    .136            ;Move "0x88" to TXREG
+00008A 6EAD           00355         movwf    TXREG  
+00008C A2AC           00356     btfss    TXSTA,TRMT         
+00008E EF?? F???      00357     goto    $-2
+                      00358 
+000092 0E7F           00359         movlw    .127            ;Move 0x7F
+MPASM  5.47                             M.ASM   2-8-2013  16:28:28         PAGE  8
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+000094 6EAD           00360         movwf    TXREG  
+000096 A2AC           00361     btfss    TXSTA,TRMT
+000098 EF?? F???      00362     goto    $-2
+                      00363 
+00009C 0012           00364     return      
+                      00365 
+                      00366 ;-------------------------------------------------------
+                      00367 ;Left Motor Forward "Normal" Speed
+                      00368 ;Polou Serial Controller requires 'AA' before any other
+                      00369 ;signal to detect baud/initialize
+                      00370 ;
+                      00371 ;Full speed doesn't detect the cliff in time to reverse 
+                      00372 ;and stop to turn around
+                      00373 ;-------------------------------------------------------
+                      00374 
+                      00375 
+00009E                00376 motor_left_fwd_normal                   ;M0 0x88-0x7F
+00009E 0E88           00377         movlw    .136            ;Move "0x88" to TXREG
+0000A0 6EAD           00378         movwf    TXREG  
+0000A2 A2AC           00379     btfss    TXSTA,TRMT         
+0000A4 EF?? F???      00380     goto    $-2
+                      00381 
+0000A8 0E55           00382         movlw    .85            ;Move 0x7F
+0000AA 6EAD           00383         movwf    TXREG  
+0000AC A2AC           00384     btfss    TXSTA,TRMT
+0000AE EF?? F???      00385     goto    $-2
+                      00386 
+0000B2 0012           00387     return      
+                      00388 
+                      00389 ;-------------------------------------------------------
+                      00390 ;Left Motor Forward Half Speed
+                      00391 ;Polou Serial Controller requires 'AA' before any other
+                      00392 ;signal to detect baud/initialize
+                      00393 ;
+                      00394 ;-------------------------------------------------------
+                      00395 
+                      00396 
+0000B4                00397 motor_left_fwd_half                     ;M0 0x88-0x3F
+0000B4 0E88           00398         movlw    .136            ;Move "0x88" to TXREG
+0000B6 6EAD           00399         movwf    TXREG  
+0000B8 A2AC           00400     btfss    TXSTA,TRMT         
+0000BA EF?? F???      00401     goto    $-2
+                      00402 
+0000BE 0E3F           00403         movlw    .63            ;Move 0x3F
+0000C0 6EAD           00404         movwf    TXREG  
+0000C2 A2AC           00405     btfss    TXSTA,TRMT
+0000C4 EF?? F???      00406     goto    $-2
+                      00407 
+0000C8 0012           00408     return      
+                      00409 
+                      00410 
+                      00411 ;-------------------------------------------------------
+                      00412 ;Left Motor Reverse Half Speed
+MPASM  5.47                             M.ASM   2-8-2013  16:28:28         PAGE  9
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+                      00413 ;Polou Serial Controller requires 'AA' before any other
+                      00414 ;signal to detect baud/initialize
+                      00415 ;
+                      00416 ;-------------------------------------------------------
+                      00417 
+                      00418 
+0000CA                00419 motor_left_rev_half                     ;M0 0x88-0x3F
+0000CA 0E8A           00420         movlw    .138            ;Move "0x88" to TXREG
+0000CC 6EAD           00421         movwf    TXREG  
+0000CE A2AC           00422     btfss    TXSTA,TRMT         
+0000D0 EF?? F???      00423     goto    $-2
+                      00424 
+0000D4 0E3F           00425         movlw    .63            ;Move 0x3F
+0000D6 6EAD           00426         movwf    TXREG  
+0000D8 A2AC           00427     btfss    TXSTA,TRMT
+0000DA EF?? F???      00428     goto    $-2
+                      00429 
+0000DE 0012           00430     return      
+                      00431 
+                      00432 ;-------------------------------------------------------
+                      00433 ;Right Motor Forward "Normal" Speed
+                      00434 ;Polou Serial Controller requires 'AA' before any other
+                      00435 ;signal to detect baud/initialize
+                      00436 ;see M0 (left) notes
+                      00437 ;-------------------------------------------------------
+                      00438 
+                      00439 
+0000E0                00440 motor_right_fwd_normal                  ;M0 0x88-0x3F
+0000E0 0E8C           00441         movlw    .140            ;Move "0x8C" to TXREG
+0000E2 6EAD           00442         movwf    TXREG  
+0000E4 A2AC           00443     btfss    TXSTA,TRMT         
+0000E6 EF?? F???      00444     goto    $-2
+                      00445 
+0000EA 0E55           00446         movlw    .85            ;Move 0x3F
+0000EC 6EAD           00447         movwf    TXREG  
+0000EE A2AC           00448     btfss    TXSTA,TRMT
+0000F0 EF?? F???      00449     goto    $-2
+                      00450 
+0000F4 0012           00451     return      
+                      00452 
+                      00453 ;-------------------------------------------------------
+                      00454 ;Right Motor Forward Half Speed
+                      00455 ;Polou Serial Controller requires 'AA' before any other
+                      00456 ;signal to detect baud/initialize
+                      00457 ;
+                      00458 ;-------------------------------------------------------
+                      00459 
+                      00460 
+0000F6                00461 motor_right_fwd_half                    ;M0 0x88-0x3F
+0000F6 0E8C           00462         movlw    .140            ;Move "0x8C" to TXREG
+0000F8 6EAD           00463         movwf    TXREG  
+0000FA A2AC           00464     btfss    TXSTA,TRMT         
+0000FC EF?? F???      00465     goto    $-2
+MPASM  5.47                             M.ASM   2-8-2013  16:28:28         PAGE 10
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+                      00466 
+000100 0E3F           00467         movlw    .63            ;Move 0x3F
+000102 6EAD           00468         movwf    TXREG  
+000104 A2AC           00469     btfss    TXSTA,TRMT
+000106 EF?? F???      00470     goto    $-2
+                      00471 
+00010A 0012           00472     return      
+                      00473 
+                      00474 
+                      00475 ;-------------------------------------------------------
+                      00476 ;Right Forward Full Speed
+                      00477 ;Polou Serial Controller requires 'AA' before any other
+                      00478 ;signal to detect baud/initialize
+                      00479 ;
+                      00480 ;-------------------------------------------------------
+                      00481 
+                      00482 
+00010C                00483 motor_right_fwd_full            ;M0 0x8C-0x7F
+00010C 0E8C           00484         movlw    .140            ;Move "0x8C" to TXREG
+00010E 6EAD           00485         movwf    TXREG  
+000110 A2AC           00486     btfss    TXSTA,TRMT         
+000112 EF?? F???      00487     goto    $-2
+                      00488 
+000116 0E7F           00489         movlw    .127            ;Move 0x7F
+000118 6EAD           00490         movwf    TXREG  
+00011A A2AC           00491     btfss    TXSTA,TRMT
+00011C EF?? F???      00492     goto    $-2
+                      00493 
+000120 0012           00494     return      
+                      00495 
+                      00496 ;-------------------------------------------------------
+                      00497 ;Right Forward Quarter--ISH
+                      00498 ;Polou Serial Controller requires 'AA' before any other
+                      00499 ;signal to detect baud/initialize
+                      00500 ;
+                      00501 ;-------------------------------------------------------
+                      00502 
+000122                00503 motor_right_fwd_quarter         ;M0 0x8C-0x7F
+000122 0E8C           00504         movlw    .140            ;Move "0x8C" to TXREG
+000124 6EAD           00505         movwf    TXREG  
+000126 A2AC           00506     btfss    TXSTA,TRMT         
+000128 EF?? F???      00507     goto    $-2
+                      00508 
+00012C 0E28           00509         movlw    .40            ;
+00012E 6EAD           00510         movwf    TXREG  
+000130 A2AC           00511     btfss    TXSTA,TRMT
+000132 EF?? F???      00512     goto    $-2
+                      00513 
+                      00514 
+                      00515 
+                      00516 ;-------------------------------------------------------
+                      00517 ;Right Motor Reverse Half Speed
+                      00518 ;Polou Serial Controller requires 'AA' before any other
+MPASM  5.47                             M.ASM   2-8-2013  16:28:28         PAGE 11
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+                      00519 ;signal to detect baud/initialize
+                      00520 ;
+                      00521 ;-------------------------------------------------------
+                      00522 
+                      00523 
+000136                00524 motor_right_rev_half                    ;M0 0x88-0x3F
+000136 0E8E           00525         movlw    .142            ;Move "0x8E" to TXREG
+000138 6EAD           00526         movwf    TXREG  
+00013A A2AC           00527     btfss    TXSTA,TRMT         
+00013C EF?? F???      00528     goto    $-2
+                      00529 
+000140 0E3F           00530         movlw    .63            ;Move 0x3F
+000142 6EAD           00531         movwf    TXREG  
+000144 A2AC           00532     btfss    TXSTA,TRMT
+000146 EF?? F???      00533     goto    $-2
+                      00534 
+00014A 0012           00535     return      
+                      00536 
+                      00537 
+                      00538 ;-------------------------------------------------------
+                      00539 ;Right Motor Reverse Full Speed
+                      00540 ;Polou Serial Controller requires 'AA' before any other
+                      00541 ;signal to detect baud/initialize
+                      00542 ;
+                      00543 ;-------------------------------------------------------
+                      00544 
+                      00545 
+00014C                00546 motor_right_rev_full                    ;M0 0x88-0x3F
+00014C 0E8E           00547         movlw    .142            ;Move "0x8E" to TXREG
+00014E 6EAD           00548         movwf    TXREG  
+000150 A2AC           00549     btfss    TXSTA,TRMT         
+000152 EF?? F???      00550     goto    $-2
+                      00551 
+000156 0E7F           00552         movlw    .127            ;Move 0x7F
+000158 6EAD           00553         movwf    TXREG  
+00015A A2AC           00554     btfss    TXSTA,TRMT
+00015C EF?? F???      00555     goto    $-2
+                      00556 
+000160 0012           00557     return      
+                      00558 
+                      00559 ;-------------------------------------------------------
+                      00560 ;Send RS-232 Data
+                      00561 ;
+                      00562 ;-------------------------------------------------------
+                      00563 
+                      00564 
+000162                00565 rs232_write
+000162 C027 FFAD      00566     movff    temp_wr,TXREG
+000166 A2AC           00567     btfss    TXSTA,TRMT
+000168 EF?? F???      00568     goto    $-2
+00016C 0012           00569     return
+                      00570 
+                      00571 ;-------------------------------------------------------
+MPASM  5.47                             M.ASM   2-8-2013  16:28:28         PAGE 12
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+                      00572 ;Response Routines
+                      00573 ;All driving commands for seeking and attack
+                      00574 ;
+                      00575 ;|SEEKING
+                      00576 ;drive_leftcliff - top right wheel, left reverse half speed 2.0(?) seconds; resume seek
+                      00577 ;
+                      00578 ;ATTACK_MODE
+                      00579 ;
+                      00580 ;-------------------------------------------------------
+00016E                00581 drive_leftcliff
+00016E 8280           00582         bsf             PORTA,1
+000170 EC?? F???      00583         call    motor_right_stop
+000174 EC?? F???      00584         call    motor_left_rev_half
+000178 EC?? F???      00585         call    delay_1s
+00017C EC?? F???      00586         call    delay_1s
+000180 EC?? F???      00587         call    delay_1s
+000184 EC?? F???      00588         call    delay_1s        
+000188 EC?? F???      00589         call    delay_1s
+00018C EC?? F???      00590         call    delay_1s
+000190 EC?? F???      00591         call    delay_1s
+000194 EC?? F???      00592         call    delay_1s
+000198 EC?? F???      00593         call    delay_1s
+00019C EC?? F???      00594         call    delay_1s
+0001A0 EC?? F???      00595         call    delay_1s
+0001A4 EC?? F???      00596         call    delay_1s        
+0001A8 EC?? F???      00597         call    delay_1s
+0001AC EC?? F???      00598         call    delay_1s
+0001B0 EC?? F???      00599         call    delay_1s
+0001B4 EC?? F???      00600         call    delay_1s
+                      00601 
+0001B8 9280           00602         bcf             PORTA,1
+0001BA 0012           00603         return
+                      00604 
+                      00605 ;-------------------------------------------------------
+                      00606 ;All Polling
+                      00607 ;
+                      00608 ;poll_leftclfsen - cliff sensors triggered on the left?
+                      00609 ;-------------------------------------------------------
+0001BC                00610 poll_leftclfsen                         ;RB<2:3>
+0001BC 9028           00611         BCF             cliff_left
+0001BE B481           00612         btfsc   PORTB,2                 ;clear means no IR reflection!
+0001C0 8028           00613         bsf             cliff_left
+0001C2 0000           00614         NOP
+0001C4 B681           00615         btfsc   PORTB,3         
+0001C6 8028           00616         bsf             cliff_left
+0001C8 0000           00617         NOP     
+                      00618                 
+0001CA 0012           00619         return
+                      00620 
+                      00621 
+                      00622 ;-------------------------------------------------------
+                      00623 ;Main Code
+                      00624 ;
+MPASM  5.47                             M.ASM   2-8-2013  16:28:28         PAGE 13
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+                      00625 ;-------------------------------------------------------
+                      00626         
+0001CC                00627 start
+0001CC EC?? F???      00628                 call delay_1s                   ;let the power supply and such settle out..
+0001D0 EC?? F???      00629                 call delay_1s
+                      00630                 ;initialization
+0001D4 EC?? F???      00631                 call    init_ports
+0001D8 EC?? F???      00632                 call    init_EncCount
+0001DC EC?? F???      00633                 call    init_232
+0001E0 EC?? F???      00634                 call delay_1s
+0001E4 EC?? F???      00635                 call delay_1s
+0001E8 EC?? F???      00636                 call    init_motor_controller
+0001EC EC?? F???      00637                 call delay_1s
+0001F0 EC?? F???      00638                 call delay_1s
+0001F4 EC?? F???      00639                 call delay_1s
+                      00640 
+0001F8 9280           00641                 bcf             PORTA,1                 ;LED_1 Off
+0001FA 9480           00642                 bcf             PORTA,2                 ;LED_2 Off
+0001FC 9680           00643                 bcf             PORTA,3                 ;LED_3 Off
+                      00644                 
+0001FE A880           00645 wait    BTFSS   PORTA,4                 ;wait for power_en
+000200 EF?? F???      00646                 goto $-2
+000204 0000           00647                 NOP
+000206 8680           00648                 bsf             PORTA,3                 ;001
+000208 EC?? F???      00649                 call delay_1s
+00020C EC?? F???      00650                 call delay_1s
+000210 EC?? F???      00651                 call delay_1s
+000214 EC?? F???      00652                 call delay_1s
+000218 9680           00653                 bcf             PORTA,3                 ;010
+00021A 8480           00654                 bsf             PORTA,2                 
+00021C EC?? F???      00655                 call delay_1s
+000220 EC?? F???      00656                 call delay_1s
+000224 EC?? F???      00657                 call delay_1s
+000228 EC?? F???      00658                 call delay_1s
+00022C 8680           00659                 bsf             PORTA,3                 ;011
+00022E EC?? F???      00660                 call delay_1s
+000232 EC?? F???      00661                 call delay_1s
+000236 EC?? F???      00662                 call delay_1s
+00023A EC?? F???      00663                 call delay_1s
+00023E 9480           00664                 bcf             PORTA,2
+000240 9680           00665                 bcf             PORTA,3                 ;100
+000242 8280           00666                 bsf             PORTA,1
+000244 EC?? F???      00667                 call delay_1s
+000248 EC?? F???      00668                 call delay_1s
+00024C EC?? F???      00669                 call delay_1s
+000250 EC?? F???      00670                 call delay_1s
+000254 8680           00671                 bsf             PORTA,3                 ;101
+000256 EC?? F???      00672                 call delay_1s
+00025A EC?? F???      00673                 call delay_1s
+00025E EC?? F???      00674                 call delay_1s
+000262 EC?? F???      00675                 call delay_1s
+000266 9280           00676                 bcf             PORTA,1
+000268 9680           00677                 bcf             PORTA,3
+MPASM  5.47                             M.ASM   2-8-2013  16:28:28         PAGE 14
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+00026A 8480           00678                 bsf             PORTA,2
+                      00679 
+                      00680 
+                      00681 ;EDIT A LOT BELOW       
+                      00682                 ;call   motor_left_fwd_half
+                      00683                 ;call   motor_right_fwd_full
+                      00684                 ;call   motor_left_rev_half
+                      00685                 ;main loop
+00026C                00686 loop
+                      00687                         
+00026C 0000           00688                 NOP
+00026E EC?? F???      00689                 call    poll_leftclfsen
+000272 A028           00690                 btfss   cliff_left                              ;if cliff lets avoid it!
+000274 EC?? F???      00691                 call    drive_leftcliff
+000278 0000           00692                 nop
+                      00693 
+00027A EC?? F???      00694                 call    motor_left_fwd_normal
+00027E EC?? F???      00695                 call    motor_right_fwd_normal
+000282 EF?? F???      00696                 goto loop
+                      00697 
+                      00698 
+                      00699 
+B2FF FEFD FF3C FFFA FF00700         end
+       FF FFFF FFFF 
+MPASM  5.47                             M.ASM   2-8-2013  16:28:28         PAGE 15
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+A                                 00000000
+ABDEN                             00000000
+ABDOVF                            00000007
+ACCESS                            00000000
+ACMOD0                            00000002
+ACMOD1                            00000003
+ACONV                             00000005
+ACQT0                             00000003
+ACQT1                             00000004
+ACQT2                             00000005
+ACQT3                             00000006
+ACSCH                             00000004
+ADCHS                             00000F99
+ADCON0                            00000FC2
+ADCON1                            00000FC1
+ADCON2                            00000FC0
+ADCON3                            00000F9A
+ADCS0                             00000000
+ADCS1                             00000001
+ADCS2                             00000002
+ADDEN                             00000003
+ADEN                              00000003
+ADFM                              00000007
+ADIE                              00000006
+ADIF                              00000006
+ADIP                              00000006
+ADON                              00000000
+ADPNT0                            00000000
+ADPNT1                            00000001
+ADRES                             00000FC3
+ADRESH                            00000FC4
+ADRESL                            00000FC3
+ADRS0                             00000006
+ADRS1                             00000007
+AN0                               00000000
+AN1                               00000001
+AN2                               00000002
+AN3                               00000003
+AN4                               00000004
+ANS0                              00000000
+ANS1                              00000001
+ANS2                              00000002
+ANS3                              00000003
+ANS4                              00000004
+ANSEL0                            00000FB8
+BANKED                            00000001
+BAUDCON                           00000FAA
+BAUDCTL                           00000FAA
+BF                                00000000
+BFEMT                             00000003
+BFOVFL                            00000002
+BOR                               00000000
+BRFEN                             00000007
+MPASM  5.47                             M.ASM   2-8-2013  16:28:28         PAGE 16
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+BRG16                             00000003
+BRGH                              00000002
+BSR                               00000FE0
+C                                 00000000
+CAP1BUFH                          00000F69
+CAP1BUFL                          00000F68
+CAP1CON                           00000F63
+CAP1M0                            00000000
+CAP1M1                            00000001
+CAP1M2                            00000002
+CAP1M3                            00000003
+CAP1REN                           00000006
+CAP1TMR                           00000005
+CAP2BUFH                          00000F67
+CAP2BUFL                          00000F66
+CAP2CON                           00000F62
+CAP2M0                            00000000
+CAP2M1                            00000001
+CAP2M2                            00000002
+CAP2M3                            00000003
+CAP2REN                           00000006
+CAP2TMR                           00000005
+CAP3BUFH                          00000F65
+CAP3BUFL                          00000F64
+CAP3CON                           00000F61
+CAP3M0                            00000000
+CAP3M1                            00000001
+CAP3M2                            00000002
+CAP3M3                            00000003
+CAP3REN                           00000006
+CAP3TMR                           00000005
+CCP1                              00000002
+CCP1CON                           00000FBD
+CCP1IE                            00000002
+CCP1IF                            00000002
+CCP1IP                            00000002
+CCP1M0                            00000000
+CCP1M1                            00000001
+CCP1M2                            00000002
+CCP1M3                            00000003
+CCP1X                             00000005
+CCP1Y                             00000004
+CCP2                              00000001
+CCP2CON                           00000FBA
+CCP2IE                            00000000
+CCP2IF                            00000000
+CCP2IP                            00000000
+CCP2M0                            00000000
+CCP2M1                            00000001
+CCP2M2                            00000002
+CCP2M3                            00000003
+CCP2X                             00000005
+CCP2Y                             00000004
+MPASM  5.47                             M.ASM   2-8-2013  16:28:28         PAGE 17
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+CCPR1                             00000FBE
+CCPR1H                            00000FBF
+CCPR1L                            00000FBE
+CCPR2                             00000FBB
+CCPR2H                            00000FBC
+CCPR2L                            00000FBB
+CFGS                              00000006
+CK                                00000006
+CKE                               00000006
+CKP                               00000004
+CLKI                              00000007
+CLKO                              00000006
+CNT1                              00000020
+CNT2                              00000021
+CNT3                              00000022
+CREN                              00000004
+CSRC                              00000007
+D                                 00000005
+DATA_ADDRESS                      00000005
+DC                                00000001
+DC1B0                             00000004
+DC1B1                             00000005
+DC2B0                             00000004
+DC2B1                             00000005
+DDRA                              TRISA
+DDRB                              TRISB
+DDRC                              TRISC
+DDRD                              TRISD
+DDRE                              TRISE
+DFLTCON                           00000F60
+DONE                              00000001
+DOWN                              00000005
+DT0                               00000000
+DT1                               00000001
+DT2                               00000002
+DT3                               00000003
+DT4                               00000004
+DT5                               00000005
+DTA0                              00000000
+DTA1                              00000001
+DTA2                              00000002
+DTA3                              00000003
+DTA4                              00000004
+DTA5                              00000005
+DTAPS0                            00000006
+DTAPS1                            00000007
+DTCON                             00000F6D
+DTPS0                             00000006
+DTPS1                             00000007
+D_A                               00000005
+D_NOT_A                           00000005
+EEADR                             00000FA9
+EECON1                            00000FA6
+MPASM  5.47                             M.ASM   2-8-2013  16:28:28         PAGE 18
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+EECON2                            00000FA7
+EEDATA                            00000FA8
+EEIE                              00000004
+EEIF                              00000004
+EEIP                              00000004
+EEPGD                             00000007
+FAST                              00000001
+FERR                              00000002
+FFOVFL                            00000002
+FIFOEN                            00000004
+FLT1EN                            00000003
+FLT2EN                            00000004
+FLT3EN                            00000005
+FLT4EN                            00000006
+FLTA                              00000001
+FLTAEN                            00000000
+FLTAMOD                           00000001
+FLTAS                             00000002
+FLTB                              00000002
+FLTBEN                            00000004
+FLTBMOD                           00000005
+FLTBS                             00000006
+FLTCK0                            00000000
+FLTCK1                            00000001
+FLTCK2                            00000002
+FLTCON                            00000003
+FLTCONFIG                         00000F6C
+FLTS                              00000002
+FREE                              00000004
+FSR0                              00000000
+FSR0H                             00000FEA
+FSR0L                             00000FE9
+FSR1                              00000001
+FSR1H                             00000FE2
+FSR1L                             00000FE1
+FSR2                              00000002
+FSR2H                             00000FDA
+FSR2L                             00000FD9
+GASEL0                            00000000
+GASEL1                            00000001
+GBSEL0                            00000004
+GBSEL1                            00000005
+GCSEL0                            00000002
+GCSEL1                            00000003
+GDSEL0                            00000006
+GDSEL1                            00000007
+GIE                               00000007
+GIEH                              00000007
+GIEL                              00000006
+GIE_GIEH                          00000007
+GO                                00000001
+GODONE                            00000001
+GO_DONE                           00000001
+MPASM  5.47                             M.ASM   2-8-2013  16:28:28         PAGE 19
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+GO_NOT_DONE                       00000001
+IC1IE                             00000001
+IC1IF                             00000001
+IC1IP                             00000001
+IC2QEIE                           00000002
+IC2QEIF                           00000002
+IC2QEIP                           00000002
+IC3DRIE                           00000003
+IC3DRIF                           00000003
+IC3DRIP                           00000003
+IDLEN                             00000007
+INDF0                             00000FEF
+INDF1                             00000FE7
+INDF2                             00000FDF
+INT0                              00000003
+INT0E                             00000004
+INT0F                             00000001
+INT0IE                            00000004
+INT0IF                            00000001
+INT1                              00000004
+INT1E                             00000003
+INT1F                             00000000
+INT1IE                            00000003
+INT1IF                            00000000
+INT1IP                            00000006
+INT1P                             00000006
+INT2                              00000005
+INT2E                             00000004
+INT2F                             00000001
+INT2IE                            00000004
+INT2IF                            00000001
+INT2IP                            00000007
+INT2P                             00000007
+INTCON                            00000FF2
+INTCON2                           00000FF1
+INTCON3                           00000FF0
+INTEDG0                           00000006
+INTEDG1                           00000005
+INTEDG2                           00000004
+IOFS                              00000002
+IPEN                              00000007
+IPR1                              00000F9F
+IPR2                              00000FA2
+IPR3                              00000FA5
+IRCF0                             00000004
+IRCF1                             00000005
+IRCF2                             00000006
+IRVST                             00000005
+IVRST                             00000005
+LATA                              00000F89
+LATA0                             00000000
+LATA1                             00000001
+LATA2                             00000002
+MPASM  5.47                             M.ASM   2-8-2013  16:28:28         PAGE 20
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+LATA3                             00000003
+LATA4                             00000004
+LATA6                             00000006
+LATA7                             00000007
+LATB                              00000F8A
+LATB0                             00000000
+LATB1                             00000001
+LATB2                             00000002
+LATB3                             00000003
+LATB4                             00000004
+LATB5                             00000005
+LATB6                             00000006
+LATB7                             00000007
+LATC                              00000F8B
+LATC0                             00000000
+LATC1                             00000001
+LATC2                             00000002
+LATC3                             00000003
+LATC4                             00000004
+LATC5                             00000005
+LATC6                             00000006
+LATC7                             00000007
+LEncCountH                        00000023
+LEncCountL                        00000024
+LOOP1                             0000003A
+LOOP2                             0000003E
+LOOP3                             00000042
+LVDCON                            00000FD2
+LVDEN                             00000004
+LVDIE                             00000002
+LVDIF                             00000002
+LVDIP                             00000002
+LVDL0                             00000000
+LVDL1                             00000001
+LVDL2                             00000002
+LVDL3                             00000003
+MAXCNTH                           00000F65
+MAXCNTL                           00000F64
+MCLR                              00000003
+N                                 00000004
+NOT_A                             00000005
+NOT_ADDRESS                       00000005
+NOT_BOR                           00000000
+NOT_DONE                          00000001
+NOT_DOWN                          00000005
+NOT_FLTA                          00000001
+NOT_FLTB                          00000002
+NOT_IPEN                          00000007
+NOT_MCLR                          00000003
+NOT_PD                            00000002
+NOT_POR                           00000001
+NOT_RBPU                          00000007
+NOT_RESEN                         00000006
+MPASM  5.47                             M.ASM   2-8-2013  16:28:28         PAGE 21
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+NOT_RI                            00000004
+NOT_SS                            00000006
+NOT_T1SYNC                        00000002
+NOT_T5SYNC                        00000002
+NOT_TO                            00000003
+NOT_VELM                          00000007
+NOT_W                             00000002
+NOT_WRITE                         00000002
+OERR                              00000001
+OSC1                              00000007
+OSC2                              00000006
+OSCCON                            00000FD3
+OSCTUNE                           00000F9B
+OSFIE                             00000007
+OSFIF                             00000007
+OSFIP                             00000007
+OSTS                              00000003
+OSYNC                             00000000
+OV                                00000003
+OVDCOND                           00000F6B
+OVDCONS                           00000F6A
+P                                 00000004
+PC                                00000FF9
+PCL                               00000FF9
+PCLATH                            00000FFA
+PCLATU                            00000FFB
+PD                                00000002
+PDC0H                             00000F78
+PDC0L                             00000F79
+PDC1H                             00000F76
+PDC1L                             00000F77
+PDC2H                             00000F74
+PDC2L                             00000F75
+PDEC0                             00000000
+PDEC1                             00000001
+PEIE                              00000006
+PEIE_GIEL                         00000006
+PIE1                              00000F9D
+PIE2                              00000FA0
+PIE3                              00000FA3
+PIR1                              00000F9E
+PIR2                              00000FA1
+PIR3                              00000FA4
+PLUSW0                            00000FEB
+PLUSW1                            00000FE3
+PLUSW2                            00000FDB
+PMOD0                             00000000
+PMOD1                             00000001
+PMOD2                             00000002
+PMOD3                             00000003
+POR                               00000001
+PORTA                             00000F80
+PORTB                             00000F81
+MPASM  5.47                             M.ASM   2-8-2013  16:28:28         PAGE 22
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+PORTC                             00000F82
+PORTE                             00000F84
+POSCNTH                           00000F67
+POSCNTL                           00000F66
+POSTDEC0                          00000FED
+POSTDEC1                          00000FE5
+POSTDEC2                          00000FDD
+POSTINC0                          00000FEE
+POSTINC1                          00000FE6
+POSTINC2                          00000FDE
+POUT0                             00000000
+POUT1                             00000001
+POUT2                             00000002
+POUT3                             00000003
+POUT4                             00000004
+POUT5                             00000005
+POUT6                             00000006
+POUT7                             00000007
+POVD0                             00000000
+POVD1                             00000001
+POVD2                             00000002
+POVD3                             00000003
+POVD4                             00000004
+POVD5                             00000005
+POVD6                             00000006
+POVD7                             00000007
+PR2                               00000FCB
+PR5                               00000F90
+PR5H                              00000F91
+PR5L                              00000F90
+PREINC0                           00000FEC
+PREINC1                           00000FE4
+PREINC2                           00000FDC
+PROD                              00000FF3
+PRODH                             00000FF4
+PRODL                             00000FF3
+PSA                               00000003
+PTCKPS0                           00000002
+PTCKPS1                           00000003
+PTCON0                            00000F7F
+PTCON1                            00000F7E
+PTDIR                             00000006
+PTEN                              00000007
+PTIE                              00000004
+PTIF                              00000004
+PTIP                              00000004
+PTMOD0                            00000000
+PTMOD1                            00000001
+PTMRH                             00000F7C
+PTMRL                             00000F7D
+PTOPS0                            00000004
+PTOPS1                            00000005
+PTOPS2                            00000006
+MPASM  5.47                             M.ASM   2-8-2013  16:28:28         PAGE 23
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+PTOPS3                            00000007
+PTPERH                            00000F7A
+PTPERL                            00000F7B
+PWMCON0                           00000F6F
+PWMCON1                           00000F6E
+PWMEN0                            00000004
+PWMEN1                            00000005
+PWMEN2                            00000006
+QEICON                            00000FB6
+QEIM0                             00000002
+QEIM1                             00000003
+QEIM2                             00000004
+R                                 00000002
+RA0                               00000000
+RA1                               00000001
+RA2                               00000002
+RA3                               00000003
+RA4                               00000004
+RA6                               00000006
+RA7                               00000007
+RB0                               00000000
+RB1                               00000001
+RB2                               00000002
+RB3                               00000003
+RB4                               00000004
+RB5                               00000005
+RB6                               00000006
+RB7                               00000007
+RBIE                              00000003
+RBIF                              00000000
+RBIP                              00000000
+RBPU                              00000007
+RC0                               00000000
+RC1                               00000001
+RC2                               00000002
+RC3                               00000003
+RC4                               00000004
+RC5                               00000005
+RC6                               00000006
+RC7                               00000007
+RCIDL                             00000006
+RCIE                              00000005
+RCIF                              00000005
+RCIP                              00000005
+RCMT                              00000006
+RCON                              00000FD0
+RCREG                             00000FAE
+RCSTA                             00000FAB
+RD                                00000000
+RD16                              00000007
+RE3                               00000003
+READ_WRITE                        00000002
+RESEN                             00000006
+MPASM  5.47                             M.ASM   2-8-2013  16:28:28         PAGE 24
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+REncCountH                        00000025
+REncCountL                        00000026
+RI                                00000004
+RX                                00000007
+RX9                               00000006
+RX9D                              00000000
+RXDTP                             00000005
+R_NOT_W                           00000002
+R_W                               00000002
+S                                 00000003
+SASEL0                            00000000
+SASEL1                            00000001
+SBSEL0                            00000004
+SBSEL1                            00000005
+SCK                               00000005
+SCKP                              00000004
+SCL                               00000005
+SCS0                              00000000
+SCS1                              00000001
+SCSEL0                            00000002
+SCSEL1                            00000003
+SDA                               00000004
+SDI                               00000004
+SDO                               00000007
+SDSEL0                            00000006
+SDSEL1                            00000007
+SENDB                             00000003
+SEVOPS0                           00000004
+SEVOPS1                           00000005
+SEVOPS2                           00000006
+SEVOPS3                           00000007
+SEVTCMPH                          00000F70
+SEVTCMPL                          00000F71
+SEVTDIR                           00000003
+SMP                               00000007
+SPBRG                             00000FAF
+SPBRGH                            00000FB0
+SPEN                              00000007
+SREN                              00000005
+SS                                00000006
+SSPADD                            00000FC8
+SSPBUF                            00000FC9
+SSPCON                            00000FC6
+SSPEN                             00000005
+SSPIE                             00000003
+SSPIF                             00000003
+SSPIP                             00000003
+SSPM0                             00000000
+SSPM1                             00000001
+SSPM2                             00000002
+SSPM3                             00000003
+SSPOV                             00000006
+SSPSTAT                           00000FC7
+MPASM  5.47                             M.ASM   2-8-2013  16:28:28         PAGE 25
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+SSRC0                             00000000
+SSRC1                             00000001
+SSRC2                             00000002
+SSRC3                             00000003
+SSRC4                             00000004
+STATUS                            00000FD8
+STKFUL                            00000007
+STKOVF                            00000007
+STKPTR                            00000FFC
+STKPTR0                           00000000
+STKPTR1                           00000001
+STKPTR2                           00000002
+STKPTR3                           00000003
+STKPTR4                           00000004
+STKUNF                            00000006
+SWDTEN                            00000000
+SYNC                              00000004
+T016BIT                           00000006
+T0CKI                             00000003
+T0CON                             00000FD5
+T0CS                              00000005
+T0IE                              00000005
+T0IF                              00000002
+T0IP                              00000002
+T0PS0                             00000000
+T0PS1                             00000001
+T0PS2                             00000002
+T0PS3                             00000003
+T0SE                              00000004
+T13CKI                            00000000
+T1CKPS0                           00000004
+T1CKPS1                           00000005
+T1CON                             00000FCD
+T1INSYNC                          00000002
+T1OSCEN                           00000003
+T1OSI                             00000001
+T1OSO                             00000000
+T1RUN                             00000006
+T1SYNC                            00000002
+T2CKPS0                           00000000
+T2CKPS1                           00000001
+T2CON                             00000FCA
+T2OUTPS0                          00000003
+T2OUTPS1                          00000004
+T2OUTPS2                          00000005
+T2OUTPS3                          00000006
+T5CKI                             00000003
+T5CON                             00000FB7
+T5MOD                             00000005
+T5PS0                             00000003
+T5PS1                             00000004
+T5SEN                             00000007
+T5SYNC                            00000002
+MPASM  5.47                             M.ASM   2-8-2013  16:28:28         PAGE 26
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+TABLAT                            00000FF5
+TBIE                              00000004
+TBIF                              00000004
+TBIP                              00000004
+TBLPTR                            00000FF6
+TBLPTRH                           00000FF7
+TBLPTRL                           00000FF6
+TBLPTRU                           00000FF8
+TMR0                              00000FD6
+TMR0H                             00000FD7
+TMR0IE                            00000005
+TMR0IF                            00000002
+TMR0IP                            00000002
+TMR0L                             00000FD6
+TMR0ON                            00000007
+TMR1                              00000FCE
+TMR1CS                            00000001
+TMR1H                             00000FCF
+TMR1IE                            00000000
+TMR1IF                            00000000
+TMR1IP                            00000000
+TMR1L                             00000FCE
+TMR1ON                            00000000
+TMR2                              00000FCC
+TMR2IE                            00000001
+TMR2IF                            00000001
+TMR2IP                            00000001
+TMR2ON                            00000002
+TMR5                              00000F87
+TMR5CS                            00000001
+TMR5H                             00000F88
+TMR5IE                            00000000
+TMR5IF                            00000000
+TMR5IP                            00000000
+TMR5L                             00000F87
+TMR5ON                            00000000
+TO                                00000003
+TOS                               00000FFD
+TOSH                              00000FFE
+TOSL                              00000FFD
+TOSU                              00000FFF
+TOUTPS0                           00000003
+TOUTPS1                           00000004
+TOUTPS2                           00000005
+TOUTPS3                           00000006
+TRISA                             00000F92
+TRISA0                            00000000
+TRISA1                            00000001
+TRISA2                            00000002
+TRISA3                            00000003
+TRISA4                            00000004
+TRISA6                            00000006
+TRISA7                            00000007
+MPASM  5.47                             M.ASM   2-8-2013  16:28:28         PAGE 27
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+TRISB                             00000F93
+TRISB0                            00000000
+TRISB1                            00000001
+TRISB2                            00000002
+TRISB3                            00000003
+TRISB4                            00000004
+TRISB5                            00000005
+TRISB6                            00000006
+TRISB7                            00000007
+TRISC                             00000F94
+TRISC0                            00000000
+TRISC1                            00000001
+TRISC2                            00000002
+TRISC3                            00000003
+TRISC4                            00000004
+TRISC5                            00000005
+TRISC6                            00000006
+TRISC7                            00000007
+TRMT                              00000001
+TUN0                              00000000
+TUN1                              00000001
+TUN2                              00000002
+TUN3                              00000003
+TUN4                              00000004
+TUN5                              00000005
+TX                                00000006
+TX9                               00000006
+TX9D                              00000000
+TXCKP                             00000004
+TXEN                              00000005
+TXIE                              00000004
+TXIF                              00000004
+TXIP                              00000004
+TXREG                             00000FAD
+TXSTA                             00000FAC
+UA                                00000001
+UDIS                              00000001
+UP                                00000005
+UPDOWN                            00000005
+UP_DOWN                           00000005
+UP_NOT_DOWN                       00000005
+VCFG0                             00000006
+VCFG1                             00000007
+VELM                              00000007
+VELRH                             00000F69
+VELRL                             00000F68
+VREFM                             00000002
+VREFP                             00000003
+W                                 00000000
+WCOL                              00000007
+WDTCON                            00000FD1
+WDTW                              00000007
+WR                                00000001
+MPASM  5.47                             M.ASM   2-8-2013  16:28:28         PAGE 28
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+WREG                              00000FE8
+WREN                              00000002
+WRERR                             00000003
+WUE                               00000001
+Z                                 00000002
+_.org_1_006A                      0000006A
+_.org_1_0076                      00000076
+_.org_1_0082                      00000082
+_.org_1_008E                      0000008E
+_.org_1_0098                      00000098
+_.org_1_00A4                      000000A4
+_.org_1_00AE                      000000AE
+_.org_1_00BA                      000000BA
+_.org_1_00C4                      000000C4
+_.org_1_00D0                      000000D0
+_.org_1_00DA                      000000DA
+_.org_1_00E6                      000000E6
+_.org_1_00F0                      000000F0
+_.org_1_00FC                      000000FC
+_.org_1_0106                      00000106
+_.org_1_0112                      00000112
+_.org_1_011C                      0000011C
+_.org_1_0128                      00000128
+_.org_1_0132                      00000132
+_.org_1_013C                      0000013C
+_.org_1_0146                      00000146
+_.org_1_0152                      00000152
+_.org_1_015C                      0000015C
+_.org_1_0168                      00000168
+_.org_1_0200                      00000200
+_BOREN_OFF_2L                     000000FD
+_BOREN_ON_2L                      000000FF
+_BORV_20_2L                       000000FF
+_BORV_27_2L                       000000FB
+_BORV_42_2L                       000000F7
+_BORV_45_2L                       000000F3
+_CONFIG1H                         00300001
+_CONFIG2H                         00300003
+_CONFIG2L                         00300002
+_CONFIG3H                         00300005
+_CONFIG3L                         00300004
+_CONFIG4L                         00300006
+_CONFIG5H                         00300009
+_CONFIG5L                         00300008
+_CONFIG6H                         0030000B
+_CONFIG6L                         0030000A
+_CONFIG7H                         0030000D
+_CONFIG7L                         0030000C
+_CP0_OFF_5L                       000000FF
+_CP0_ON_5L                        000000FE
+_CP1_OFF_5L                       000000FF
+_CP1_ON_5L                        000000FD
+_CPB_OFF_5H                       000000FF
+MPASM  5.47                             M.ASM   2-8-2013  16:28:28         PAGE 29
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+_CPB_ON_5H                        000000BF
+_CPD_OFF_5H                       000000FF
+_CPD_ON_5H                        0000007F
+_DEBUG_OFF_4L                     000000FF
+_DEBUG_ON_4L                      0000007F
+_DEVID1                           003FFFFE
+_DEVID2                           003FFFFF
+_EBTR0_OFF_7L                     000000FF
+_EBTR0_ON_7L                      000000FE
+_EBTR1_OFF_7L                     000000FF
+_EBTR1_ON_7L                      000000FD
+_EBTRB_OFF_7H                     000000FF
+_EBTRB_ON_7H                      000000BF
+_FCMEN_OFF_1H                     000000BF
+_FCMEN_ON_1H                      000000FF
+_HPOL_HIGH_3L                     000000FF
+_HPOL_LOW_3L                      000000EF
+_IDLOC0                           00200000
+_IDLOC1                           00200001
+_IDLOC2                           00200002
+_IDLOC3                           00200003
+_IDLOC4                           00200004
+_IDLOC5                           00200005
+_IDLOC6                           00200006
+_IDLOC7                           00200007
+_IESO_OFF_1H                      0000007F
+_IESO_ON_1H                       000000FF
+_LPOL_HIGH_3L                     000000FF
+_LPOL_LOW_3L                      000000F7
+_LVP_OFF_4L                       000000FB
+_LVP_ON_4L                        000000FF
+_MCLRE_OFF_3H                     0000007F
+_MCLRE_ON_3H                      000000FF
+_OSC_ECIO_1H                      000000F5
+_OSC_EC_1H                        000000F4
+_OSC_HSPLL_1H                     000000F6
+_OSC_HS_1H                        000000F2
+_OSC_IRCIO_1H                     000000F8
+_OSC_IRC_1H                       000000F9
+_OSC_LP_1H                        000000F0
+_OSC_RC1_1H                       000000FA
+_OSC_RC2_1H                       000000F3
+_OSC_RCIO_1H                      000000F7
+_OSC_RC_1H                        000000FC
+_OSC_XT_1H                        000000F1
+_PWMPIN_OFF_3L                    000000FF
+_PWMPIN_ON_3L                     000000FB
+_PWRTEN_OFF_2L                    000000FF
+_PWRTEN_ON_2L                     000000FE
+_STVREN_OFF_4L                    000000FE
+_STVREN_ON_4L                     000000FF
+_T1OSCMX_OFF_3L                   000000DF
+_T1OSCMX_ON_3L                    000000FF
+MPASM  5.47                             M.ASM   2-8-2013  16:28:28         PAGE 30
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+_WDPS_1024_2H                     000000F5
+_WDPS_128_2H                      000000EF
+_WDPS_16384_2H                    000000FD
+_WDPS_16_2H                       000000E9
+_WDPS_1_2H                        000000E1
+_WDPS_2048_2H                     000000F7
+_WDPS_256_2H                      000000F1
+_WDPS_2_2H                        000000E3
+_WDPS_32768_2H                    000000FF
+_WDPS_32_2H                       000000EB
+_WDPS_4096_2H                     000000F9
+_WDPS_4_2H                        000000E5
+_WDPS_512_2H                      000000F3
+_WDPS_64_2H                       000000ED
+_WDPS_8192_2H                     000000FB
+_WDPS_8_2H                        000000E7
+_WDTEN_OFF_2H                     000000FE
+_WDTEN_ON_2H                      000000FF
+_WINEN_OFF_2H                     000000FF
+_WINEN_ON_2H                      000000DF
+_WRT0_OFF_6L                      000000FF
+_WRT0_ON_6L                       000000FE
+_WRT1_OFF_6L                      000000FF
+_WRT1_ON_6L                       000000FD
+_WRTB_OFF_6H                      000000FF
+_WRTB_ON_6H                       000000BF
+_WRTC_OFF_6H                      000000FF
+_WRTC_ON_6H                       000000DF
+_WRTD_OFF_6H                      000000FF
+_WRTD_ON_6H                       0000007F
+__18F2331                         00000001
+__DEBUG                           1
+cliff_left                        myflags,0
+cliff_right                       myflags,1
+delay_1s                          00000036
+drive_leftcliff                   0000016E
+init_232                          00000056
+init_EncCount                     0000002C
+init_motor_controller             00000064
+init_ports                        0000000C
+loop                              0000026C
+motor_left_fwd_full               00000088
+motor_left_fwd_half               000000B4
+motor_left_fwd_normal             0000009E
+motor_left_rev_half               000000CA
+motor_left_stop                   0000007C
+motor_right_fwd_full              0000010C
+motor_right_fwd_half              000000F6
+motor_right_fwd_normal            000000E0
+motor_right_fwd_quarter           00000122
+motor_right_rev_full              0000014C
+motor_right_rev_half              00000136
+motor_right_stop                  00000070
+MPASM  5.47                             M.ASM   2-8-2013  16:28:28         PAGE 31
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+myflags                           00000028
+poll_leftclfsen                   000001BC
+rs232_write                       00000162
+start                             000001CC
+temp_wr                           00000027
+wait                              000001FE
+
+Errors   :     0
+Warnings :     0 reported,    11 suppressed
+Messages :     0 reported,     0 suppressed
+
+

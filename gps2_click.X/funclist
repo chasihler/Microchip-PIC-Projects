@@ -1,0 +1,12 @@
+__stringdata: SMALLCONST, 3841 0 6
+_ISR: CODE, 8 0 240
+_strlen: CODE, 4552 0 66
+_main: CODE, 3848 0 328
+_strchr: CODE, 4618 0 52
+__initialization: CODE, 4720 0 24
+_serial_init: CODE, 4670 0 50
+_strncmp: CODE, 4176 0 138
+_strstr: CODE, 4314 0 136
+_init_io: CODE, 4450 0 102
+_uart_xmit: CODE, 4750 0 10
+Total: 1152

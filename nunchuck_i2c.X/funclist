@@ -1,0 +1,15 @@
+_I2C_Start_Bit: CODE, 1732 0 15
+_RX_I2C_Data: CODE, 1694 0 11
+_start_conversion_with_nunchuck: CODE, 1779 0 16
+_main: CODE, 1933 0 96
+_I2C_NAK: CODE, 1718 0 14
+_I2C_Control_Read: CODE, 1763 0 16
+_Send_I2C_Data: CODE, 1676 0 9
+_initialize_nunchuk: CODE, 1819 0 33
+__initialization: CODE, 2029 0 15
+_I2C_Stop_Bit: CODE, 1705 0 13
+_I2C_Control_Write: CODE, 1747 0 16
+_I2C_ACK: CODE, 1685 0 9
+_init_io: CODE, 1795 0 24
+_read_state: CODE, 1852 0 81
+Total: 368

@@ -1,0 +1,13 @@
+<GPS2_Click>
+	<Attributes>
+		<Url>http://www.mikroe.com/click/gps2/</Url>
+		<Image>GPS2_Click.jpg</Image>
+		<File></File>
+	</Attributes>
+	<Events>
+		<OnLeftClick>None</OnLeftClick>
+		<OnRightClick></OnRightClick>
+		<OnDblClick>OpenUrl</OnDblClick>
+		<OnMouseOver>PreviewImage</OnMouseOver>
+	</Events>
+</GPS2_Click>

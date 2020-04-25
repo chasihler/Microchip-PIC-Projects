@@ -1,0 +1,15 @@
+___aldiv: CODE, 5230 0 332
+_t0Delay: CODE, 6238 0 76
+_ISR: CODE, 8 0 126
+_zeroMotor: CODE, 5950 0 120
+___awmod: CODE, 5794 0 156
+_main: CODE, 4100 0 680
+___almod: CODE, 5562 0 232
+___lmul: CODE, 6070 0 86
+__initialization: CODE, 6156 0 76
+_moveMotor: CODE, 4780 0 450
+_serial_init: CODE, 6390 0 58
+_stateCount: SMALLCONST, 4097 0 1
+_init_io: CODE, 6314 0 76
+_uart_xmit: CODE, 6476 0 10
+Total: 2479

@@ -1,0 +1,10 @@
+__stringtab: STRING, 2 0 1
+_t0Delay: CODE, 570 0 44
+_zeroMotor: CODE, 497 0 73
+___awmod: CODE, 403 0 94
+_main: CODE, 266 0 137
+__initialization: CODE, 648 0 15
+_isr: CODE, 4 0 7
+_moveMotor: CODE, 13 0 253
+_stateCount: STRING, 3 0 1
+Total: 625

@@ -1,0 +1,162 @@
+[Header]
+MagicCookie={0b13fe8c-dfe0-40eb-8900-6712719559a7}
+Version=1.0
+[File000]
+Location=C:\d\Projects\LCDS\oc19\18\p18lcd.o
+Folder=Intermediary
+DeviceName=PIC18F4520
+LanguageToolSuiteID={6B3DAA78-59C1-46DD-B6AA-DBDAE4E06484}
+LanguageToolID={49D3CA3F-D9A3-4518-9943-226A347E8CC7}
+LanguageToolLocation=C:\Program Files\Microchip\MPASM Suite\MPAsmWin.exe
+PPAD=$(BINDIR)||$(TMPDIR)||$(AINDIR)||$(INCDIR)||$(LIBDIR)||$(LKRDIR)||
+SOLK=<src>|p18lcd.asm|p18math.asm|P18pt.ASM||<obj>||<lib>||<lkr>|18f4520.lkr||
+SuiteArgsString=
+ToolArgsString=
+TraceCmdString=
+[File001]
+Location=C:\d\Projects\LCDS\oc19\18\p18lcd.ERR
+Folder=Intermediary
+DeviceName=PIC18F4520
+LanguageToolSuiteID={6B3DAA78-59C1-46DD-B6AA-DBDAE4E06484}
+LanguageToolID={49D3CA3F-D9A3-4518-9943-226A347E8CC7}
+LanguageToolLocation=C:\Program Files\Microchip\MPASM Suite\MPAsmWin.exe
+PPAD=$(BINDIR)||$(TMPDIR)||$(AINDIR)||$(INCDIR)||$(LIBDIR)||$(LKRDIR)||
+SOLK=<src>|p18lcd.asm|p18math.asm|P18pt.ASM||<obj>||<lib>||<lkr>|18f4520.lkr||
+SuiteArgsString=
+ToolArgsString=
+TraceCmdString=
+[File002]
+Location=C:\d\Projects\LCDS\oc19\18\p18math.o
+Folder=Intermediary
+DeviceName=PIC18F4520
+LanguageToolSuiteID={6B3DAA78-59C1-46DD-B6AA-DBDAE4E06484}
+LanguageToolID={49D3CA3F-D9A3-4518-9943-226A347E8CC7}
+LanguageToolLocation=C:\Program Files\Microchip\MPASM Suite\MPAsmWin.exe
+PPAD=$(BINDIR)||$(TMPDIR)||$(AINDIR)||$(INCDIR)||$(LIBDIR)||$(LKRDIR)||
+SOLK=<src>|p18lcd.asm|p18math.asm|P18pt.ASM||<obj>||<lib>||<lkr>|18f4520.lkr||
+SuiteArgsString=
+ToolArgsString=
+TraceCmdString=
+[File003]
+Location=C:\d\Projects\LCDS\oc19\18\p18math.ERR
+Folder=Intermediary
+DeviceName=PIC18F4520
+LanguageToolSuiteID={6B3DAA78-59C1-46DD-B6AA-DBDAE4E06484}
+LanguageToolID={49D3CA3F-D9A3-4518-9943-226A347E8CC7}
+LanguageToolLocation=C:\Program Files\Microchip\MPASM Suite\MPAsmWin.exe
+PPAD=$(BINDIR)||$(TMPDIR)||$(AINDIR)||$(INCDIR)||$(LIBDIR)||$(LKRDIR)||
+SOLK=<src>|p18lcd.asm|p18math.asm|P18pt.ASM||<obj>||<lib>||<lkr>|18f4520.lkr||
+SuiteArgsString=
+ToolArgsString=
+TraceCmdString=
+[File004]
+Location=C:\d\Projects\LCDS\oc19\18\P18pt.o
+Folder=Intermediary
+DeviceName=PIC18F4520
+LanguageToolSuiteID={6B3DAA78-59C1-46DD-B6AA-DBDAE4E06484}
+LanguageToolID={49D3CA3F-D9A3-4518-9943-226A347E8CC7}
+LanguageToolLocation=C:\Program Files\Microchip\MPASM Suite\MPAsmWin.exe
+PPAD=$(BINDIR)||$(TMPDIR)||$(AINDIR)||$(INCDIR)||$(LIBDIR)||$(LKRDIR)||
+SOLK=<src>|p18lcd.asm|p18math.asm|P18pt.ASM||<obj>||<lib>||<lkr>|18f4520.lkr||
+SuiteArgsString=
+ToolArgsString=
+TraceCmdString=
+[File005]
+Location=C:\d\Projects\LCDS\oc19\18\P18pt.ERR
+Folder=Intermediary
+DeviceName=PIC18F4520
+LanguageToolSuiteID={6B3DAA78-59C1-46DD-B6AA-DBDAE4E06484}
+LanguageToolID={49D3CA3F-D9A3-4518-9943-226A347E8CC7}
+LanguageToolLocation=C:\Program Files\Microchip\MPASM Suite\MPAsmWin.exe
+PPAD=$(BINDIR)||$(TMPDIR)||$(AINDIR)||$(INCDIR)||$(LIBDIR)||$(LKRDIR)||
+SOLK=<src>|p18lcd.asm|p18math.asm|P18pt.ASM||<obj>||<lib>||<lkr>|18f4520.lkr||
+SuiteArgsString=
+ToolArgsString=
+TraceCmdString=
+[File006]
+Location=p18lcd.lst
+Folder=Output
+DeviceName=PIC18F4520
+LanguageToolSuiteID={6B3DAA78-59C1-46DD-B6AA-DBDAE4E06484}
+LanguageToolID={49D3CA3F-D9A3-4518-9943-226A347E8CC7}
+LanguageToolLocation=C:\Program Files\Microchip\MPASM Suite\MPAsmWin.exe
+PPAD=$(BINDIR)||$(TMPDIR)||$(AINDIR)||$(INCDIR)||$(LIBDIR)||$(LKRDIR)||
+SOLK=<src>|p18lcd.asm|p18math.asm|P18pt.ASM||<obj>||<lib>||<lkr>|18f4520.lkr||
+SuiteArgsString=
+ToolArgsString=
+TraceCmdString=
+[File007]
+Location=p18math.lst
+Folder=Output
+DeviceName=PIC18F4520
+LanguageToolSuiteID={6B3DAA78-59C1-46DD-B6AA-DBDAE4E06484}
+LanguageToolID={49D3CA3F-D9A3-4518-9943-226A347E8CC7}
+LanguageToolLocation=C:\Program Files\Microchip\MPASM Suite\MPAsmWin.exe
+PPAD=$(BINDIR)||$(TMPDIR)||$(AINDIR)||$(INCDIR)||$(LIBDIR)||$(LKRDIR)||
+SOLK=<src>|p18lcd.asm|p18math.asm|P18pt.ASM||<obj>||<lib>||<lkr>|18f4520.lkr||
+SuiteArgsString=
+ToolArgsString=
+TraceCmdString=
+[File008]
+Location=P18pt.lst
+Folder=Output
+DeviceName=PIC18F4520
+LanguageToolSuiteID={6B3DAA78-59C1-46DD-B6AA-DBDAE4E06484}
+LanguageToolID={49D3CA3F-D9A3-4518-9943-226A347E8CC7}
+LanguageToolLocation=C:\Program Files\Microchip\MPASM Suite\MPAsmWin.exe
+PPAD=$(BINDIR)||$(TMPDIR)||$(AINDIR)||$(INCDIR)||$(LIBDIR)||$(LKRDIR)||
+SOLK=<src>|p18lcd.asm|p18math.asm|P18pt.ASM||<obj>||<lib>||<lkr>|18f4520.lkr||
+SuiteArgsString=
+ToolArgsString=
+TraceCmdString=
+[File009]
+Location=4520LCD.cof
+Folder=Output
+DeviceName=PIC18F4520
+LanguageToolSuiteID={6B3DAA78-59C1-46DD-B6AA-DBDAE4E06484}
+LanguageToolID={96C98149-AA1B-4CF9-B967-FAE79CAB663C}
+LanguageToolLocation=C:\Program Files\Microchip\MPASM Suite\MPLink.exe
+PPAD=$(BINDIR)||$(TMPDIR)||$(AINDIR)||$(INCDIR)||$(LIBDIR)||$(LKRDIR)||
+SOLK=<src>|p18lcd.asm|p18math.asm|P18pt.ASM||<obj>||<lib>||<lkr>|18f4520.lkr||
+SuiteArgsString=
+ToolArgsString=/o"$(TARGETBASE).cof" /M"$(BINDIR_)$(TARGETBASE).map"
+TraceCmdString=
+[File010]
+Location=4520LCD.cod
+Folder=Output
+DeviceName=PIC18F4520
+LanguageToolSuiteID={6B3DAA78-59C1-46DD-B6AA-DBDAE4E06484}
+LanguageToolID={96C98149-AA1B-4CF9-B967-FAE79CAB663C}
+LanguageToolLocation=C:\Program Files\Microchip\MPASM Suite\MPLink.exe
+PPAD=$(BINDIR)||$(TMPDIR)||$(AINDIR)||$(INCDIR)||$(LIBDIR)||$(LKRDIR)||
+SOLK=<src>|p18lcd.asm|p18math.asm|P18pt.ASM||<obj>||<lib>||<lkr>|18f4520.lkr||
+SuiteArgsString=
+ToolArgsString=/o"$(TARGETBASE).cof" /M"$(BINDIR_)$(TARGETBASE).map"
+TraceCmdString=
+[File011]
+Location=4520LCD.hex
+Folder=Output
+DeviceName=PIC18F4520
+LanguageToolSuiteID={6B3DAA78-59C1-46DD-B6AA-DBDAE4E06484}
+LanguageToolID={96C98149-AA1B-4CF9-B967-FAE79CAB663C}
+LanguageToolLocation=C:\Program Files\Microchip\MPASM Suite\MPLink.exe
+PPAD=$(BINDIR)||$(TMPDIR)||$(AINDIR)||$(INCDIR)||$(LIBDIR)||$(LKRDIR)||
+SOLK=<src>|p18lcd.asm|p18math.asm|P18pt.ASM||<obj>||<lib>||<lkr>|18f4520.lkr||
+SuiteArgsString=
+ToolArgsString=/o"$(TARGETBASE).cof" /M"$(BINDIR_)$(TARGETBASE).map"
+TraceCmdString=
+[File012]
+Location=4520LCD.lst
+Folder=Output
+DeviceName=PIC18F4520
+LanguageToolSuiteID={6B3DAA78-59C1-46DD-B6AA-DBDAE4E06484}
+LanguageToolID={96C98149-AA1B-4CF9-B967-FAE79CAB663C}
+LanguageToolLocation=C:\Program Files\Microchip\MPASM Suite\MPLink.exe
+PPAD=$(BINDIR)||$(TMPDIR)||$(AINDIR)||$(INCDIR)||$(LIBDIR)||$(LKRDIR)||
+SOLK=<src>|p18lcd.asm|p18math.asm|P18pt.ASM||<obj>||<lib>||<lkr>|18f4520.lkr||
+SuiteArgsString=
+ToolArgsString=/o"$(TARGETBASE).cof" /M"$(BINDIR_)$(TARGETBASE).map"
+TraceCmdString=
+[TOOL_LOC_STAMPS]
+tool_loc{49D3CA3F-D9A3-4518-9943-226A347E8CC7}=C:\Program Files\Microchip\MPASM Suite\MPAsmWin.exe
+tool_loc{96C98149-AA1B-4CF9-B967-FAE79CAB663C}=C:\Program Files\Microchip\MPASM Suite\MPLink.exe

@@ -1,0 +1,239 @@
+;   Prigram to convert a  8  bit a/d reading
+;      to ascii decimal.  A/d reference is  200volts.
+;   CVD00 to CVD05 contains ascii decimal characters
+;      wuth the decimal point being between CVD02 and CVD03
+;  Put a/d reading in ADHIGH and ADLOW, call CVDEC
+;     and get value from CVD00 through CVD05
+.            Bill Cornutt   Jan 1, 2006
+
+
+	cblock
+CVD00
+CVD01
+CVD02
+CVD03
+CVD04
+CVD05
+ADHIGH
+ADLOW
+	endc
+
+
+CVDEC
+
+;    clear receiving bytes
+
+	CLRF	CVD00
+	CLRF	CVD01
+	CLRF	CVD02
+	CLRF	CVD03
+	CLRF	CVD04
+	CLRF	CVD05
+
+
+;  for bit 0     100
+
+CVDEC00
+	BTFSS	ADLOW,07
+	GOTO	CVDEC01
+
+	MOVLW	D'01'
+	ADDWF	CVD00,F
+
+
+
+;  for bit 1     50
+
+CVDEC01
+	BTFSS	ADLOW,06
+	GOTO	CVDEC02
+
+	MOVLW	D'05'
+	ADDWF	CVD01,F
+
+
+
+;  for bit 2     25
+
+CVDEC02
+	BTFSS	ADLOW,05
+	GOTO	CVDEC03
+
+	MOVLW	D'02'
+	ADDWF	CVD01,F
+
+	MOVLW	D'05'
+	ADDWF	CVD02,F
+
+
+
+;  for bit 3     12.5
+
+CVDEC03
+	BTFSS	ADLOW,04
+	GOTO	CVDEC04
+
+	MOVLW	D'01'
+	ADDWF	CVD01,F
+
+	MOVLW	D'02'
+	ADDWF	CVD02,F
+
+	MOVLW	D'05'
+	ADDWF	CVD03,F
+
+
+
+;  for bit 4     6.25
+
+CVDEC04
+	BTFSS	ADLOW,03
+	GOTO	CVDEC05
+
+	MOVLW	D'06'
+	ADDWF	CVD02,F
+
+	MOVLW	D'02'
+	ADDWF	CVD03,F
+
+	MOVLW	D'05'
+	ADDWF	CVD04,F
+
+
+
+;  for bit 5     3.125
+
+CVDEC05
+	BTFSS	ADLOW,02
+	GOTO	CVDEC06
+
+	MOVLW	D'03'
+	ADDWF	CVD02,F
+
+	MOVLW	D'01'
+	ADDWF	CVD03,F
+
+	MOVLW	D'02'
+	ADDWF	CVD04,F
+
+	MOVLW	D'05'
+	ADDWF	CVD05,F
+
+
+
+;  for bit 6     1.5625
+
+CVDEC06
+	BTFSS	ADLOW,01
+	GOTO	CVDEC07
+
+	MOVLW	D'01'
+	ADDWF	CVD02,F
+
+	MOVLW	D'05'
+	ADDWF	CVD03,F
+
+	MOVLW	D'06'
+	ADDWF	CVD04,F
+
+	MOVLW	D'03'
+	ADDWF	CVD05,F
+
+
+
+;  for bit 7     0.78125
+
+CVDEC07
+	BTFSS	ADLOW,00
+	GOTO	CVDEC08
+
+	MOVLW	D'07'
+	ADDWF	CVD03,F
+
+	MOVLW	D'08'
+	ADDWF	CVD04,F
+
+	MOVLW	D'01'
+	ADDWF	CVD05,F
+
+
+CVDEC08
+	MOVLW	D'10'
+
+;   adjust digit  5
+
+	INCF	CVD04,F
+	SUBWF	CVD05,F
+	BTFSC	STATUS,C
+	GOTO	$-3
+
+	;  went past zero
+
+	DECF	CVD04,F
+	ADDWF	CVD05,F
+
+;   adjust digit  4
+
+	INCF	CVD03,F
+	SUBWF	CVD04,F
+	BTFSC	STATUS,C
+	GOTO	$-3
+
+	;  went past zero
+
+	DECF	CVD03,F
+	ADDWF	CVD04,F
+
+;   adjust digit  3
+
+	INCF	CVD02,F
+	SUBWF	CVD03,F
+	BTFSC	STATUS,C
+	GOTO	$-3
+
+	;  went past zero
+
+	DECF	CVD02,F
+	ADDWF	CVD03,F
+
+;   adjust digit  2
+
+	INCF	CVD01,F
+	SUBWF	CVD02,F
+	BTFSC	STATUS,C
+	GOTO	$-3
+
+	;  went past zero
+
+	DECF	CVD01,F
+	ADDWF	CVD02,F
+
+;   adjust digit  1
+
+	INCF	CVD00,F
+	SUBWF	CVD01,F
+	BTFSC	STATUS,C
+	GOTO	$-3
+
+	;  went past zero
+
+	DECF	CVD00,F
+	ADDWF	CVD01,F
+
+
+	;  no need to adjust high order byte
+
+;   convert to ascii
+
+	MOVLW	D'48'
+
+	ADDWF	CVD00,F
+	ADDWF	CVD01,F
+	ADDWF	CVD02,F
+	ADDWF	CVD03,F
+	ADDWF	CVD04,F
+	ADDWF	CVD05,F
+
+;	max value a/d is 199.219
+
+	RETURN

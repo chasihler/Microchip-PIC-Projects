@@ -1,0 +1,24 @@
+_dir_rev: CODE, 1822 0 4
+___awdiv: CODE, 832 0 176
+_en_drive: CODE, 1814 0 4
+_abs: CODE, 1532 0 56
+_ISR: CODE, 8 0 140
+_dis_drive: CODE, 1818 0 4
+_main: CODE, 152 0 680
+__initialization: CODE, 1764 0 12
+___lwdiv: CODE, 1172 0 86
+_init_adc: CODE, 1782 0 18
+_drive: CODE, 1476 0 56
+_serial_init: CODE, 1676 0 38
+_low_speed: CODE, 1810 0 4
+___lwmod: CODE, 1340 0 70
+_read_adc: CODE, 1410 0 66
+_dir_fwd: CODE, 1826 0 4
+_run_timer: CODE, 1714 0 28
+_itoa: CODE, 1258 0 82
+_pid: CODE, 1742 0 22
+_write_uart: CODE, 1588 0 44
+_init_io: CODE, 1632 0 44
+_uart_xmit: CODE, 1800 0 10
+_utoa: CODE, 1008 0 164
+Total: 1812

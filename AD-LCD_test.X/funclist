@@ -1,0 +1,24 @@
+___aldiv: CODE, 1413 0 130
+__stringtab: STRING, 4 0 1
+_lcd_puts: CODE, 639 0 23
+__stringdata: STRING, 5 0 39
+_strlen: CODE, 686 0 36
+_main: CODE, 1680 0 358
+___almod: CODE, 1188 0 109
+___lmul: CODE, 808 0 47
+_lcd_clrline2: CODE, 608 0 15
+__initialization: CODE, 2038 0 7
+_lcd_clear: CODE, 623 0 16
+___lwdiv: CODE, 903 0 54
+_lcd_goto: CODE, 586 0 8
+___lldiv: CODE, 1023 0 82
+___lwmod: CODE, 762 0 46
+_lcd_write: CODE, 662 0 24
+___llmod: CODE, 957 0 66
+_itoa: CODE, 722 0 40
+_ltoa: CODE, 855 0 48
+_ultoa: CODE, 1543 0 137
+_utoa: CODE, 1297 0 116
+_lcd_strobe: CODE, 594 0 14
+_lcd_init: CODE, 1105 0 83
+Total: 1499

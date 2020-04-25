@@ -1,0 +1,4 @@
+GOTCHAS!
+
+1000mS power up delay
+fscking pulling up resistors in breakout board

@@ -1,0 +1,1685 @@
+
+
+Microchip Technology PIC18 LITE Macro Assembler V1.31 build 56723 
+                                                                                               Tue May 06 21:09:33 2014
+
+Microchip Technology Omniscient Code Generator (Lite mode) build 56723
+     1                           	processor	18F14K22
+     2                           	fnconf	rparam,??,?,0
+     3                           	opt	pw 120
+     4                           	opt	lm
+     5                           	psect	intcode,global,reloc=2,class=CODE,delta=1
+     6                           	psect	cinit,global,reloc=2,class=CODE,delta=1
+     7                           	psect	bssCOMRAM,global,class=COMRAM,space=1,delta=1
+     8                           	psect	cstackCOMRAM,global,class=COMRAM,space=1,delta=1
+     9                           	psect	text0,global,reloc=2,class=CODE,delta=1
+    10                           	psect	text1,global,reloc=2,class=CODE,delta=1
+    11                           	psect	text2,global,reloc=2,class=CODE,delta=1
+    12                           	psect	text3,global,reloc=2,class=CODE,delta=1
+    13                           	psect	intsave_regs,global,class=BIGRAM,space=1,delta=1
+    14                           	psect	rparam,global,class=COMRAM,space=1,delta=1
+    15  0000                     _ANSEL	set	3966
+    16  0000                     _ANSELH	set	3967
+    17  0000                     _INTCONbits	set	4082
+    18  0000                     _LATAbits	set	3977
+    19  0000                     _LATCbits	set	3979
+    20  0000                     _OSCCONbits	set	4051
+    21  0000                     _PIE1bits	set	3997
+    22  0000                     _PIR1bits	set	3998
+    23  0000                     _PORTAbits	set	3968
+    24  0000                     _RCREG	set	4014
+    25  0000                     _RCSTAbits	set	4011
+    26  0000                     _SPBRG	set	4015
+    27  0000                     _TRISAbits	set	3986
+    28  0000                     _TRISBbits	set	3987
+    29  0000                     _TRISCbits	set	3988
+    30  0000                     _TXREG	set	4013
+    31  0000                     _TXSTAbits	set	4012
+    32                           
+    33 ;; *************** function _ISR *****************
+    34 ;; Defined at:
+    35 ;;		line 123 in file "../term_main.c"
+    36 ;; Parameters:    Size  Location     Type
+    37 ;;		None
+    38 ;; Auto vars:     Size  Location     Type
+    39 ;;		None
+    40 ;; Return value:  Size  Location     Type
+    41 ;;		None               void
+    42 ;; Registers used:
+    43 ;;		None
+    44 ;; Tracked objects:
+    45 ;;		On entry : 0/0
+    46 ;;		On exit  : 0/0
+    47 ;;		Unchanged: 0/0
+    48 ;; Data sizes:     COMRAM   BANK0   BANK1
+    49 ;;      Params:         0       0       0
+    50 ;;      Locals:         0       0       0
+    51 ;;      Temps:         14       0       0
+    52 ;;      Totals:        14       0       0
+    53 ;;Total ram usage:       14 bytes
+    54 ;; Hardware stack levels used:    1
+    55 ;; This function calls:
+    56 ;;		Nothing
+    57 ;; This function is called by:
+    58 ;;		Interrupt level 2
+    59 ;; This function uses a non-reentrant model
+    60 ;;
+    61                           
+    62                           	psect	intcode
+    63  000008                     __pintcode:
+    64                           	opt stack 0
+    65                           
+    66                           ; #config settings
+    67  000008                     _ISR:
+    68                           	opt stack 29
+    69                           
+    70                           ;incstack = 0
+    71  000008  CFFA F019          	movff	pclath,??_ISR
+    72  00000C  CFFB F01A          	movff	pclatu,??_ISR+1
+    73  000010  CFE9 F01B          	movff	fsr0l,??_ISR+2
+    74  000014  CFEA F01C          	movff	fsr0h,??_ISR+3
+    75  000018  CFE1 F01D          	movff	fsr1l,??_ISR+4
+    76  00001C  CFE2 F01E          	movff	fsr1h,??_ISR+5
+    77  000020  CFD9 F01F          	movff	fsr2l,??_ISR+6
+    78  000024  CFDA F020          	movff	fsr2h,??_ISR+7
+    79  000028  CFF3 F021          	movff	prodl,??_ISR+8
+    80  00002C  CFF4 F022          	movff	prodh,??_ISR+9
+    81  000030  CFF6 F023          	movff	tblptrl,??_ISR+10
+    82  000034  CFF7 F024          	movff	tblptrh,??_ISR+11
+    83  000038  CFF8 F025          	movff	tblptru,??_ISR+12
+    84  00003C  CFF5 F026          	movff	tablat,??_ISR+13
+    85                           
+    86                           ;term_main.c: 125: if (PIR1bits.RCIF)
+    87  000040  AA9E               	btfss	3998,5,c	;volatile
+    88  000042  D004               	goto	i2l69
+    89                           
+    90                           ;term_main.c: 126: {
+    91                           ;term_main.c: 127: uart_data = RCREG;
+    92  000044  CFAE F013          	movff	4014,_uart_data	;volatile
+    93  000048  6A14               	clrf	_uart_data+1,c	;volatile
+    94                           
+    95                           ;term_main.c: 128: PIR1bits.RCIF = 0;
+    96  00004A  9A9E               	bcf	3998,5,c	;volatile
+    97  00004C                     i2l69:
+    98                           
+    99                           ;term_main.c: 130: }
+   100                           ;term_main.c: 131: if (INTCONbits.T0IF)
+   101  00004C  A4F2               	btfss	intcon,2,c	;volatile
+   102  00004E  D002               	goto	i2l71
+   103                           
+   104                           ;term_main.c: 132: {
+   105                           ;term_main.c: 133: LATAbits.LATA0 = 1;
+   106  000050  8089               	bsf	3977,0,c	;volatile
+   107                           
+   108                           ;term_main.c: 134: INTCONbits.T0IF = 0;
+   109  000052  94F2               	bcf	intcon,2,c	;volatile
+   110  000054                     i2l71:
+   111  000054  C026  FFF5         	movff	??_ISR+13,tablat
+   112  000058  C025  FFF8         	movff	??_ISR+12,tblptru
+   113  00005C  C024  FFF7         	movff	??_ISR+11,tblptrh
+   114  000060  C023  FFF6         	movff	??_ISR+10,tblptrl
+   115  000064  C022  FFF4         	movff	??_ISR+9,prodh
+   116  000068  C021  FFF3         	movff	??_ISR+8,prodl
+   117  00006C  C020  FFDA         	movff	??_ISR+7,fsr2h
+   118  000070  C01F  FFD9         	movff	??_ISR+6,fsr2l
+   119  000074  C01E  FFE2         	movff	??_ISR+5,fsr1h
+   120  000078  C01D  FFE1         	movff	??_ISR+4,fsr1l
+   121  00007C  C01C  FFEA         	movff	??_ISR+3,fsr0h
+   122  000080  C01B  FFE9         	movff	??_ISR+2,fsr0l
+   123  000084  C01A  FFFB         	movff	??_ISR+1,pclatu
+   124  000088  C019  FFFA         	movff	??_ISR,pclath
+   125  00008C  0011               	retfie		f
+   126  00008E                     __end_of_ISR:
+   127                           	opt stack 0
+   128  0000                     pclatu	equ	0xFFB
+   129                           pclath	equ	0xFFA
+   130                           tblptru	equ	0xFF8
+   131                           tblptrh	equ	0xFF7
+   132                           tblptrl	equ	0xFF6
+   133                           tablat	equ	0xFF5
+   134                           prodh	equ	0xFF4
+   135                           prodl	equ	0xFF3
+   136                           intcon	equ	0xFF2
+   137                           fsr0h	equ	0xFEA
+   138                           fsr0l	equ	0xFE9
+   139                           fsr1h	equ	0xFE2
+   140                           fsr1l	equ	0xFE1
+   141                           fsr2h	equ	0xFDA
+   142                           fsr2l	equ	0xFD9
+   143                           
+   144                           	psect	cinit
+   145  000600                     __pcinit:
+   146                           	opt stack 0
+   147  000600                     start_initialization:
+   148                           	opt stack 0
+   149  000600                     __initialization:
+   150                           	opt stack 0
+   151                           
+   152                           ; Clear objects allocated to COMRAM (24 bytes)
+   153  000600  EE00  F001         	lfsr	0,__pbssCOMRAM
+   154  000604  0E18               	movlw	24
+   155  000606                     clear_0:
+   156  000606  6AEE               	clrf	postinc0,c
+   157  000608  06E8               	decf	wreg,f,c
+   158  00060A  E1FD               	bnz	clear_0
+   159  00060C                     end_of_initialization:
+   160                           	opt stack 0
+   161  00060C                     __end_of__initialization:
+   162                           	opt stack 0
+   163  00060C  0E00               	movlw	low (__Lmediumconst shr (0+16))
+   164  00060E  6EF8               	movwf	tblptru,c
+   165  000610  0100               	movlb	0
+   166  000612  EF49  F000         	goto	_main	;jump to C main() function
+   167                           pclatu	equ	0xFFB
+   168                           pclath	equ	0xFFA
+   169                           tblptru	equ	0xFF8
+   170                           tblptrh	equ	0xFF7
+   171                           tblptrl	equ	0xFF6
+   172                           tablat	equ	0xFF5
+   173                           prodh	equ	0xFF4
+   174                           prodl	equ	0xFF3
+   175                           intcon	equ	0xFF2
+   176                           postinc0	equ	0xFEE
+   177                           fsr0h	equ	0xFEA
+   178                           fsr0l	equ	0xFE9
+   179                           wreg	equ	0xFE8
+   180                           fsr1h	equ	0xFE2
+   181                           fsr1l	equ	0xFE1
+   182                           fsr2h	equ	0xFDA
+   183                           fsr2l	equ	0xFD9
+   184                           
+   185                           	psect	bssCOMRAM
+   186  000001                     __pbssCOMRAM:
+   187                           	opt stack 0
+   188  000001                     _buf:
+   189                           	opt stack 0
+   190  000001                     	ds	10
+   191  00000B                     _count1:
+   192                           	opt stack 0
+   193  00000B                     	ds	2
+   194  00000D                     _count2:
+   195                           	opt stack 0
+   196  00000D                     	ds	2
+   197  00000F                     _itxdata:
+   198                           	opt stack 0
+   199  00000F                     	ds	2
+   200  000011                     _noncharkey:
+   201                           	opt stack 0
+   202  000011                     	ds	2
+   203  000013                     _uart_data:
+   204                           	opt stack 0
+   205  000013                     	ds	2
+   206  000015                     _x:
+   207                           	opt stack 0
+   208  000015                     	ds	2
+   209  000017                     _FLAGbits:
+   210                           	opt stack 0
+   211  000017                     	ds	1
+   212  000018                     _keyp:
+   213                           	opt stack 0
+   214  000018                     	ds	1
+   215                           pclatu	equ	0xFFB
+   216                           pclath	equ	0xFFA
+   217                           tblptru	equ	0xFF8
+   218                           tblptrh	equ	0xFF7
+   219                           tblptrl	equ	0xFF6
+   220                           tablat	equ	0xFF5
+   221                           prodh	equ	0xFF4
+   222                           prodl	equ	0xFF3
+   223                           intcon	equ	0xFF2
+   224                           postinc0	equ	0xFEE
+   225                           fsr0h	equ	0xFEA
+   226                           fsr0l	equ	0xFE9
+   227                           wreg	equ	0xFE8
+   228                           fsr1h	equ	0xFE2
+   229                           fsr1l	equ	0xFE1
+   230                           fsr2h	equ	0xFDA
+   231                           fsr2l	equ	0xFD9
+   232                           
+   233                           	psect	cstackCOMRAM
+   234  000019                     __pcstackCOMRAM:
+   235                           	opt stack 0
+   236  000019                     ??_ISR:
+   237  000019                     
+   238                           ; 2 bytes @ 0x0
+   239  000019                     	ds	14
+   240  000027                     ??_serial_init:
+   241  000027                     uart_xmit@mydata_byte:
+   242                           	opt stack 0
+   243                           
+   244                           ; 2 bytes @ 0xE
+   245  000027                     	ds	2
+   246  000029                     ??_main:
+   247                           
+   248                           ; 0 bytes @ 0x10
+   249  000029                     	ds	2
+   250                           pclatu	equ	0xFFB
+   251                           pclath	equ	0xFFA
+   252                           tblptru	equ	0xFF8
+   253                           tblptrh	equ	0xFF7
+   254                           tblptrl	equ	0xFF6
+   255                           tablat	equ	0xFF5
+   256                           prodh	equ	0xFF4
+   257                           prodl	equ	0xFF3
+   258                           intcon	equ	0xFF2
+   259                           postinc0	equ	0xFEE
+   260                           fsr0h	equ	0xFEA
+   261                           fsr0l	equ	0xFE9
+   262                           wreg	equ	0xFE8
+   263                           fsr1h	equ	0xFE2
+   264                           fsr1l	equ	0xFE1
+   265                           fsr2h	equ	0xFDA
+   266                           fsr2l	equ	0xFD9
+   267                           
+   268 ;;
+   269 ;;Main: autosize = 0, tempsize = 2, incstack = 0, save=0
+   270 ;;
+   271 ;; *************** function _main *****************
+   272 ;; Defined at:
+   273 ;;		line 140 in file "../term_main.c"
+   274 ;; Parameters:    Size  Location     Type
+   275 ;;		None
+   276 ;; Auto vars:     Size  Location     Type
+   277 ;;		None
+   278 ;; Return value:  Size  Location     Type
+   279 ;;                  2   73[COMRAM] int 
+   280 ;; Registers used:
+   281 ;;		wreg, status,2, status,0, cstack
+   282 ;; Tracked objects:
+   283 ;;		On entry : 0/0
+   284 ;;		On exit  : 0/0
+   285 ;;		Unchanged: 0/0
+   286 ;; Data sizes:     COMRAM   BANK0   BANK1
+   287 ;;      Params:         0       0       0
+   288 ;;      Locals:         0       0       0
+   289 ;;      Temps:          2       0       0
+   290 ;;      Totals:         2       0       0
+   291 ;;Total ram usage:        2 bytes
+   292 ;; Hardware stack levels required when called:    2
+   293 ;; This function calls:
+   294 ;;		_init_io
+   295 ;;		_serial_init
+   296 ;;		_uart_xmit
+   297 ;; This function is called by:
+   298 ;;		Startup code after reset
+   299 ;; This function uses a non-reentrant model
+   300 ;;
+   301                           
+   302                           	psect	text0
+   303  000092                     __ptext0:
+   304                           	opt stack 0
+   305  000092                     _main:
+   306                           	opt stack 29
+   307                           
+   308                           ;term_main.c: 143: OSCCONbits.IRCF = 0x05;
+   309                           
+   310                           ;incstack = 0
+   311  000092  50D3               	movf	4051,w,c	;volatile
+   312  000094  0B8F               	andlw	-113
+   313  000096  0950               	iorlw	80
+   314  000098  6ED3               	movwf	4051,c	;volatile
+   315                           
+   316                           ;term_main.c: 144: OSCCONbits.SCS = 0x02;
+   317  00009A  50D3               	movf	4051,w,c	;volatile
+   318  00009C  0BFC               	andlw	-4
+   319  00009E  0902               	iorlw	2
+   320  0000A0  6ED3               	movwf	4051,c	;volatile
+   321                           
+   322                           ;term_main.c: 147: init_io();
+   323  0000A2  ECEA  F002         	call	_init_io	;wreg free
+   324                           
+   325                           ;term_main.c: 148: serial_init();
+   326  0000A6  ECD4  F002         	call	_serial_init	;wreg free
+   327                           
+   328                           ;term_main.c: 150: x = 0;
+   329  0000AA  0E00               	movlw	0
+   330  0000AC  6E16               	movwf	_x+1,c
+   331  0000AE  0E00               	movlw	0
+   332  0000B0  6E15               	movwf	_x,c
+   333                           
+   334                           ;term_main.c: 151: _delay((unsigned long)((140)*(4000000/4000.0)));
+   335  0000B2  0EB6               	movlw	182
+   336  0000B4  6E29               	movwf	??_main& (0+255),c
+   337  0000B6  0ED0               	movlw	208
+   338  0000B8                     u167:
+   339  0000B8  2EE8               	decfsz	wreg,f,c
+   340  0000BA  D7FE               	goto	u167
+   341  0000BC  2E29               	decfsz	??_main& (0+255),f,c
+   342  0000BE  D7FC               	goto	u167
+   343  0000C0  D000               	nop2	
+   344                           
+   345                           ;term_main.c: 152: _delay((unsigned long)((140)*(4000000/4000.0)));
+   346  0000C2  0EB6               	movlw	182
+   347  0000C4  6E29               	movwf	??_main& (0+255),c
+   348  0000C6  0ED0               	movlw	208
+   349  0000C8                     u177:
+   350  0000C8  2EE8               	decfsz	wreg,f,c
+   351  0000CA  D7FE               	goto	u177
+   352  0000CC  2E29               	decfsz	??_main& (0+255),f,c
+   353  0000CE  D7FC               	goto	u177
+   354  0000D0  D000               	nop2	
+   355                           
+   356                           ;term_main.c: 153: _delay((unsigned long)((140)*(4000000/4000.0)));
+   357  0000D2  0EB6               	movlw	182
+   358  0000D4  6E29               	movwf	??_main& (0+255),c
+   359  0000D6  0ED0               	movlw	208
+   360  0000D8                     u187:
+   361  0000D8  2EE8               	decfsz	wreg,f,c
+   362  0000DA  D7FE               	goto	u187
+   363  0000DC  2E29               	decfsz	??_main& (0+255),f,c
+   364  0000DE  D7FC               	goto	u187
+   365  0000E0  D000               	nop2	
+   366                           
+   367                           ;term_main.c: 154: _delay((unsigned long)((140)*(4000000/4000.0)));
+   368  0000E2  0EB6               	movlw	182
+   369  0000E4  6E29               	movwf	??_main& (0+255),c
+   370  0000E6  0ED0               	movlw	208
+   371  0000E8                     u197:
+   372  0000E8  2EE8               	decfsz	wreg,f,c
+   373  0000EA  D7FE               	goto	u197
+   374  0000EC  2E29               	decfsz	??_main& (0+255),f,c
+   375  0000EE  D7FC               	goto	u197
+   376  0000F0  D000               	nop2	
+   377                           
+   378                           ;term_main.c: 155: _delay((unsigned long)((140)*(4000000/4000.0)));
+   379  0000F2  0EB6               	movlw	182
+   380  0000F4  6E29               	movwf	??_main& (0+255),c
+   381  0000F6  0ED0               	movlw	208
+   382  0000F8                     u207:
+   383  0000F8  2EE8               	decfsz	wreg,f,c
+   384  0000FA  D7FE               	goto	u207
+   385  0000FC  2E29               	decfsz	??_main& (0+255),f,c
+   386  0000FE  D7FC               	goto	u207
+   387  000100  D000               	nop2	
+   388                           
+   389                           ;term_main.c: 156: _delay((unsigned long)((140)*(4000000/4000.0)));
+   390  000102  0EB6               	movlw	182
+   391  000104  6E29               	movwf	??_main& (0+255),c
+   392  000106  0ED0               	movlw	208
+   393  000108                     u217:
+   394  000108  2EE8               	decfsz	wreg,f,c
+   395  00010A  D7FE               	goto	u217
+   396  00010C  2E29               	decfsz	??_main& (0+255),f,c
+   397  00010E  D7FC               	goto	u217
+   398  000110  D000               	nop2	
+   399                           
+   400                           ;term_main.c: 157: _delay((unsigned long)((140)*(4000000/4000.0)));
+   401  000112  0EB6               	movlw	182
+   402  000114  6E29               	movwf	??_main& (0+255),c
+   403  000116  0ED0               	movlw	208
+   404  000118                     u227:
+   405  000118  2EE8               	decfsz	wreg,f,c
+   406  00011A  D7FE               	goto	u227
+   407  00011C  2E29               	decfsz	??_main& (0+255),f,c
+   408  00011E  D7FC               	goto	u227
+   409  000120  D000               	nop2	
+   410                           
+   411                           ;term_main.c: 158: _delay((unsigned long)((140)*(4000000/4000.0)));
+   412  000122  0EB6               	movlw	182
+   413  000124  6E29               	movwf	??_main& (0+255),c
+   414  000126  0ED0               	movlw	208
+   415  000128                     u237:
+   416  000128  2EE8               	decfsz	wreg,f,c
+   417  00012A  D7FE               	goto	u237
+   418  00012C  2E29               	decfsz	??_main& (0+255),f,c
+   419  00012E  D7FC               	goto	u237
+   420  000130  D000               	nop2	
+   421                           
+   422                           ;term_main.c: 159: _delay((unsigned long)((140)*(4000000/4000.0)));
+   423  000132  0EB6               	movlw	182
+   424  000134  6E29               	movwf	??_main& (0+255),c
+   425  000136  0ED0               	movlw	208
+   426  000138                     u247:
+   427  000138  2EE8               	decfsz	wreg,f,c
+   428  00013A  D7FE               	goto	u247
+   429  00013C  2E29               	decfsz	??_main& (0+255),f,c
+   430  00013E  D7FC               	goto	u247
+   431  000140  D000               	nop2	
+   432                           
+   433                           ;term_main.c: 160: _delay((unsigned long)((140)*(4000000/4000.0)));
+   434  000142  0EB6               	movlw	182
+   435  000144  6E29               	movwf	??_main& (0+255),c
+   436  000146  0ED0               	movlw	208
+   437  000148                     u257:
+   438  000148  2EE8               	decfsz	wreg,f,c
+   439  00014A  D7FE               	goto	u257
+   440  00014C  2E29               	decfsz	??_main& (0+255),f,c
+   441  00014E  D7FC               	goto	u257
+   442  000150  D000               	nop2	
+   443                           
+   444                           ;term_main.c: 161: _delay((unsigned long)((140)*(4000000/4000.0)));
+   445  000152  0EB6               	movlw	182
+   446  000154  6E29               	movwf	??_main& (0+255),c
+   447  000156  0ED0               	movlw	208
+   448  000158                     u267:
+   449  000158  2EE8               	decfsz	wreg,f,c
+   450  00015A  D7FE               	goto	u267
+   451  00015C  2E29               	decfsz	??_main& (0+255),f,c
+   452  00015E  D7FC               	goto	u267
+   453  000160  D000               	nop2	
+   454                           
+   455                           ;term_main.c: 162: _delay((unsigned long)((140)*(4000000/4000.0)));
+   456  000162  0EB6               	movlw	182
+   457  000164  6E29               	movwf	??_main& (0+255),c
+   458  000166  0ED0               	movlw	208
+   459  000168                     u277:
+   460  000168  2EE8               	decfsz	wreg,f,c
+   461  00016A  D7FE               	goto	u277
+   462  00016C  2E29               	decfsz	??_main& (0+255),f,c
+   463  00016E  D7FC               	goto	u277
+   464  000170  D000               	nop2	
+   465                           
+   466                           ;term_main.c: 164: uart_xmit(0x1B);
+   467  000172  0E00               	movlw	0
+   468  000174  6E28               	movwf	uart_xmit@mydata_byte+1,c
+   469  000176  0E1B               	movlw	27
+   470  000178  6E27               	movwf	uart_xmit@mydata_byte,c
+   471  00017A  EC0B  F003         	call	_uart_xmit	;wreg free
+   472                           
+   473                           ;term_main.c: 165: uart_xmit('[');
+   474  00017E  0E00               	movlw	0
+   475  000180  6E28               	movwf	uart_xmit@mydata_byte+1,c
+   476  000182  0E5B               	movlw	91
+   477  000184  6E27               	movwf	uart_xmit@mydata_byte,c
+   478  000186  EC0B  F003         	call	_uart_xmit	;wreg free
+   479                           
+   480                           ;term_main.c: 166: uart_xmit('2');
+   481  00018A  0E00               	movlw	0
+   482  00018C  6E28               	movwf	uart_xmit@mydata_byte+1,c
+   483  00018E  0E32               	movlw	50
+   484  000190  6E27               	movwf	uart_xmit@mydata_byte,c
+   485  000192  EC0B  F003         	call	_uart_xmit	;wreg free
+   486                           
+   487                           ;term_main.c: 167: uart_xmit('J');
+   488  000196  0E00               	movlw	0
+   489  000198  6E28               	movwf	uart_xmit@mydata_byte+1,c
+   490  00019A  0E4A               	movlw	74
+   491  00019C  6E27               	movwf	uart_xmit@mydata_byte,c
+   492  00019E  EC0B  F003         	call	_uart_xmit	;wreg free
+   493                           
+   494                           ;term_main.c: 168: _delay((unsigned long)((140)*(4000000/4000.0)));
+   495  0001A2  0EB6               	movlw	182
+   496  0001A4  6E29               	movwf	??_main& (0+255),c
+   497  0001A6  0ED0               	movlw	208
+   498  0001A8                     u287:
+   499  0001A8  2EE8               	decfsz	wreg,f,c
+   500  0001AA  D7FE               	goto	u287
+   501  0001AC  2E29               	decfsz	??_main& (0+255),f,c
+   502  0001AE  D7FC               	goto	u287
+   503  0001B0  D000               	nop2	
+   504                           
+   505                           ;term_main.c: 169: _delay((unsigned long)((140)*(4000000/4000.0)));
+   506  0001B2  0EB6               	movlw	182
+   507  0001B4  6E29               	movwf	??_main& (0+255),c
+   508  0001B6  0ED0               	movlw	208
+   509  0001B8                     u297:
+   510  0001B8  2EE8               	decfsz	wreg,f,c
+   511  0001BA  D7FE               	goto	u297
+   512  0001BC  2E29               	decfsz	??_main& (0+255),f,c
+   513  0001BE  D7FC               	goto	u297
+   514  0001C0  D000               	nop2	
+   515                           
+   516                           ;term_main.c: 172: uart_xmit(0x1B);
+   517  0001C2  0E00               	movlw	0
+   518  0001C4  6E28               	movwf	uart_xmit@mydata_byte+1,c
+   519  0001C6  0E1B               	movlw	27
+   520  0001C8  6E27               	movwf	uart_xmit@mydata_byte,c
+   521  0001CA  EC0B  F003         	call	_uart_xmit	;wreg free
+   522                           
+   523                           ;term_main.c: 173: uart_xmit('[');
+   524  0001CE  0E00               	movlw	0
+   525  0001D0  6E28               	movwf	uart_xmit@mydata_byte+1,c
+   526  0001D2  0E5B               	movlw	91
+   527  0001D4  6E27               	movwf	uart_xmit@mydata_byte,c
+   528  0001D6  EC0B  F003         	call	_uart_xmit	;wreg free
+   529                           
+   530                           ;term_main.c: 174: uart_xmit('4');
+   531  0001DA  0E00               	movlw	0
+   532  0001DC  6E28               	movwf	uart_xmit@mydata_byte+1,c
+   533  0001DE  0E34               	movlw	52
+   534  0001E0  6E27               	movwf	uart_xmit@mydata_byte,c
+   535  0001E2  EC0B  F003         	call	_uart_xmit	;wreg free
+   536                           
+   537                           ;term_main.c: 175: uart_xmit('2');
+   538  0001E6  0E00               	movlw	0
+   539  0001E8  6E28               	movwf	uart_xmit@mydata_byte+1,c
+   540  0001EA  0E32               	movlw	50
+   541  0001EC  6E27               	movwf	uart_xmit@mydata_byte,c
+   542  0001EE  EC0B  F003         	call	_uart_xmit	;wreg free
+   543                           
+   544                           ;term_main.c: 176: uart_xmit('m');
+   545  0001F2  0E00               	movlw	0
+   546  0001F4  6E28               	movwf	uart_xmit@mydata_byte+1,c
+   547  0001F6  0E6D               	movlw	109
+   548  0001F8  6E27               	movwf	uart_xmit@mydata_byte,c
+   549  0001FA  EC0B  F003         	call	_uart_xmit	;wreg free
+   550                           
+   551                           ;term_main.c: 177: uart_xmit(0x1B);
+   552  0001FE  0E00               	movlw	0
+   553  000200  6E28               	movwf	uart_xmit@mydata_byte+1,c
+   554  000202  0E1B               	movlw	27
+   555  000204  6E27               	movwf	uart_xmit@mydata_byte,c
+   556  000206  EC0B  F003         	call	_uart_xmit	;wreg free
+   557                           
+   558                           ;term_main.c: 178: uart_xmit('[');
+   559  00020A  0E00               	movlw	0
+   560  00020C  6E28               	movwf	uart_xmit@mydata_byte+1,c
+   561  00020E  0E5B               	movlw	91
+   562  000210  6E27               	movwf	uart_xmit@mydata_byte,c
+   563  000212  EC0B  F003         	call	_uart_xmit	;wreg free
+   564                           
+   565                           ;term_main.c: 179: uart_xmit('3');
+   566  000216  0E00               	movlw	0
+   567  000218  6E28               	movwf	uart_xmit@mydata_byte+1,c
+   568  00021A  0E33               	movlw	51
+   569  00021C  6E27               	movwf	uart_xmit@mydata_byte,c
+   570  00021E  EC0B  F003         	call	_uart_xmit	;wreg free
+   571                           
+   572                           ;term_main.c: 180: uart_xmit('0');
+   573  000222  0E00               	movlw	0
+   574  000224  6E28               	movwf	uart_xmit@mydata_byte+1,c
+   575  000226  0E30               	movlw	48
+   576  000228  6E27               	movwf	uart_xmit@mydata_byte,c
+   577  00022A  EC0B  F003         	call	_uart_xmit	;wreg free
+   578                           
+   579                           ;term_main.c: 181: uart_xmit('m');
+   580  00022E  0E00               	movlw	0
+   581  000230  6E28               	movwf	uart_xmit@mydata_byte+1,c
+   582  000232  0E6D               	movlw	109
+   583  000234  6E27               	movwf	uart_xmit@mydata_byte,c
+   584  000236  EC0B  F003         	call	_uart_xmit	;wreg free
+   585                           
+   586                           ;term_main.c: 183: _delay((unsigned long)((100)*(4000000/4000.0)));
+   587  00023A  0E82               	movlw	130
+   588  00023C  6E29               	movwf	??_main& (0+255),c
+   589  00023E  0EDE               	movlw	222
+   590  000240                     u307:
+   591  000240  2EE8               	decfsz	wreg,f,c
+   592  000242  D7FE               	goto	u307
+   593  000244  2E29               	decfsz	??_main& (0+255),f,c
+   594  000246  D7FC               	goto	u307
+   595                           
+   596                           ;term_main.c: 185: uart_xmit(' ');
+   597  000248  0E00               	movlw	0
+   598  00024A  6E28               	movwf	uart_xmit@mydata_byte+1,c
+   599  00024C  0E20               	movlw	32
+   600  00024E  6E27               	movwf	uart_xmit@mydata_byte,c
+   601  000250  EC0B  F003         	call	_uart_xmit	;wreg free
+   602                           
+   603                           ;term_main.c: 186: uart_xmit('0');
+   604  000254  0E00               	movlw	0
+   605  000256  6E28               	movwf	uart_xmit@mydata_byte+1,c
+   606  000258  0E30               	movlw	48
+   607  00025A  6E27               	movwf	uart_xmit@mydata_byte,c
+   608  00025C  EC0B  F003         	call	_uart_xmit	;wreg free
+   609                           
+   610                           ;term_main.c: 187: uart_xmit('x');
+   611  000260  0E00               	movlw	0
+   612  000262  6E28               	movwf	uart_xmit@mydata_byte+1,c
+   613  000264  0E78               	movlw	120
+   614  000266  6E27               	movwf	uart_xmit@mydata_byte,c
+   615  000268  EC0B  F003         	call	_uart_xmit	;wreg free
+   616                           
+   617                           ;term_main.c: 188: uart_xmit('E');
+   618  00026C  0E00               	movlw	0
+   619  00026E  6E28               	movwf	uart_xmit@mydata_byte+1,c
+   620  000270  0E45               	movlw	69
+   621  000272  6E27               	movwf	uart_xmit@mydata_byte,c
+   622  000274  EC0B  F003         	call	_uart_xmit	;wreg free
+   623                           
+   624                           ;term_main.c: 189: uart_xmit('E');
+   625  000278  0E00               	movlw	0
+   626  00027A  6E28               	movwf	uart_xmit@mydata_byte+1,c
+   627  00027C  0E45               	movlw	69
+   628  00027E  6E27               	movwf	uart_xmit@mydata_byte,c
+   629  000280  EC0B  F003         	call	_uart_xmit	;wreg free
+   630                           
+   631                           ;term_main.c: 190: uart_xmit('.');
+   632  000284  0E00               	movlw	0
+   633  000286  6E28               	movwf	uart_xmit@mydata_byte+1,c
+   634  000288  0E2E               	movlw	46
+   635  00028A  6E27               	movwf	uart_xmit@mydata_byte,c
+   636  00028C  EC0B  F003         	call	_uart_xmit	;wreg free
+   637                           
+   638                           ;term_main.c: 191: uart_xmit('n');
+   639  000290  0E00               	movlw	0
+   640  000292  6E28               	movwf	uart_xmit@mydata_byte+1,c
+   641  000294  0E6E               	movlw	110
+   642  000296  6E27               	movwf	uart_xmit@mydata_byte,c
+   643  000298  EC0B  F003         	call	_uart_xmit	;wreg free
+   644                           
+   645                           ;term_main.c: 192: uart_xmit('e');
+   646  00029C  0E00               	movlw	0
+   647  00029E  6E28               	movwf	uart_xmit@mydata_byte+1,c
+   648  0002A0  0E65               	movlw	101
+   649  0002A2  6E27               	movwf	uart_xmit@mydata_byte,c
+   650  0002A4  EC0B  F003         	call	_uart_xmit	;wreg free
+   651                           
+   652                           ;term_main.c: 193: uart_xmit('t');
+   653  0002A8  0E00               	movlw	0
+   654  0002AA  6E28               	movwf	uart_xmit@mydata_byte+1,c
+   655  0002AC  0E74               	movlw	116
+   656  0002AE  6E27               	movwf	uart_xmit@mydata_byte,c
+   657  0002B0  EC0B  F003         	call	_uart_xmit	;wreg free
+   658                           
+   659                           ;term_main.c: 194: uart_xmit(' ');
+   660  0002B4  0E00               	movlw	0
+   661  0002B6  6E28               	movwf	uart_xmit@mydata_byte+1,c
+   662  0002B8  0E20               	movlw	32
+   663  0002BA  6E27               	movwf	uart_xmit@mydata_byte,c
+   664  0002BC  EC0B  F003         	call	_uart_xmit	;wreg free
+   665                           
+   666                           ;term_main.c: 195: uart_xmit('T');
+   667  0002C0  0E00               	movlw	0
+   668  0002C2  6E28               	movwf	uart_xmit@mydata_byte+1,c
+   669  0002C4  0E54               	movlw	84
+   670  0002C6  6E27               	movwf	uart_xmit@mydata_byte,c
+   671  0002C8  EC0B  F003         	call	_uart_xmit	;wreg free
+   672                           
+   673                           ;term_main.c: 196: uart_xmit('E');
+   674  0002CC  0E00               	movlw	0
+   675  0002CE  6E28               	movwf	uart_xmit@mydata_byte+1,c
+   676  0002D0  0E45               	movlw	69
+   677  0002D2  6E27               	movwf	uart_xmit@mydata_byte,c
+   678  0002D4  EC0B  F003         	call	_uart_xmit	;wreg free
+   679                           
+   680                           ;term_main.c: 197: uart_xmit('R');
+   681  0002D8  0E00               	movlw	0
+   682  0002DA  6E28               	movwf	uart_xmit@mydata_byte+1,c
+   683  0002DC  0E52               	movlw	82
+   684  0002DE  6E27               	movwf	uart_xmit@mydata_byte,c
+   685  0002E0  EC0B  F003         	call	_uart_xmit	;wreg free
+   686                           
+   687                           ;term_main.c: 198: uart_xmit('M');
+   688  0002E4  0E00               	movlw	0
+   689  0002E6  6E28               	movwf	uart_xmit@mydata_byte+1,c
+   690  0002E8  0E4D               	movlw	77
+   691  0002EA  6E27               	movwf	uart_xmit@mydata_byte,c
+   692  0002EC  EC0B  F003         	call	_uart_xmit	;wreg free
+   693                           
+   694                           ;term_main.c: 199: uart_xmit('I');
+   695  0002F0  0E00               	movlw	0
+   696  0002F2  6E28               	movwf	uart_xmit@mydata_byte+1,c
+   697  0002F4  0E49               	movlw	73
+   698  0002F6  6E27               	movwf	uart_xmit@mydata_byte,c
+   699  0002F8  EC0B  F003         	call	_uart_xmit	;wreg free
+   700                           
+   701                           ;term_main.c: 200: uart_xmit('N');
+   702  0002FC  0E00               	movlw	0
+   703  0002FE  6E28               	movwf	uart_xmit@mydata_byte+1,c
+   704  000300  0E4E               	movlw	78
+   705  000302  6E27               	movwf	uart_xmit@mydata_byte,c
+   706  000304  EC0B  F003         	call	_uart_xmit	;wreg free
+   707                           
+   708                           ;term_main.c: 201: uart_xmit('A');
+   709  000308  0E00               	movlw	0
+   710  00030A  6E28               	movwf	uart_xmit@mydata_byte+1,c
+   711  00030C  0E41               	movlw	65
+   712  00030E  6E27               	movwf	uart_xmit@mydata_byte,c
+   713  000310  EC0B  F003         	call	_uart_xmit	;wreg free
+   714                           
+   715                           ;term_main.c: 202: uart_xmit('L');
+   716  000314  0E00               	movlw	0
+   717  000316  6E28               	movwf	uart_xmit@mydata_byte+1,c
+   718  000318  0E4C               	movlw	76
+   719  00031A  6E27               	movwf	uart_xmit@mydata_byte,c
+   720  00031C  EC0B  F003         	call	_uart_xmit	;wreg free
+   721                           
+   722                           ;term_main.c: 203: uart_xmit(' ');
+   723  000320  0E00               	movlw	0
+   724  000322  6E28               	movwf	uart_xmit@mydata_byte+1,c
+   725  000324  0E20               	movlw	32
+   726  000326  6E27               	movwf	uart_xmit@mydata_byte,c
+   727  000328  EC0B  F003         	call	_uart_xmit	;wreg free
+   728                           
+   729                           ;term_main.c: 204: uart_xmit('v');
+   730  00032C  0E00               	movlw	0
+   731  00032E  6E28               	movwf	uart_xmit@mydata_byte+1,c
+   732  000330  0E76               	movlw	118
+   733  000332  6E27               	movwf	uart_xmit@mydata_byte,c
+   734  000334  EC0B  F003         	call	_uart_xmit	;wreg free
+   735                           
+   736                           ;term_main.c: 205: uart_xmit('0');
+   737  000338  0E00               	movlw	0
+   738  00033A  6E28               	movwf	uart_xmit@mydata_byte+1,c
+   739  00033C  0E30               	movlw	48
+   740  00033E  6E27               	movwf	uart_xmit@mydata_byte,c
+   741  000340  EC0B  F003         	call	_uart_xmit	;wreg free
+   742                           
+   743                           ;term_main.c: 206: uart_xmit('.');
+   744  000344  0E00               	movlw	0
+   745  000346  6E28               	movwf	uart_xmit@mydata_byte+1,c
+   746  000348  0E2E               	movlw	46
+   747  00034A  6E27               	movwf	uart_xmit@mydata_byte,c
+   748  00034C  EC0B  F003         	call	_uart_xmit	;wreg free
+   749                           
+   750                           ;term_main.c: 207: uart_xmit('0');
+   751  000350  0E00               	movlw	0
+   752  000352  6E28               	movwf	uart_xmit@mydata_byte+1,c
+   753  000354  0E30               	movlw	48
+   754  000356  6E27               	movwf	uart_xmit@mydata_byte,c
+   755  000358  EC0B  F003         	call	_uart_xmit	;wreg free
+   756                           
+   757                           ;term_main.c: 208: uart_xmit('2');
+   758  00035C  0E00               	movlw	0
+   759  00035E  6E28               	movwf	uart_xmit@mydata_byte+1,c
+   760  000360  0E32               	movlw	50
+   761  000362  6E27               	movwf	uart_xmit@mydata_byte,c
+   762  000364  EC0B  F003         	call	_uart_xmit	;wreg free
+   763                           
+   764                           ;term_main.c: 209: for (x = 0; x <= 48; x++)
+   765  000368  0E00               	movlw	0
+   766  00036A  6E16               	movwf	_x+1,c
+   767  00036C  0E00               	movlw	0
+   768  00036E  6E15               	movwf	_x,c
+   769  000370  5016               	movf	_x+1,w,c
+   770  000372  0A80               	xorlw	128
+   771  000374  0F80               	addlw	-128
+   772  000376  0E31               	movlw	49
+   773  000378  B4D8               	btfsc	status,2,c
+   774  00037A  5C15               	subwf	_x,w,c
+   775  00037C  B0D8               	btfsc	status,0,c
+   776  00037E  D009               	goto	l849
+   777                           
+   778                           ;term_main.c: 210: {
+   779                           ;term_main.c: 211: uart_xmit(' ');
+   780  000380  0E00               	movlw	0
+   781  000382  6E28               	movwf	uart_xmit@mydata_byte+1,c
+   782  000384  0E20               	movlw	32
+   783  000386  6E27               	movwf	uart_xmit@mydata_byte,c
+   784  000388  EC0B  F003         	call	_uart_xmit	;wreg free
+   785  00038C  4A15               	infsnz	_x,f,c
+   786  00038E  2A16               	incf	_x+1,f,c
+   787  000390  D7EF               	goto	L1
+   788  000392                     l849:
+   789                           
+   790                           ;term_main.c: 212: }
+   791                           ;term_main.c: 213: uart_xmit('C');
+   792  000392  0E00               	movlw	0
+   793  000394  6E28               	movwf	uart_xmit@mydata_byte+1,c
+   794  000396  0E43               	movlw	67
+   795  000398  6E27               	movwf	uart_xmit@mydata_byte,c
+   796  00039A  EC0B  F003         	call	_uart_xmit	;wreg free
+   797                           
+   798                           ;term_main.c: 214: uart_xmit('F');
+   799  00039E  0E00               	movlw	0
+   800  0003A0  6E28               	movwf	uart_xmit@mydata_byte+1,c
+   801  0003A2  0E46               	movlw	70
+   802  0003A4  6E27               	movwf	uart_xmit@mydata_byte,c
+   803  0003A6  EC0B  F003         	call	_uart_xmit	;wreg free
+   804                           
+   805                           ;term_main.c: 215: uart_xmit('G');
+   806  0003AA  0E00               	movlw	0
+   807  0003AC  6E28               	movwf	uart_xmit@mydata_byte+1,c
+   808  0003AE  0E47               	movlw	71
+   809  0003B0  6E27               	movwf	uart_xmit@mydata_byte,c
+   810  0003B2  EC0B  F003         	call	_uart_xmit	;wreg free
+   811                           
+   812                           ;term_main.c: 216: uart_xmit('=');
+   813  0003B6  0E00               	movlw	0
+   814  0003B8  6E28               	movwf	uart_xmit@mydata_byte+1,c
+   815  0003BA  0E3D               	movlw	61
+   816  0003BC  6E27               	movwf	uart_xmit@mydata_byte,c
+   817  0003BE  EC0B  F003         	call	_uart_xmit	;wreg free
+   818                           
+   819                           ;term_main.c: 217: uart_xmit('F');
+   820  0003C2  0E00               	movlw	0
+   821  0003C4  6E28               	movwf	uart_xmit@mydata_byte+1,c
+   822  0003C6  0E46               	movlw	70
+   823  0003C8  6E27               	movwf	uart_xmit@mydata_byte,c
+   824  0003CA  EC0B  F003         	call	_uart_xmit	;wreg free
+   825                           
+   826                           ;term_main.c: 218: uart_xmit('3');
+   827  0003CE  0E00               	movlw	0
+   828  0003D0  6E28               	movwf	uart_xmit@mydata_byte+1,c
+   829  0003D2  0E33               	movlw	51
+   830  0003D4  6E27               	movwf	uart_xmit@mydata_byte,c
+   831  0003D6  EC0B  F003         	call	_uart_xmit	;wreg free
+   832                           
+   833                           ;term_main.c: 219: uart_xmit(0x0A);
+   834  0003DA  0E00               	movlw	0
+   835  0003DC  6E28               	movwf	uart_xmit@mydata_byte+1,c
+   836  0003DE  0E0A               	movlw	10
+   837  0003E0  6E27               	movwf	uart_xmit@mydata_byte,c
+   838  0003E2  EC0B  F003         	call	_uart_xmit	;wreg free
+   839                           
+   840                           ;term_main.c: 220: uart_xmit(0x0D);
+   841  0003E6  0E00               	movlw	0
+   842  0003E8  6E28               	movwf	uart_xmit@mydata_byte+1,c
+   843  0003EA  0E0D               	movlw	13
+   844  0003EC  6E27               	movwf	uart_xmit@mydata_byte,c
+   845  0003EE  EC0B  F003         	call	_uart_xmit	;wreg free
+   846                           
+   847                           ;term_main.c: 222: uart_xmit(0x1B);
+   848  0003F2  0E00               	movlw	0
+   849  0003F4  6E28               	movwf	uart_xmit@mydata_byte+1,c
+   850  0003F6  0E1B               	movlw	27
+   851  0003F8  6E27               	movwf	uart_xmit@mydata_byte,c
+   852  0003FA  EC0B  F003         	call	_uart_xmit	;wreg free
+   853                           
+   854                           ;term_main.c: 223: uart_xmit('[');
+   855  0003FE  0E00               	movlw	0
+   856  000400  6E28               	movwf	uart_xmit@mydata_byte+1,c
+   857  000402  0E5B               	movlw	91
+   858  000404  6E27               	movwf	uart_xmit@mydata_byte,c
+   859  000406  EC0B  F003         	call	_uart_xmit	;wreg free
+   860                           
+   861                           ;term_main.c: 224: uart_xmit('4');
+   862  00040A  0E00               	movlw	0
+   863  00040C  6E28               	movwf	uart_xmit@mydata_byte+1,c
+   864  00040E  0E34               	movlw	52
+   865  000410  6E27               	movwf	uart_xmit@mydata_byte,c
+   866  000412  EC0B  F003         	call	_uart_xmit	;wreg free
+   867                           
+   868                           ;term_main.c: 225: uart_xmit('0');
+   869  000416  0E00               	movlw	0
+   870  000418  6E28               	movwf	uart_xmit@mydata_byte+1,c
+   871  00041A  0E30               	movlw	48
+   872  00041C  6E27               	movwf	uart_xmit@mydata_byte,c
+   873  00041E  EC0B  F003         	call	_uart_xmit	;wreg free
+   874                           
+   875                           ;term_main.c: 226: uart_xmit('m');
+   876  000422  0E00               	movlw	0
+   877  000424  6E28               	movwf	uart_xmit@mydata_byte+1,c
+   878  000426  0E6D               	movlw	109
+   879  000428  6E27               	movwf	uart_xmit@mydata_byte,c
+   880  00042A  EC0B  F003         	call	_uart_xmit	;wreg free
+   881                           
+   882                           ;term_main.c: 227: uart_xmit(0x1B);
+   883  00042E  0E00               	movlw	0
+   884  000430  6E28               	movwf	uart_xmit@mydata_byte+1,c
+   885  000432  0E1B               	movlw	27
+   886  000434  6E27               	movwf	uart_xmit@mydata_byte,c
+   887  000436  EC0B  F003         	call	_uart_xmit	;wreg free
+   888                           
+   889                           ;term_main.c: 228: uart_xmit('[');
+   890  00043A  0E00               	movlw	0
+   891  00043C  6E28               	movwf	uart_xmit@mydata_byte+1,c
+   892  00043E  0E5B               	movlw	91
+   893  000440  6E27               	movwf	uart_xmit@mydata_byte,c
+   894  000442  EC0B  F003         	call	_uart_xmit	;wreg free
+   895                           
+   896                           ;term_main.c: 229: uart_xmit('3');
+   897  000446  0E00               	movlw	0
+   898  000448  6E28               	movwf	uart_xmit@mydata_byte+1,c
+   899  00044A  0E33               	movlw	51
+   900  00044C  6E27               	movwf	uart_xmit@mydata_byte,c
+   901  00044E  EC0B  F003         	call	_uart_xmit	;wreg free
+   902                           
+   903                           ;term_main.c: 230: uart_xmit('2');
+   904  000452  0E00               	movlw	0
+   905  000454  6E28               	movwf	uart_xmit@mydata_byte+1,c
+   906  000456  0E32               	movlw	50
+   907  000458  6E27               	movwf	uart_xmit@mydata_byte,c
+   908  00045A  EC0B  F003         	call	_uart_xmit	;wreg free
+   909                           
+   910                           ;term_main.c: 231: uart_xmit('m');
+   911  00045E  0E00               	movlw	0
+   912  000460  6E28               	movwf	uart_xmit@mydata_byte+1,c
+   913  000462  0E6D               	movlw	109
+   914  000464  6E27               	movwf	uart_xmit@mydata_byte,c
+   915  000466  EC0B  F003         	call	_uart_xmit	;wreg free
+   916                           
+   917                           ;term_main.c: 233: _delay((unsigned long)((100)*(4000000/4000.0)));
+   918  00046A  0E82               	movlw	130
+   919  00046C  6E29               	movwf	??_main& (0+255),c
+   920  00046E  0EDE               	movlw	222
+   921  000470                     u317:
+   922  000470  2EE8               	decfsz	wreg,f,c
+   923  000472  D7FE               	goto	u317
+   924  000474  2E29               	decfsz	??_main& (0+255),f,c
+   925  000476  D7FC               	goto	u317
+   926  000478                     l853:
+   927                           
+   928                           ;term_main.c: 238: _delay((unsigned long)((10)*(4000000/4000.0)));
+   929  000478  0E0D               	movlw	13
+   930  00047A  6E29               	movwf	??_main& (0+255),c
+   931  00047C  0EFC               	movlw	252
+   932  00047E                     u327:
+   933  00047E  2EE8               	decfsz	wreg,f,c
+   934  000480  D7FE               	goto	u327
+   935  000482  2E29               	decfsz	??_main& (0+255),f,c
+   936  000484  D7FC               	goto	u327
+   937                           
+   938                           ;term_main.c: 240: FLAGbits.keypress=0;
+   939  000486  9017               	bcf	_FLAGbits,0,c
+   940                           
+   941                           ;term_main.c: 241: FLAGbits.nonchar=0;
+   942  000488  9217               	bcf	_FLAGbits,1,c
+   943                           
+   944                           ;term_main.c: 242: count1 = 0x00;
+   945  00048A  0E00               	movlw	0
+   946  00048C  6E0C               	movwf	_count1+1,c
+   947  00048E  0E00               	movlw	0
+   948  000490  6E0B               	movwf	_count1,c
+   949                           
+   950                           ;term_main.c: 243: count2 = 0x00;
+   951  000492  0E00               	movlw	0
+   952  000494  6E0E               	movwf	_count2+1,c
+   953  000496  0E00               	movlw	0
+   954  000498  6E0D               	movwf	_count2,c
+   955                           
+   956                           ;term_main.c: 244: keyp = 0x00;
+   957  00049A  6E29               	movwf	??_main& (0+255),c
+   958  00049C  0E00               	movlw	0
+   959  00049E  6E18               	movwf	_keyp,c
+   960  0004A0  5029               	movf	??_main& (0+255),w,c
+   961                           
+   962                           ;term_main.c: 247: LATCbits.LATC3 = 1;
+   963  0004A2  868B               	bsf	3979,3,c	;volatile
+   964                           
+   965                           ;term_main.c: 248: _delay((unsigned long)((25)*(4000000/4000000.0)));
+   966  0004A4  0E08               	movlw	8
+   967  0004A6                     u337:
+   968  0004A6  2EE8               	decfsz	wreg,f,c
+   969  0004A8  D7FE               	goto	u337
+   970  0004AA  F000               	nop	
+   971                           
+   972                           ;term_main.c: 252: if (PORTAbits.RA2==1) count1 = 1;
+   973  0004AC  A480               	btfss	3968,2,c	;volatile
+   974  0004AE  D004               	goto	l873
+   975  0004B0  0E00               	movlw	0
+   976  0004B2  6E0C               	movwf	_count1+1,c
+   977  0004B4  0E01               	movlw	1
+   978  0004B6  6E0B               	movwf	_count1,c
+   979  0004B8                     l873:
+   980                           
+   981                           ;term_main.c: 253: if (PORTAbits.RA4==1) count1 = 2;
+   982  0004B8  A880               	btfss	3968,4,c	;volatile
+   983  0004BA  D004               	goto	l877
+   984  0004BC  0E00               	movlw	0
+   985  0004BE  6E0C               	movwf	_count1+1,c
+   986  0004C0  0E02               	movlw	2
+   987  0004C2  6E0B               	movwf	_count1,c
+   988  0004C4                     l877:
+   989                           
+   990                           ;term_main.c: 254: if (PORTAbits.RA5==1) count1 = 3;
+   991  0004C4  AA80               	btfss	3968,5,c	;volatile
+   992  0004C6  D004               	goto	l881
+   993  0004C8  0E00               	movlw	0
+   994  0004CA  6E0C               	movwf	_count1+1,c
+   995  0004CC  0E03               	movlw	3
+   996  0004CE  6E0B               	movwf	_count1,c
+   997  0004D0                     l881:
+   998                           
+   999                           ;term_main.c: 256: if (count1 == 1)
+  1000  0004D0  040B               	decf	_count1,w,c
+  1001  0004D2  100C               	iorwf	_count1+1,w,c
+  1002  0004D4  A4D8               	btfss	status,2,c
+  1003  0004D6  D003               	goto	l887
+  1004                           
+  1005                           ;term_main.c: 257: {
+  1006                           ;term_main.c: 258: keyp='1'; FLAGbits.keypress=1;
+  1007  0004D8  6E29               	movwf	??_main& (0+255),c
+  1008  0004DA  0E31               	movlw	49
+  1009  0004DC  D00F               	goto	L3
+  1010  0004DE                     l887:
+  1011                           
+  1012                           ;term_main.c: 260: else if (count1 == 2)
+  1013  0004DE  500B               	movf	_count1,w,c
+  1014  0004E0  0A02               	xorlw	2
+  1015  0004E2  100C               	iorwf	_count1+1,w,c
+  1016  0004E4  A4D8               	btfss	status,2,c
+  1017  0004E6  D003               	goto	l893
+  1018                           
+  1019                           ;term_main.c: 261: {
+  1020                           ;term_main.c: 262: keyp='3'; FLAGbits.keypress=1;
+  1021  0004E8  6E29               	movwf	??_main& (0+255),c
+  1022  0004EA  0E33               	movlw	51
+  1023  0004EC  D007               	goto	L3
+  1024  0004EE                     l893:
+  1025                           
+  1026                           ;term_main.c: 264: else if (count1 == 3)
+  1027  0004EE  500B               	movf	_count1,w,c
+  1028  0004F0  0A03               	xorlw	3
+  1029  0004F2  100C               	iorwf	_count1+1,w,c
+  1030  0004F4  A4D8               	btfss	status,2,c
+  1031  0004F6  D006               	goto	l899
+  1032                           
+  1033                           ;term_main.c: 265: {
+  1034                           ;term_main.c: 266: keyp='5'; FLAGbits.keypress=1;
+  1035  0004F8  6E29               	movwf	??_main& (0+255),c
+  1036  0004FA  0E35               	movlw	53
+  1037  0004FC                     L3:
+  1038  0004FC  6E18               	movwf	_keyp,c
+  1039  0004FE  5029               	movf	??_main& (0+255),w,c
+  1040  000500  8017               	bsf	_FLAGbits,0,c
+  1041                           
+  1042                           ;term_main.c: 267: }
+  1043  000502  D004               	goto	l901
+  1044  000504                     l899:
+  1045                           
+  1046                           ;term_main.c: 268: else
+  1047                           ;term_main.c: 269: {
+  1048                           ;term_main.c: 270: x = 0;
+  1049  000504  0E00               	movlw	0
+  1050  000506  6E16               	movwf	_x+1,c
+  1051  000508  0E00               	movlw	0
+  1052  00050A  6E15               	movwf	_x,c
+  1053  00050C                     l901:
+  1054                           
+  1055                           ;term_main.c: 271: }
+  1056                           ;term_main.c: 278: LATCbits.LATC3 = 0;
+  1057  00050C  968B               	bcf	3979,3,c	;volatile
+  1058                           
+  1059                           ;term_main.c: 279: _delay((unsigned long)((25)*(4000000/4000000.0)));
+  1060  00050E  0E08               	movlw	8
+  1061  000510                     u347:
+  1062  000510  2EE8               	decfsz	wreg,f,c
+  1063  000512  D7FE               	goto	u347
+  1064  000514  F000               	nop	
+  1065                           
+  1066                           ;term_main.c: 280: LATCbits.LATC4 = 1;
+  1067  000516  888B               	bsf	3979,4,c	;volatile
+  1068                           
+  1069                           ;term_main.c: 281: _delay((unsigned long)((1)*(4000000/4000.0)));
+  1070  000518  0EFA               	movlw	250
+  1071  00051A                     u357:
+  1072  00051A  F000               	nop	
+  1073  00051C  2EE8               	decfsz	wreg,f,c
+  1074  00051E  D7FD               	goto	u357
+  1075                           
+  1076                           ;term_main.c: 283: if (PORTAbits.RA2==1) count2 = 1;
+  1077  000520  A480               	btfss	3968,2,c	;volatile
+  1078  000522  D004               	goto	l913
+  1079  000524  0E00               	movlw	0
+  1080  000526  6E0E               	movwf	_count2+1,c
+  1081  000528  0E01               	movlw	1
+  1082  00052A  6E0D               	movwf	_count2,c
+  1083  00052C                     l913:
+  1084                           
+  1085                           ;term_main.c: 284: if (PORTAbits.RA4==1) count2 = 2;
+  1086  00052C  A880               	btfss	3968,4,c	;volatile
+  1087  00052E  D004               	goto	l917
+  1088  000530  0E00               	movlw	0
+  1089  000532  6E0E               	movwf	_count2+1,c
+  1090  000534  0E02               	movlw	2
+  1091  000536  6E0D               	movwf	_count2,c
+  1092  000538                     l917:
+  1093                           
+  1094                           ;term_main.c: 285: if (PORTAbits.RA5==1) count2 = 3;
+  1095  000538  AA80               	btfss	3968,5,c	;volatile
+  1096  00053A  D014               	goto	l935
+  1097  00053C  0E00               	movlw	0
+  1098  00053E  6E0E               	movwf	_count2+1,c
+  1099  000540  0E03               	movlw	3
+  1100  000542  6E0D               	movwf	_count2,c
+  1101  000544  D00F               	goto	l935
+  1102  000546                     l921:
+  1103  000546  0E00               	movlw	0
+  1104  000548  6E12               	movwf	_noncharkey+1,c
+  1105  00054A  0E0B               	movlw	11
+  1106  00054C  6E11               	movwf	_noncharkey,c
+  1107  00054E  8217               	bsf	_FLAGbits,1,c
+  1108  000550  D01B               	goto	l91
+  1109  000552                     l925:
+  1110  000552  6E29               	movwf	??_main& (0+255),c
+  1111  000554  0E57               	movlw	87
+  1112  000556  D002               	goto	L4
+  1113  000558                     l929:
+  1114  000558  6E29               	movwf	??_main& (0+255),c
+  1115  00055A  0E52               	movlw	82
+  1116  00055C                     L4:
+  1117  00055C  6E18               	movwf	_keyp,c
+  1118  00055E  5029               	movf	??_main& (0+255),w,c
+  1119  000560  8017               	bsf	_FLAGbits,0,c
+  1120  000562  D012               	goto	l91
+  1121  000564                     l935:
+  1122  000564  C00D  F029         	movff	_count2,??_main
+  1123  000568  C00E  F02A         	movff	_count2+1,??_main+1
+  1124                           
+  1125                           ; Switch on 2 bytes has been partitioned into a top level switch of size 1, and 1 sub-sw
+      +                          itches
+  1126                           ; Switch size 1, requested type "space"
+  1127                           ; Number of cases is 1, Range of values is 0 to 0
+  1128                           ; switch strategies available:
+  1129                           ; Name         Instructions Cycles
+  1130                           ; simple_byte            4     3 (average)
+  1131                           ;	Chosen strategy is simple_byte
+  1132  00056C  502A               	movf	??_main+1,w,c
+  1133  00056E  0A00               	xorlw	0	; case 0
+  1134  000570  A4D8               	btfss	status,2,c
+  1135  000572  D00A               	goto	l91
+  1136                           
+  1137                           ; Switch size 1, requested type "space"
+  1138                           ; Number of cases is 3, Range of values is 1 to 3
+  1139                           ; switch strategies available:
+  1140                           ; Name         Instructions Cycles
+  1141                           ; simple_byte           10     6 (average)
+  1142                           ;	Chosen strategy is simple_byte
+  1143  000574  5029               	movf	??_main,w,c
+  1144  000576  0A01               	xorlw	1	; case 1
+  1145  000578  B4D8               	btfsc	status,2,c
+  1146  00057A  D7E5               	goto	l921
+  1147  00057C  0A03               	xorlw	3	; case 2
+  1148  00057E  B4D8               	btfsc	status,2,c
+  1149  000580  D7E8               	goto	l925
+  1150  000582  0A01               	xorlw	1	; case 3
+  1151  000584  B4D8               	btfsc	status,2,c
+  1152  000586  D7E8               	goto	l929
+  1153  000588                     l91:
+  1154                           
+  1155                           ;term_main.c: 301: LATCbits.LATC4 = 0;
+  1156  000588  988B               	bcf	3979,4,c	;volatile
+  1157                           
+  1158                           ;term_main.c: 303: if (FLAGbits.keypress == 1)
+  1159  00058A  A017               	btfss	_FLAGbits,0,c
+  1160  00058C  D005               	goto	l939
+  1161                           
+  1162                           ;term_main.c: 304: {
+  1163                           ;term_main.c: 305: uart_xmit(keyp);
+  1164  00058E  C018  F027         	movff	_keyp,uart_xmit@mydata_byte
+  1165  000592  6A28               	clrf	uart_xmit@mydata_byte+1,c
+  1166  000594  EC0B  F003         	call	_uart_xmit	;wreg free
+  1167  000598                     l939:
+  1168                           
+  1169                           ;term_main.c: 306: }
+  1170                           ;term_main.c: 308: _delay((unsigned long)((75)*(4000000/4000.0)));
+  1171  000598  0E62               	movlw	98
+  1172  00059A  6E29               	movwf	??_main& (0+255),c
+  1173  00059C  0E66               	movlw	102
+  1174  00059E                     u367:
+  1175  00059E  2EE8               	decfsz	wreg,f,c
+  1176  0005A0  D7FE               	goto	u367
+  1177  0005A2  2E29               	decfsz	??_main& (0+255),f,c
+  1178  0005A4  D7FC               	goto	u367
+  1179  0005A6  D768               	goto	l853
+  1180  0005A8                     __end_of_main:
+  1181                           	opt stack 0
+  1182                           pclatu	equ	0xFFB
+  1183                           pclath	equ	0xFFA
+  1184                           tblptru	equ	0xFF8
+  1185                           tblptrh	equ	0xFF7
+  1186                           tblptrl	equ	0xFF6
+  1187                           tablat	equ	0xFF5
+  1188                           prodh	equ	0xFF4
+  1189                           prodl	equ	0xFF3
+  1190                           intcon	equ	0xFF2
+  1191                           postinc0	equ	0xFEE
+  1192                           fsr0h	equ	0xFEA
+  1193                           fsr0l	equ	0xFE9
+  1194                           wreg	equ	0xFE8
+  1195                           fsr1h	equ	0xFE2
+  1196                           fsr1l	equ	0xFE1
+  1197                           fsr2h	equ	0xFDA
+  1198                           fsr2l	equ	0xFD9
+  1199                           status	equ	0xFD8
+  1200                           
+  1201 ;; *************** function _uart_xmit *****************
+  1202 ;; Defined at:
+  1203 ;;		line 60 in file "../term_main.c"
+  1204 ;; Parameters:    Size  Location     Type
+  1205 ;;  mydata_byte     2   14[COMRAM] unsigned int 
+  1206 ;; Auto vars:     Size  Location     Type
+  1207 ;;		None
+  1208 ;; Return value:  Size  Location     Type
+  1209 ;;		None               void
+  1210 ;; Registers used:
+  1211 ;;		None
+  1212 ;; Tracked objects:
+  1213 ;;		On entry : 0/0
+  1214 ;;		On exit  : 0/0
+  1215 ;;		Unchanged: 0/0
+  1216 ;; Data sizes:     COMRAM   BANK0   BANK1
+  1217 ;;      Params:         2       0       0
+  1218 ;;      Locals:         0       0       0
+  1219 ;;      Temps:          0       0       0
+  1220 ;;      Totals:         2       0       0
+  1221 ;;Total ram usage:        2 bytes
+  1222 ;; Hardware stack levels used:    1
+  1223 ;; Hardware stack levels required when called:    1
+  1224 ;; This function calls:
+  1225 ;;		Nothing
+  1226 ;; This function is called by:
+  1227 ;;		_main
+  1228 ;; This function uses a non-reentrant model
+  1229 ;;
+  1230                           
+  1231                           	psect	text1
+  1232  000616                     __ptext1:
+  1233                           	opt stack 0
+  1234  000616                     _uart_xmit:
+  1235                           	opt stack 29
+  1236  000616                     l57:
+  1237  000616  A2AC               	btfss	4012,1,c	;volatile
+  1238  000618  D7FE               	goto	l57
+  1239                           
+  1240                           ;term_main.c: 63: TXREG = mydata_byte;
+  1241  00061A  C027  FFAD         	movff	uart_xmit@mydata_byte,4013	;volatile
+  1242  00061E  0012               	return	
+  1243  000620                     __end_of_uart_xmit:
+  1244                           	opt stack 0
+  1245                           pclatu	equ	0xFFB
+  1246                           pclath	equ	0xFFA
+  1247                           tblptru	equ	0xFF8
+  1248                           tblptrh	equ	0xFF7
+  1249                           tblptrl	equ	0xFF6
+  1250                           tablat	equ	0xFF5
+  1251                           prodh	equ	0xFF4
+  1252                           prodl	equ	0xFF3
+  1253                           intcon	equ	0xFF2
+  1254                           postinc0	equ	0xFEE
+  1255                           fsr0h	equ	0xFEA
+  1256                           fsr0l	equ	0xFE9
+  1257                           wreg	equ	0xFE8
+  1258                           fsr1h	equ	0xFE2
+  1259                           fsr1l	equ	0xFE1
+  1260                           fsr2h	equ	0xFDA
+  1261                           fsr2l	equ	0xFD9
+  1262                           status	equ	0xFD8
+  1263                           
+  1264 ;; *************** function _serial_init *****************
+  1265 ;; Defined at:
+  1266 ;;		line 66 in file "../term_main.c"
+  1267 ;; Parameters:    Size  Location     Type
+  1268 ;;		None
+  1269 ;; Auto vars:     Size  Location     Type
+  1270 ;;		None
+  1271 ;; Return value:  Size  Location     Type
+  1272 ;;		None               void
+  1273 ;; Registers used:
+  1274 ;;		wreg, status,2
+  1275 ;; Tracked objects:
+  1276 ;;		On entry : 0/0
+  1277 ;;		On exit  : 0/0
+  1278 ;;		Unchanged: 0/0
+  1279 ;; Data sizes:     COMRAM   BANK0   BANK1
+  1280 ;;      Params:         0       0       0
+  1281 ;;      Locals:         0       0       0
+  1282 ;;      Temps:          1       0       0
+  1283 ;;      Totals:         1       0       0
+  1284 ;;Total ram usage:        1 bytes
+  1285 ;; Hardware stack levels used:    1
+  1286 ;; Hardware stack levels required when called:    1
+  1287 ;; This function calls:
+  1288 ;;		Nothing
+  1289 ;; This function is called by:
+  1290 ;;		_main
+  1291 ;; This function uses a non-reentrant model
+  1292 ;;
+  1293                           
+  1294                           	psect	text2
+  1295  0005A8                     __ptext2:
+  1296                           	opt stack 0
+  1297  0005A8                     _serial_init:
+  1298                           	opt stack 29
+  1299                           
+  1300                           ;term_main.c: 76: TXSTAbits.BRGH=1;
+  1301                           
+  1302                           ;incstack = 0
+  1303  0005A8  84AC               	bsf	4012,2,c	;volatile
+  1304                           
+  1305                           ;term_main.c: 77: TXSTAbits.TX9=0;
+  1306  0005AA  9CAC               	bcf	4012,6,c	;volatile
+  1307                           
+  1308                           ;term_main.c: 78: TXSTAbits.TXEN = 1;
+  1309  0005AC  8AAC               	bsf	4012,5,c	;volatile
+  1310                           
+  1311                           ;term_main.c: 81: RCSTAbits.SPEN=1;
+  1312  0005AE  8EAB               	bsf	4011,7,c	;volatile
+  1313                           
+  1314                           ;term_main.c: 82: RCSTAbits.RX9=0;
+  1315  0005B0  9CAB               	bcf	4011,6,c	;volatile
+  1316                           
+  1317                           ;term_main.c: 83: RCSTAbits.CREN=1;
+  1318  0005B2  88AB               	bsf	4011,4,c	;volatile
+  1319                           
+  1320                           ;term_main.c: 85: SPBRG=25;
+  1321  0005B4  0E19               	movlw	25
+  1322  0005B6  6EAF               	movwf	4015,c	;volatile
+  1323                           
+  1324                           ;term_main.c: 87: PIR1bits.RCIF=0;
+  1325  0005B8  9A9E               	bcf	3998,5,c	;volatile
+  1326                           
+  1327                           ;term_main.c: 88: PIE1bits.RCIE=1;
+  1328  0005BA  8A9D               	bsf	3997,5,c	;volatile
+  1329                           
+  1330                           ;term_main.c: 89: INTCONbits.PEIE = 1;
+  1331  0005BC  8CF2               	bsf	intcon,6,c	;volatile
+  1332                           
+  1333                           ;term_main.c: 90: INTCONbits.GIE = 1;
+  1334  0005BE  8EF2               	bsf	intcon,7,c	;volatile
+  1335                           
+  1336                           ;term_main.c: 91: INTCONbits.T0IE = 0;
+  1337  0005C0  9AF2               	bcf	intcon,5,c	;volatile
+  1338                           
+  1339                           ;term_main.c: 93: _delay((unsigned long)((50)*(4000000/4000.0)));
+  1340  0005C2  0E41               	movlw	65
+  1341  0005C4  6E27               	movwf	??_serial_init& (0+255),c
+  1342  0005C6  0EEE               	movlw	238
+  1343  0005C8                     u377:
+  1344  0005C8  2EE8               	decfsz	wreg,f,c
+  1345  0005CA  D7FE               	goto	u377
+  1346  0005CC  2E27               	decfsz	??_serial_init& (0+255),f,c
+  1347  0005CE  D7FC               	goto	u377
+  1348  0005D0  D000               	nop2	
+  1349  0005D2  0012               	return	
+  1350  0005D4                     __end_of_serial_init:
+  1351                           	opt stack 0
+  1352                           pclatu	equ	0xFFB
+  1353                           pclath	equ	0xFFA
+  1354                           tblptru	equ	0xFF8
+  1355                           tblptrh	equ	0xFF7
+  1356                           tblptrl	equ	0xFF6
+  1357                           tablat	equ	0xFF5
+  1358                           prodh	equ	0xFF4
+  1359                           prodl	equ	0xFF3
+  1360                           intcon	equ	0xFF2
+  1361                           postinc0	equ	0xFEE
+  1362                           fsr0h	equ	0xFEA
+  1363                           fsr0l	equ	0xFE9
+  1364                           wreg	equ	0xFE8
+  1365                           fsr1h	equ	0xFE2
+  1366                           fsr1l	equ	0xFE1
+  1367                           fsr2h	equ	0xFDA
+  1368                           fsr2l	equ	0xFD9
+  1369                           status	equ	0xFD8
+  1370                           
+  1371 ;; *************** function _init_io *****************
+  1372 ;; Defined at:
+  1373 ;;		line 97 in file "../term_main.c"
+  1374 ;; Parameters:    Size  Location     Type
+  1375 ;;		None
+  1376 ;; Auto vars:     Size  Location     Type
+  1377 ;;		None
+  1378 ;; Return value:  Size  Location     Type
+  1379 ;;		None               void
+  1380 ;; Registers used:
+  1381 ;;		wreg, status,2
+  1382 ;; Tracked objects:
+  1383 ;;		On entry : 0/0
+  1384 ;;		On exit  : 0/0
+  1385 ;;		Unchanged: 0/0
+  1386 ;; Data sizes:     COMRAM   BANK0   BANK1
+  1387 ;;      Params:         0       0       0
+  1388 ;;      Locals:         0       0       0
+  1389 ;;      Temps:          0       0       0
+  1390 ;;      Totals:         0       0       0
+  1391 ;;Total ram usage:        0 bytes
+  1392 ;; Hardware stack levels used:    1
+  1393 ;; Hardware stack levels required when called:    1
+  1394 ;; This function calls:
+  1395 ;;		Nothing
+  1396 ;; This function is called by:
+  1397 ;;		_main
+  1398 ;; This function uses a non-reentrant model
+  1399 ;;
+  1400                           
+  1401                           	psect	text3
+  1402  0005D4                     __ptext3:
+  1403                           	opt stack 0
+  1404  0005D4                     _init_io:
+  1405                           	opt stack 29
+  1406                           
+  1407                           ;term_main.c: 98: TRISAbits.TRISA0 = 0;
+  1408                           
+  1409                           ;incstack = 0
+  1410  0005D4  9092               	bcf	3986,0,c	;volatile
+  1411                           
+  1412                           ;term_main.c: 99: TRISAbits.TRISA1 = 1;
+  1413  0005D6  8292               	bsf	3986,1,c	;volatile
+  1414                           
+  1415                           ;term_main.c: 100: TRISAbits.TRISA2 = 1;
+  1416  0005D8  8492               	bsf	3986,2,c	;volatile
+  1417                           
+  1418                           ;term_main.c: 101: TRISAbits.TRISA4 = 1;
+  1419  0005DA  8892               	bsf	3986,4,c	;volatile
+  1420                           
+  1421                           ;term_main.c: 102: TRISAbits.TRISA5 = 1;
+  1422  0005DC  8A92               	bsf	3986,5,c	;volatile
+  1423                           
+  1424                           ;term_main.c: 104: ANSEL = 0x00;
+  1425  0005DE  0E00               	movlw	0
+  1426  0005E0  6E7E               	movwf	3966,c	;volatile
+  1427                           
+  1428                           ;term_main.c: 105: ANSELH = 0x00;
+  1429  0005E2  0E00               	movlw	0
+  1430  0005E4  6E7F               	movwf	3967,c	;volatile
+  1431                           
+  1432                           ;term_main.c: 107: TRISBbits.TRISB4 = 0;
+  1433  0005E6  9893               	bcf	3987,4,c	;volatile
+  1434                           
+  1435                           ;term_main.c: 108: TRISBbits.TRISB5 = 1;
+  1436  0005E8  8A93               	bsf	3987,5,c	;volatile
+  1437                           
+  1438                           ;term_main.c: 109: TRISBbits.TRISB6 = 0;
+  1439  0005EA  9C93               	bcf	3987,6,c	;volatile
+  1440                           
+  1441                           ;term_main.c: 110: TRISBbits.TRISB7 = 0;
+  1442  0005EC  9E93               	bcf	3987,7,c	;volatile
+  1443                           
+  1444                           ;term_main.c: 112: TRISCbits.TRISC0 = 1;
+  1445  0005EE  8094               	bsf	3988,0,c	;volatile
+  1446                           
+  1447                           ;term_main.c: 113: TRISCbits.TRISC1 = 1;
+  1448  0005F0  8294               	bsf	3988,1,c	;volatile
+  1449                           
+  1450                           ;term_main.c: 114: TRISCbits.TRISC2 = 1;
+  1451  0005F2  8494               	bsf	3988,2,c	;volatile
+  1452                           
+  1453                           ;term_main.c: 115: TRISCbits.TRISC3 = 0;
+  1454  0005F4  9694               	bcf	3988,3,c	;volatile
+  1455                           
+  1456                           ;term_main.c: 116: TRISCbits.TRISC4 = 0;
+  1457  0005F6  9894               	bcf	3988,4,c	;volatile
+  1458                           
+  1459                           ;term_main.c: 117: TRISCbits.TRISC5 = 0;
+  1460  0005F8  9A94               	bcf	3988,5,c	;volatile
+  1461                           
+  1462                           ;term_main.c: 118: TRISCbits.TRISC6 = 1;
+  1463  0005FA  8C94               	bsf	3988,6,c	;volatile
+  1464                           
+  1465                           ;term_main.c: 119: TRISCbits.TRISC7 = 1;
+  1466  0005FC  8E94               	bsf	3988,7,c	;volatile
+  1467  0005FE  0012               	return	
+  1468  000600                     __end_of_init_io:
+  1469                           	opt stack 0
+  1470                           pclatu	equ	0xFFB
+  1471                           pclath	equ	0xFFA
+  1472                           tblptru	equ	0xFF8
+  1473                           tblptrh	equ	0xFF7
+  1474                           tblptrl	equ	0xFF6
+  1475                           tablat	equ	0xFF5
+  1476                           prodh	equ	0xFF4
+  1477                           prodl	equ	0xFF3
+  1478                           intcon	equ	0xFF2
+  1479                           postinc0	equ	0xFEE
+  1480                           fsr0h	equ	0xFEA
+  1481                           fsr0l	equ	0xFE9
+  1482                           wreg	equ	0xFE8
+  1483                           fsr1h	equ	0xFE2
+  1484                           fsr1l	equ	0xFE1
+  1485                           fsr2h	equ	0xFDA
+  1486                           fsr2l	equ	0xFD9
+  1487                           status	equ	0xFD8
+  1488                           pclatu	equ	0xFFB
+  1489                           pclath	equ	0xFFA
+  1490                           tblptru	equ	0xFF8
+  1491                           tblptrh	equ	0xFF7
+  1492                           tblptrl	equ	0xFF6
+  1493                           tablat	equ	0xFF5
+  1494                           prodh	equ	0xFF4
+  1495                           prodl	equ	0xFF3
+  1496                           intcon	equ	0xFF2
+  1497                           postinc0	equ	0xFEE
+  1498                           fsr0h	equ	0xFEA
+  1499                           fsr0l	equ	0xFE9
+  1500                           wreg	equ	0xFE8
+  1501                           fsr1h	equ	0xFE2
+  1502                           fsr1l	equ	0xFE1
+  1503                           fsr2h	equ	0xFDA
+  1504                           fsr2l	equ	0xFD9
+  1505                           status	equ	0xFD8
+  1506                           
+  1507                           	psect	rparam
+  1508  0000                     pclatu	equ	0xFFB
+  1509                           pclath	equ	0xFFA
+  1510                           tblptru	equ	0xFF8
+  1511                           tblptrh	equ	0xFF7
+  1512                           tblptrl	equ	0xFF6
+  1513                           tablat	equ	0xFF5
+  1514                           prodh	equ	0xFF4
+  1515                           prodl	equ	0xFF3
+  1516                           intcon	equ	0xFF2
+  1517                           postinc0	equ	0xFEE
+  1518                           fsr0h	equ	0xFEA
+  1519                           fsr0l	equ	0xFE9
+  1520                           wreg	equ	0xFE8
+  1521                           fsr1h	equ	0xFE2
+  1522                           fsr1l	equ	0xFE1
+  1523                           fsr2h	equ	0xFDA
+  1524                           fsr2l	equ	0xFD9
+  1525                           status	equ	0xFD8
+
+
+Data Sizes:
+    Strings     0
+    Constant    0
+    Data        0
+    BSS         24
+    Persistent  0
+    Stack       0
+
+Auto Spaces:
+    Space          Size  Autos    Used
+    COMRAM           95     18      42
+    BANK0           160      0       0
+    BANK1           256      0       0
+
+Pointer List with Targets:
+
+    None.
+
+Critical Paths under _main in COMRAM
+
+    _main->_uart_xmit
+
+Critical Paths under _ISR in COMRAM
+
+    None.
+
+Critical Paths under _main in BANK0
+
+    None.
+
+Critical Paths under _ISR in BANK0
+
+    None.
+
+Critical Paths under _main in BANK1
+
+    None.
+
+Critical Paths under _ISR in BANK1
+
+    None.
+
+Call Graph Tables:
+
+ ---------------------------------------------------------------------------------
+ (Depth) Function   	        Calls       Base Space   Used Autos Params    Refs
+ ---------------------------------------------------------------------------------
+ (0) _main                                                 2     2      0    1987
+                                             16 COMRAM     2     2      0
+                            _init_io
+                        _serial_init
+                          _uart_xmit
+ ---------------------------------------------------------------------------------
+ (1) _uart_xmit                                            2     0      2    1987
+                                             14 COMRAM     2     0      2
+ ---------------------------------------------------------------------------------
+ (1) _serial_init                                          1     1      0       0
+                                             14 COMRAM     1     1      0
+ ---------------------------------------------------------------------------------
+ (1) _init_io                                              0     0      0       0
+ ---------------------------------------------------------------------------------
+ Estimated maximum stack depth 1
+ ---------------------------------------------------------------------------------
+ (Depth) Function   	        Calls       Base Space   Used Autos Params    Refs
+ ---------------------------------------------------------------------------------
+ (2) _ISR                                                 14    14      0       0
+                                              0 COMRAM    14    14      0
+ ---------------------------------------------------------------------------------
+ Estimated maximum stack depth 2
+ ---------------------------------------------------------------------------------
+
+ Call Graph Graphs:
+
+ _main (ROOT)
+   _init_io
+   _serial_init
+   _uart_xmit
+
+ _ISR (ROOT)
+
+ Address spaces:
+Name               Size   Autos  Total    Cost      Usage
+BIGRAM             1FF      0       0       8        0.0%
+EEDATA             100      0       0       0        0.0%
+BITBANK1           100      0       0       5        0.0%
+BANK1              100      0       0       6        0.0%
+BITBANK0            A0      0       0       3        0.0%
+BANK0               A0      0       0       4        0.0%
+BITCOMRAM           5F      0       0       0        0.0%
+COMRAM              5F     12      2A       1       44.2%
+BITSFR               0      0       0      40        0.0%
+SFR                  0      0       0      40        0.0%
+STACK                0      0       0       2        0.0%
+NULL                 0      0       0       0        0.0%
+ABS                  0      0      2A       7        0.0%
+DATA                 0      0      2A       9        0.0%
+CODE                 0      0       0       0        0.0%
+
+
+Microchip Technology PIC18 Macro Assembler V1.31 build 56723 
+Symbol Table                                                                                   Tue May 06 21:09:33 2014
+
+                      _x 0015                       l57 0616                       l91 0588  
+           __CFG_CP0$OFF 000000             __CFG_CP1$OFF 000000                      l901 050C  
+                    l921 0546                      l913 052C                      l925 0552  
+                    l917 0538                      l853 0478                      l935 0564  
+                    l929 0558                      l881 04D0                      l873 04B8  
+                    l849 0392                      l939 0598                      l893 04EE  
+                    l877 04C4                      l887 04DE                      l899 0504  
+                    u207 00F8                      u217 0108                      u307 0240  
+                    u227 0118                      u317 0470                      u237 0128  
+                    u327 047E                      u247 0138                      u167 00B8  
+                    u337 04A6                      u257 0148                      u177 00C8  
+                    u347 0510                      u267 0158                      u187 00D8  
+                    _ISR 0008                      u357 051A                      u277 0168  
+                    u197 00E8                      u367 059E                      u287 01A8  
+                    u377 05C8                      u297 01B8                      _buf 0001  
+                    wreg 000FE8             __CFG_LVP$OFF 000000                     ?_ISR 0019  
+                   i2l71 0054                     i2l69 004C                     _main 0092  
+                   _keyp 0018                     fsr0h 000FEA                     fsr1h 000FE2  
+                   fsr0l 000FE9                     fsr2h 000FDA                     fsr1l 000FE1  
+                   fsr2l 000FD9                     pclat 000FFA            __CFG_BOREN$ON 000000  
+                   prodh 000FF4                     prodl 000FF3                     start 008E  
+          __CFG_IESO$OFF 000000            __CFG_FOSC$IRC 000000            __CFG_MCLRE$ON 000000  
+                  ??_ISR 0019                    ?_main 0019                    _ANSEL 000F7E  
+                  _RCREG 000FAE                    _SPBRG 000FAF                    _TXREG 000FAD  
+         __CFG_FCMEN$OFF 000000          __end_of_init_io 0600                    tablat 000FF5  
+                  status 000FD8          __initialization 0600             __end_of_main 05A8  
+                 ??_main 0029            __activetblptr 000002                   _ANSELH 000F7F  
+         __CFG_WDTEN$OFF 000000             ?_serial_init 0019           __CFG_STVREN$ON 000000  
+                 _count1 000B                   _count2 000D                   clear_0 0606  
+              ??_init_io 0027                   tblptrh 000FF7                   tblptrl 000FF6  
+                 tblptru 000FF8          __CFG_HFOFST$OFF 000000               __accesstop 0060  
+__end_of__initialization 060C           __pcstackCOMRAM 0019       __size_of_uart_xmit 000A  
+        __CFG_PWRTEN$OFF 000000                  __Hparam 0000                  __Lparam 0000  
+   __size_of_serial_init 002C                  __pcinit 0600                  __ramtop 0200  
+                __ptext0 0092                  __ptext1 0616                  __ptext2 05A8  
+                __ptext3 05D4             __size_of_ISR 0086                  _init_io 05D4  
+                _itxdata 000F     end_of_initialization 060C            __Lmediumconst 0000  
+             _noncharkey 0011        __end_of_uart_xmit 0620                _RCSTAbits 000FAB  
+                postinc0 000FEE                _PORTAbits 000F80                _TRISAbits 000F92  
+              _TRISBbits 000F93                _TRISCbits 000F94     uart_xmit@mydata_byte 0027  
+              _TXSTAbits 000FAC      start_initialization 0600              __end_of_ISR 008E  
+            __pbssCOMRAM 0001                __pintcode 0008                 ?_init_io 0019  
+               _FLAGbits 0017                 _LATAbits 000F89                 _LATCbits 000F8B  
+               _PIE1bits 000F9D                 _PIR1bits 000F9E            ??_serial_init 0027  
+              _uart_data 0013                _uart_xmit 0616                 __Hrparam 0000  
+               __Lrparam 0000               ?_uart_xmit 0027      __end_of_serial_init 05D4  
+       __size_of_init_io 002C            __size_of_main 0516               _INTCONbits 000FF2  
+               intlevel2 0000               _OSCCONbits 000FD3              _serial_init 05A8  
+            ??_uart_xmit 0029  

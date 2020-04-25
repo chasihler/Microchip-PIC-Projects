@@ -1,0 +1,125 @@
+23.1.9 SETUP FOR PWM OPERATION
+USING PWMx PINS
+The following steps should be taken when configuring
+the module for PWM operation using the PWMx pins:
+
+1. Disable the PWMx pin output driver(s) by setting
+the associated TRIS bit(s).
+
+
+
+2. Clear the PWMxCON register.
+
+bit 7 PWMxEN: PWM Module Enable bit
+1 = PWM module is enabled
+0 = PWM module is disabled
+bit 6 PWMxOE: PWM Module Output Enable bit
+1 = Output to PWMx pin is enabled
+0 = Output to PWMx pin is disabled
+bit 5 PWMxOUT: PWM Module Output Value bit
+bit 4 PWMxPOL: PWMx Output Polarity Select bit
+1 = PWM output is active low
+0 = PWM output is active high
+bit 3-0 Unimplemented: Read as ‘0’
+
+3. Load the PR2 register with the PWM period
+value.
+4. Clear the PWMxDCH register and bits <7:6> of
+the PWMxDCL register.
+5. Configure and start Timer2:
+• Clear the TMR2IF interrupt flag bit of the
+PIR1 register. See note below.
+23.1.9 SETUP FOR PWM OPERATION
+USING PWMx PINS
+The following steps should be taken when configuring
+the module for PWM operation using the PWMx pins:
+1. Disable the PWMx pin output driver(s) by setting
+the associated TRIS bit(s).
+2. Clear the PWMxCON register.
+3. Load the PR2 register with the PWM period
+value.
+4. Clear the PWMxDCH register and bits <7:6> of
+the PWMxDCL register.
+5. Configure and start Timer2:
+• Clear the TMR2IF interrupt flag bit of the
+PIR1 register. See note below.
+
+Configure the T2CKPS bits of the T2CON
+register with the Timer2 prescale value.
+
+Enable Timer2 by setting the TMR2ON bit of
+the T2CON register.
+
+Enable PWM output pin and wait until Timer2
+overflows, TMR2IF bit of the PIR1 register is set.
+See note below.
+7. Enable the PWMx pin output driver(s) by clearing
+the associated TRIS bit(s) and setting the
+PWMxOE bit of the PWMxCON register.
+8. Configure the PWM module by loading the
+PWMxCON register with the appropriate values.
+Note 1: In order to send a complete duty cycle
+and period on the first PWM output, the
+above steps must be followed in the order
+given. If it is not critical to start with a
+complete PWM signal, then move Step 8
+to replace Step 4.
+2: For operation with other peripherals only,
+disable PWMx pin outputs.
+
+
+
+					;RC5 = PWM1
+BANKSEL LATA 		;Data Latch
+CLRF LATA 			;
+BANKSEL ANSELC 		;
+CLRF ANSELC			;Digital IO
+BANKSEL PORTC		;
+CLRF PORTC, 5		;Clear PWM1
+BANKSEL TRISC		;Set RC5 output
+CLRF TRISC, 5
+BANKSEL PWM1CON		;find PWM1CON
+CLRF PWM1CON
+MOVLW 0xFF
+MOVWF PR2			;Load PR2 with 0xFF
+BANKSEL PWM1DCH		
+CLRF PWM1DCH
+BANKSEL PWM1DCL
+CLRF PWM1DCL, 6
+CLRF PWM1DCL, 6
+
+					;copied code, unknown if good.
+;ENABLE INTERRUPT
+BANKSEL PIE1
+BSF PIE1,1
+    				;-----------------------------------
+
+
+					;Configure and start Timer2
+;CONFIGURE TIMER
+BANKSEL T2CON
+MOVLW B'00000110'
+MOVWF T2CON
+
+					;Enable PWM output pin and wait until Timer2
+					;overflows, TMR2IF bit of the PIR1 register is set.
+					;See note below.
+
+btfss    PIR1,1                ;Test for T2 interrupt                                            
+goto    $-1
+
+					;Enable the PWMx pin output driver(s) by clearing
+					;the associated TRIS bit(s) and setting the
+					;PWMxOE bit of the PWMxCON register.
+	
+					;Configure the PWM module by loading the
+					;PWMxCON register with the appropriate values.
+
+
+BANKSEL PWM1CON		;
+MOVLW	B'11100000'
+MOVWF	PWM1CON
+
+banksel    TRISC
+bsf        TRISC,5                ;Enable the PWM output pin
+

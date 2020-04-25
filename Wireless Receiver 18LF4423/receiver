@@ -1,0 +1,22 @@
+;************************************************************************
+
+#include <p18f4423.inc>	
+	list p=18lf4423
+	
+	cblock 0
+	
+	end c
+	
+	org 0
+	bra start
+	
+	org 8
+	retfie
+	
+	
+	
+	start
+	
+	end
+
+

@@ -1,0 +1,9 @@
+__stringtab: STRING, 3 0 6
+__stringdata: STRING, 9 0 28
+_main: CODE, 1969 0 73
+__initialization: CODE, 2042 0 2
+_serial_init: CODE, 1864 0 24
+_write_uart: CODE, 1888 0 34
+_init_io: CODE, 1922 0 47
+_uart_xmit: CODE, 1855 0 9
+Total: 223

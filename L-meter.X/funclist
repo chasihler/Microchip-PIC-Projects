@@ -1,0 +1,11 @@
+__stringtab: STRING, 4 0 1
+_lcd_puts: CODE, 1816 0 22
+__stringdata: STRING, 5 0 34
+_main: CODE, 1945 0 89
+__initialization: CODE, 2034 0 11
+_lcd_clear: CODE, 1800 0 16
+_lcd_goto: CODE, 1778 0 8
+_lcd_write: CODE, 1838 0 24
+_lcd_strobe: CODE, 1786 0 14
+_lcd_init: CODE, 1862 0 83
+Total: 302

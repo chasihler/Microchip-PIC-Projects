@@ -1,0 +1,31 @@
+
+
+        if(Stringcomp(input, "GPGGA", 5)){
+            for(char t = 0; t < 8; t++){
+                if(t>5){
+                    toprint[t] = 0;
+                }else{
+                    toprint[t] = input[t+6];
+                }
+            }
+            
+            
+void interrupt test(void){
+    char temp;
+    if((PIR1 & 0b00100000) == 32){
+        temp = RCREG;
+        if(temp=='$' && newdata==0){
+            record = 1;
+            index = 0;
+        }else if(record == 1){
+            input[index] = RCREG;
+            index++;
+            if(index > 39){
+                index = 0;
+                record = 0;
+                newdata = 1;
+            }
+        }
+    }
+    PIR1 = 0;
+}

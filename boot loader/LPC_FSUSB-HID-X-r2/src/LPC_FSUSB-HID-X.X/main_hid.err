@@ -1,0 +1,1 @@
+Error[1174] C:\Program Files\Microchip\mplabc18\v3.47\h\string.h 623 : local 'c' in program memory can not be 'auto'

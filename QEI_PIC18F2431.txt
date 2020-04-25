@@ -1,0 +1,84 @@
+#include <18f2431.h>
+#include <stdlib.h>
+#include <math.h>
+#fuses  H4,NOWDT,NOPROTECT
+#use delay(clock=40M)
+#use rs232(baud=9600, xmit=PIN_C6, rcv=PIN_C7)
+#byte QEICON      = 0xFB6  // Quadrature Encoder Interface control register 
+#byte DFLTCON     = 0xF60  // Digital filter control register 
+#byte POSCNTH     = 0xF67  // Position register high byte 
+#byte POSCNTL     = 0xF66  // Position register low byte 
+#bit dir_bit = 0xFB6.5
+#bit qei_bit = 0xFA4.2
+
+//VARIABLES
+unsigned int32 old_count=0;
+unsigned int32 special=0;
+unsigned int32 pos=32768, pold=32768, psp=0;
+int8 t1_count=0;
+unsigned int32 diff=0;
+unsigned int32 a,b;
+unsigned int8 c;
+
+union 
+{ 
+   int8 bytes[2]; 
+   int16 word; 
+} position_union; 
+
+
+//Timer1 interrupt
+#int_TIMER1
+void timer1_isr()
+{
+   set_timer1(3035);
+      if(qei_bit)
+      {
+         qei_bit=0;
+         if(dir_bit){ pos=pos+1;}
+         else{ pos=pos-1;}
+      }
+      psp=pos;
+      position_union.bytes[1] = POSCNTH;
+      position_union.bytes[0] = POSCNTL;
+      if(dir_bit)
+      {
+         a=(psp*65536)+position_union.word;
+         b=(pold*65536)+old_count;
+         diff=a-b;
+      }
+      else
+      {
+         a=(psp*65536)+position_union.word;
+         b=(pold*65536)+old_count;
+         diff=0;
+         diff=(b-a);
+      }
+      /*printf("pos= %lu\n\r",psp);
+      printf("word= %lu\n\r",position_union.word);
+      printf("pold= %lu\n\r",pold);
+      printf("old_count= %lu\n\r",old_count);
+      printf("a= %lu\n\r",a);
+      printf("b= %lu\n\r",b);   */
+      if(diff>500000){diff=b-a;}
+      printf("diff= %lu\n\r\n\r",diff);     
+      old_count=position_union.word;
+      pold=psp;
+}
+void main() 
+{  
+   printf("Start...\n\r");
+   //QEI setup
+   QEICON = 184;
+   DFLTCON = 59; 
+   POSCNTH=0;
+   POSCNTL=0;
+   
+   setup_timer_1(T1_INTERNAL|T1_DIV_BY_8);
+   set_timer1(3035);
+   enable_interrupts(INT_TIMER1);
+   enable_interrupts(GLOBAL);
+   while(true){}
+      
+   
+} 

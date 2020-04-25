@@ -1,0 +1,663 @@
+; UART test with TX and RX buffers By Tony Kübek 2000-06-22 free for use
+; NOTE Buffer macro is for NON_COMMERCIAL use, originator Eric Smith
+; Tried to contact him but failed to do so so this remark remains.
+; Other than that no warranties are implied or anything like that
+; use it at your own risk ;-)
+;
+
+	list      p=16f876            ; list directive to define processor
+	#include <p16f876.inc>        ; processor specific variable definitions
+	#include <macros.asm>         ; macro definitions
+
+
+	__CONFIG _CP_OFF & _WDT_OFF & _BODEN_OFF & _PWRTE_ON & _HS_OSC & _WRT_ENABLE_ON & _LVP_OFF& _DEBUG_ON & _CPD_OFF 
+
+; '__CONFIG' directive is used to embed configuration data within .asm file.
+; The lables following the directive are located in the respective .inc file.
+; See respective data sheet for additional information on configuration word.
+
+; turn off crossing page boundary message
+	ERRORLEVEL -306, -302
+
+
+; base frequency
+XTAL_FREQ	EQU	20000000	; OSC freq in Hz
+
+
+; handy ASCII character table
+STX	EQU	0x02	; stx
+ETX	EQU	0x03	; etx
+BEL	EQU	0x07	; bell
+BS	EQU	0x08	; backspace
+TAB	EQU	0x09	; horizontal tab
+LF	EQU	0x0A	; line feed
+FF	EQU	0x0C	; form feed
+CR	EQU	0x0D	; carriage return
+XON	EQU	0x11	; transmit on
+XOFF	EQU	0x13	; transmit off
+EOF	EQU	0x1A	; end of file
+ESC	EQU	0x1B	; escape
+SP	EQU	0x20	; space
+
+; buffers for serial communication
+RX_BUFFER_SIZE	EQU	16	; serial receive buffer allocation ( best when power of 2 )
+TX_BUFFER_SIZE	EQU	16	; serial transmit buffer allocation
+
+; Baud rate constants from (((10*XTAL_FREQ/(16*BAUD))+5)/10)-1
+; note these calulations uses BRGH = 1 ( high speed mode )
+; for BRGH = 0 use the formula: (((10*XTAL_FREQ/(64*BAUD))+5)/10)-1
+; NOTE Rather use the calculations further down below instead !
+BAUD_9600	EQU	(((10*XTAL_FREQ/(16*9600))+5)/10)-1
+BAUD_19200	EQU	(((10*XTAL_FREQ/(16*19200))+5)/10)-1
+BAUD_38400	EQU	(((10*XTAL_FREQ/(16*38400))+5)/10)-1
+BAUD_57600	EQU	(((10*XTAL_FREQ/(16*57600))+5)/10)-1
+BAUD_115200	EQU	(((10*XTAL_FREQ/(16*115200))+5)/10)-1
+
+; caulculates baudrate when BRGH = 1, adjust for rounding errors
+#define CALC_HIGH_BAUD(BaudRate)	(((10*XTAL_FREQ/(16*BaudRate))+5)/10)-1
+; caulculates baudrate when BRGH = 0, adjust for rounding errors
+#define CALC_LOW_BAUD(BaudRate)		(((10*XTAL_FREQ/(64*BaudRate))+5)/10)-1
+
+
+;***** RAM VARIABLES DEFINITIONS
+
+	; *** Bank0 *** 80 bytes
+	CBLOCK	0x020			
+	Temp:1			; temp byte ONLY to be used locally and no calls !
+	SendStrIndex:1		; Used as an index into the string table ( temporary )
+	SendStrTmp:1   		; Save a copy of which string we're to write ( temporary )
+
+	; serial buffer RX and TX  pointers, buffers located in bank1
+	RX_Buffer_InPtr:1	; where to put next incomming byte
+	RX_Buffer_OutPtr:1	; where to get next ( first ) byte
+	RX_Buffer_Count:1	; how many we have in buffer
+
+	TX_Buffer_InPtr:1	; where to put next outgoing byte
+	TX_Buffer_OutPtr:1	; whre to get next byte 
+	TX_Buffer_Count:1	; how many we have in buffer
+	TX_Temp:1		; temporary reg used while sending
+	COM_Flags:1		; flags for serial comunincation
+
+	ENDC
+	
+	; *** Bank0/1/2/3 mirrored in all banks 0x70, 0xF0, 0x170, 0x1F0, 16 bytes
+	CBLOCK	0x070
+	ICD_Reserved1:1	; for icd
+	; ram variables accesible from all banks mainly used for context saving
+	; ( ram area above 0x70 are mirrored in all banks )
+	Saved_W:1    	; variable used for context saving 
+	Saved_Status:1  ; variable used for context saving
+	Saved_Pclath:1	; 
+	Saved_Fsr:1	;
+	Table_Temp:1	; table lookup temp variable
+	ENDC
+	
+	; *** Bank1 *** 80 bytes
+	CBLOCK	0x0A0
+	RX_Buffer:RX_BUFFER_SIZE	; buffer for receving
+	TX_Buffer:TX_BUFFER_SIZE	; buffer for sending
+
+	ENDC
+
+	; *** Bank2 *** extra ram 16 bytes
+	CBLOCK	0x110
+	
+	ENDC
+
+	; *** Bank2 ***	80 Bytes
+	CBLOCK	0x120
+	ENDC
+
+	; *** Bank3 *** extra ram 16 bytes
+	CBLOCK	0x190
+
+	ENDC
+	; *** Bank3 *** 80 bytes
+	CBLOCK	0x1A0
+
+	ENDC
+	CBLOCK	0x1EB
+	ICD_Reserved2:5 ; for icd
+	ENDC
+	
+
+
+; ************* Bit variable definitions ***************************
+#define _BufferOverrun	COM_Flags,0 ; buffer overrun
+
+
+; ****************** * Predefined strings to send by uart *****
+#define STR_HELLO	0x00 ; hello world :-)
+#define STR_UNKNOWN_CMD	0x01 ; unknown command
+
+
+; ****************** Macro definitions ********************************
+;+++++
+;	PAGE/BANK0/1/2/3 selects register bank 0/1/2/3.
+;	Leave set to BANK0 normally.
+
+BANK0	MACRO
+	BCF	STATUS,RP0	; clear bank select bits
+	BCF	STATUS,RP1
+	BCF	STATUS,IRP	; clear indirect adressing bit
+	ENDM
+
+BANK1	MACRO
+	BSF	STATUS,RP0	; 
+	BCF	STATUS,RP1	; 
+	BCF	STATUS,IRP	; clear indirect adressing bit
+	ENDM
+
+BANK2	MACRO
+	BCF	STATUS,RP0	; 
+	BSF	STATUS,RP1
+	BSF	STATUS,IRP	; set bit for indirect adressing
+	ENDM
+
+BANK3	MACRO
+	BSF	STATUS,RP0	;
+	BSF	STATUS,RP1
+	BSF	STATUS,IRP	; set bit for indirect adressing
+	ENDM
+	; macros for accessing page's directly
+PAGE0	MACRO
+	BCF	PCLATH,3
+	BCF	PCLATH,4
+	ENDM
+
+PAGE1	MACRO
+	BSF	PCLATH,3
+	BCF	PCLATH,4
+	ENDM
+
+PAGE2	MACRO
+	BCF	PCLATH,3
+	BSF	PCLATH,4
+	ENDM
+
+PAGE3	MACRO
+	BSF	PCLATH,3
+	BSF	PCLATH,4
+	ENDM
+
+;+++++
+;	TABLE_JUMP Calculates an eventual page boundary crossing  
+;	set's up the PCLATH register correctly
+;	Offset must be in w-reg, offset 0 jumps to the next instr. 
+;	Uses one byte of dedicated ram
+TABLE_JUMP	MACRO	
+	MOVWF	Table_Temp	; save wanted offset
+	MOVLW	LOW($+8)	; get low adress ( of first instr. after macro )
+	ADDWF	Table_Temp,F	; add offset
+	MOVLW	HIGH($+6)	; get highest 5 bits ( of first instr. after macro )
+	BTFSC	STATUS,C	; page crossed ? ( 256 byte )
+	ADDLW	0x01		; Yes add one to high adress
+	MOVWF	PCLATH		; load high adress in latch
+	MOVF	Table_Temp,W	; get computed adress
+	MOVWF   PCL	           ; And jump
+	ENDM
+
+
+;+++++
+;	PUSH/PULL save and restore W,PCLATH,STATUS and FSR registers -
+;	used on interrupt entry/exit 
+
+PUSH	MACRO
+	MOVWF	Saved_W		; save w reg
+	SWAPF	STATUS,W	;The swapf instruction, unlike the movf, affects NO status bits, which is why it is used here.
+	CLRF	STATUS		; sets to BANK0
+	MOVWF	Saved_Status	; save status reg
+	MOVF	PCLATH,W
+	MOVWF	Saved_Pclath	; save pclath
+	CLRF	PCLATH
+	MOVF	FSR,W
+	MOVWF	Saved_Fsr	; save fsr reg
+	ENDM
+
+PULL	MACRO
+	MOVF	Saved_Fsr,W	; get saved fsr reg
+	MOVWF	FSR		; restore	
+	MOVF	Saved_Pclath,W	; get saved pclath
+	MOVWF	PCLATH		; restore
+	SWAPF	Saved_Status,W	; get saved status in w 
+	MOVWF	STATUS		; restore status ( and bank )
+	SWAPF	Saved_W,F	; reload into self to set status bits
+	SWAPF	Saved_W,W	; and restore
+	ENDM
+
+
+;+++++
+;	INC_BUFFER advance buffer pointers wrap if necessary 
+;
+;	If buffer size is power of two, and buffer is aligned
+;	on an multiple of twice it size, this macro generates
+;	two instructions, Otherwise it generates six instructions.
+;	Originator:  Eric Smith, eric@brouhaha.com for non-comercial use.
+
+INC_BUFFER MACRO	Pointer, Base, Size	
+	LOCAL	POWER_OF2, ALIGNED,BIT,VALUE
+
+POWER_OF2	SET	!(Size&(Size-1))	; calculate if power of 2
+ALIGNED		SET	POWER_OF2&&((Base&(Size-1))==0) ; calculate if aligned
+
+	IF	ALIGNED
+
+VALUE	SET	Size
+BIT	SET	0
+
+	WHILE	VALUE>1
+BIT	SET	BIT+1
+VALUE	SET	VALUE>>1
+	ENDW
+
+	ENDIF
+
+	INCF	Pointer,F	; increase pointer
+
+	IF	ALIGNED&&!(Base&(1<<BIT)) ; aligned ?
+	BCF	Pointer,BIT	; yep clear bit
+	ELSE
+	MOVF	Pointer,W	; nope
+	XORLW	Base+Size
+	MOVLW	Base
+	BTFSC	STATUS,Z
+	MOVWF	Pointer
+	ENDIF
+
+	ENDM
+
+;+++++
+;	DISABLE_IRQ disable global irq 
+
+DISABLE_IRQ MACRO
+	LOCAL	STOP_INT
+STOP_INT	BCF	INTCON,GIE	; disable global interrupt
+		BTFSC	INTCON,GIE	; check if disabled 
+		GOTO	STOP_INT	; nope, try again
+	ENDM
+	
+;+++++
+;	ENABLE_IRQ enable global irq 
+
+ENABLE_IRQ MACRO
+	BSF	INTCON,GIE	; enable global interrupt
+	ENDM
+
+
+; ******************* END macro definitions ***************************
+
+;**********************************************************************
+	ORG     0x000          	; processor reset vector
+	NOP			; required for the ICD 
+	CLRF	STATUS		; ensure we are at bank0	
+	CLRF    PCLATH        	; ensure page bits are cleared ( before GOTO xxx !!! )
+	GOTO	INIT           	; go to initialisation of program
+
+;**************** Interrupt service routine **************************
+
+	ORG     0x004             ; interrupt vector location
+	PUSH	; save registers		
+INT
+		
+	; Interrupt code
+
+INT_TEST_RX_IRQ
+	BTFSS	PIR1,RCIF	; test if serial recive irq
+	GOTO	INT_TEST_TX_IRQ ; nope check next
+	; rx irq
+	CALL	RX_INT_HANDLER	; goto rx handler
+	BCF	PIR1,RCIF	; clear rx int flag
+INT_TEST_TX_IRQ
+	BTFSS	PIR1,TXIF	; test if serial transmit irq
+	GOTO	INT_TEST_NXT
+	; tx irq
+	CALL	TX_INT_HANDLER	; goto tx handler
+	BCF	PIR1,TXIF	; clear tx int flag
+
+INT_TEST_NXT
+	; test whatever left :-)
+
+INT_EXIT
+	PULL	; restore registers
+	RETFIE  ; return from interrupt
+
+
+; ***********************************************************************
+;
+;  RX_INT_HANDLER - handles the received commands on serial com 
+;  called from inside int.
+;
+
+RX_INT_HANDLER
+	BTFSS	RCSTA,OERR	; test for overrun error
+	GOTO	RX_CHECK_FRAMING
+	; when overrun, uart will stop receving the continous 
+	; recevive bit must then be reset
+	BCF	RCSTA,CREN	; clear continous receve bit
+	BSF	RCSTA,CREN	; and set it again
+RX_CHECK_FRAMING
+	BTFSS	RCSTA,FERR	; check from framing errors
+	GOTO	RX_CHECK_BUFFER 
+	; framing error do not store this byte
+	; read rx reg and discard byte
+	GOTO	RX_DISCARD_BYTE 
+
+RX_CHECK_BUFFER	
+	MOVF	RX_Buffer_Count,W	; test if empty
+	XORLW	RX_BUFFER_SIZE
+	BTFSC	STATUS,Z
+	GOTO	RX_BUFFER_FULL
+
+	MOVF	RX_Buffer_InPtr,W	; get adress for indirect dressing
+	MOVWF	FSR		; setup fsr
+	MOVF	RCREG,W		; get received byte
+	MOVWF	INDF		; and store it in buffer
+	INCF	RX_Buffer_Count,F ; inc buffer counter
+	; update pointers
+	INC_BUFFER	RX_Buffer_InPtr,RX_Buffer,RX_BUFFER_SIZE
+	RETURN
+
+RX_BUFFER_FULL
+	; no rom for more bytes, set overrun flag
+	BSF	_BufferOverrun
+	; and clear the last byte ( no room to store it ! )
+RX_DISCARD_BYTE
+	; optional an error flag could be set to indicate comm error.
+	MOVF	RCREG,W		; read byte and discard
+	RETURN
+
+; ***********************************************************************
+;
+;  TX_INT_HANDLER - handles the tramission of bytes on serial com 
+;  called from inside int.
+;
+
+TX_INT_HANDLER
+	MOVF	TX_Buffer_Count,W ; get number of bytes
+	BTFSC	STATUS,Z	; buffer empty ?
+	GOTO	TX_BUFFER_EMPTY
+	
+	MOVF	TX_Buffer_OutPtr,W ; get adress for indirect adressing
+	MOVWF	FSR		; setup fsr
+	MOVF	INDF,W		; get byte
+	MOVWF	TXREG		; and put it in tx reg
+	DECF	TX_Buffer_Count,F	; decrement buffer counter
+	
+	; update pointers
+	INC_BUFFER	TX_Buffer_OutPtr,TX_Buffer,TX_BUFFER_SIZE
+	
+	RETURN
+TX_BUFFER_EMPTY
+	; no more bytes to send disable TX irq
+	; code is to avoid bank switching ( using FSR )
+	MOVLW	PIE1	; get adress for tx irq enable
+	MOVWF	FSR	; setup fsr
+	BCF	INDF,TXIE ; and disable tx irq
+	RETURN
+
+; ***********************************************************************
+;
+;  TX_ADD_BUFFER - Puts one byte in serial tx buffer,  blocks until room available
+;  Make sure to be at bank0 ( buffer pointers in bank0, buffers in bank1 )
+;
+
+TX_ADD_BUFFER
+	MOVWF	TX_Temp	; store byte temporarily
+TX_ADD_TST	
+	MOVF	TX_Buffer_Count,W ; get count
+	XORLW	TX_BUFFER_SIZE  
+	BTFSC	STATUS,Z	; test if any room
+	GOTO	TX_ADD_TST	; nope no room, wait until there is
+	
+	MOVF	TX_Buffer_InPtr,W	; get adress to store byte
+	MOVWF	FSR		; setup fsr
+	MOVF	TX_Temp,W	; get byte
+	MOVWF	INDF		; and store it
+
+	; update buffer pointers
+	INC_BUFFER	TX_Buffer_InPtr,TX_Buffer,TX_BUFFER_SIZE
+
+	INCF	TX_Buffer_Count,F ; increment byte count
+				; MUST not be done until after byte is stored in buffer
+				; and pointers updated
+	
+	MOVLW	PIE1	; get adress for periphial irq
+	MOVWF	FSR	; setup fsr
+	BSF	INDF,TXIE; and enable tx irq
+
+	RETURN
+
+; ***********************************************************************
+;
+;  RX_GET_BUFFER - Gets one byte from in serial rx buffer, if available
+;  If no bytes in buffer zero flag is set else zero flag is cleared	
+;  Make sure to be at bank0 ( buffer pointers in bank0, buffers in bank1 )
+;
+
+RX_GET_BUFFER
+	MOVF	RX_Buffer_Count,F ; check if anything available ?
+	BTFSC	STATUS,Z	;
+	RETURN	; nope, nothing there, NOTE zero flag set !
+	
+	; get pointer
+	MOVF	RX_Buffer_OutPtr,W
+	MOVWF	FSR	; setup FSR
+	
+	; update buffer pointers
+	INC_BUFFER	RX_Buffer_OutPtr,RX_Buffer,RX_BUFFER_SIZE
+	
+	; get byte to W
+	MOVF	INDF,W	
+	
+	; decrement counter
+	DECF	RX_Buffer_Count,F 
+
+	BCF	STATUS,Z	; make sure zero flag is clear
+
+	RETURN
+
+; ***********************************************************************
+; INIT - Cold start vector, called at startup
+; 
+; initilaize all ports to known state before setup routines are called
+;
+INIT
+	; pclath and status is already cleared !
+	; before entering this init routine
+  	CLRF	INTCON		; ensure int reg is clear  
+	CLRF	PIR1	; clear periphial irq's
+	CLRF	PIR2	; ditto
+	
+	; make sure all individual irq's are disabled
+	MOVLW	PIE1	; get adress for periphial irq enable
+	MOVWF	FSR	; setup fsr
+	CLRF	INDF	; and clear irq enable flags
+
+	MOVLW	PIE2	; get adress for second periphial irq enable
+	MOVWF	FSR	; setup fsr
+	CLRF	INDF	; and clear irq enable flags
+
+	; note porta as is set as ANALOGUE i/o as default
+
+	; clear output data latches
+	CLRF	PORTA
+	CLRF	PORTB
+	CLRF	PORTC
+
+	; call initialize routines for periphials/ports
+	; note must be at bank0 during initializing
+
+	; NOTE ! DO NOT CHANGE ORDER OF THESE ROUTINES !!
+
+	; clear all user ram ( set to all 0's )
+	CALL	CLEAR_RAM
+
+	; setup our ports to in/out/analogue/rx/tx/spi/etc
+	; must be done before calling any other INIT_XXX routine
+	; as most of them depends on pin settings	
+	CALL	INIT_PORTS	
+	; setup uart
+	CALL	INIT_UART
+	; initialize buffers/pointers	
+	CALL	INIT_BUFFERS
+	; all pins/periphials configured, enable global irq
+	ENABLE_IRQ
+
+	;a welcome message 
+	MOVLW	STR_HELLO
+	CALL SEND_STRING
+
+MAIN_LOOP
+	; main loop
+
+	NOP	; do whatever should be done every loop
+
+	; test for specific events
+MAIN_COM_EVENT
+	; test if a character is received ( i.e. saved in rx buffer )
+	CALL	RX_GET_BUFFER
+	; test zero flag
+	BTFSC	STATUS,Z
+	GOTO	MAIN_DONE	; nope zero flag set=no byte recieved, test next event
+	
+	; *****************************
+	; a byte is recevied !
+	; *****************************
+	; do whatever needs to be done
+	; *****************************
+	; Something that's neat to put here is the code
+	; generated by Nicolai's autogenerated parser ( top stuff )
+	; from the picfaq site:
+	; http://www.piclist.com/techref/default.asp?url=piclist/codegen
+	; *****************************
+	NOP
+	NOP
+
+MAIN_DONE
+	NOP
+	NOP
+	NOP
+	NOP
+
+	; and return to main loop
+	GOTO	MAIN_LOOP
+
+; ***********************************************************************
+;
+;  CLEAR_RAM - Reset all general purpose ram to 0's
+;  Note ! does not clear watchdog, add CLRWDT where appropiate if enabled
+;  Make sure to be at bank0
+;  
+
+CLEAR_RAM
+	MOVLW	0x20		; start ram bank0
+	MOVWF	FSR
+CLEAR_BANK0	
+	CLRF	INDF		; Clear a register pointed to be FSR
+	INCF	FSR,F
+	MOVLW	0x7F		; Test if at top of memory bank0
+	SUBWF	FSR,W
+	BNZ	CLEAR_BANK0	; Loop until all cleared
+
+	MOVLW	0xA0		; start ram bank1
+	MOVWF	FSR
+CLEAR_BANK1	
+	CLRF	INDF		; Clear a register pointed to be FSR
+	INCF	FSR,F
+		
+	; note this could also be set to 0xFF or 0xEF as the top 16 bytes are mirrored from
+	; bank0
+
+	MOVLW	0xEF		; Test if at top of memory bank1
+	SUBWF	FSR,W
+	BNZ	CLEAR_BANK1	; Loop until all cleared
+
+	BANK2			; select bank2/3 ( with indirect adressing )
+
+	MOVLW	0x10		; start ram bank2
+	MOVWF	FSR
+CLEAR_BANK2	
+	CLRF	INDF		; Clear a register pointed to be FSR
+	INCF	FSR,F
+	
+	; note this could also be set to 0x7F or 0x70 as the top 16 bytes are mirrored from
+	; bank0
+	MOVLW	0x70		; Test if at top of memory bank2
+	SUBWF	FSR,W
+	BNZ	CLEAR_BANK2	; Loop until all cleared
+
+	MOVLW	0x90		; start ram bank3
+	MOVWF	FSR
+CLEAR_BANK3	
+	CLRF	INDF		; Clear a register pointed to be FSR
+	INCF	FSR,F
+	; note this could also be set to 0xFF or 0xEF as the top 16 bytes are mirrored from
+	; bank0
+	MOVLW	0xEF		; Test if at top of memory bank3
+	SUBWF	FSR,W
+	BNZ	CLEAR_BANK3	; Loop until all cleared
+	
+	BANK0			; set back to bank0
+
+	RETURN
+; ***********************************************************************
+;
+;  INIT_PORTS - Initialises all ports on the PIC
+;  i.e sets the pins as in/out/analog/etc
+;  Make sure to be at bank0
+
+INIT_PORTS
+		
+	; setup PORTA 
+	; set RA0 analogue and the rest of the pins digital
+	MOVLW	ADCON1	; get adress for ad/module config1 reg
+	MOVWF	FSR	; setup fsr
+	MOVLW	(1<<PCFG3)|(1<<PCFG2)|(1<<PCFG1); RA0 analoge the rest digital !!
+						; result LEFT justified 
+	MOVWF	INDF	; and store it
+
+	; enable/shutoff ad/module
+	MOVLW	ADCON0	; get adress for ad/module config reg
+	MOVWF	FSR	; setup fsr
+	MOVLW	(1<<ADCS1)|(1<<ADON) ; enable ad-module, ad clock is osc/32
+	MOVWF	INDF	; and set it
+
+	; set in/out for porta pins
+	MOVLW	TRISA	; get adress for porta control reg
+	MOVWF	FSR	; setup fsr
+	MOVLW	b'00000011'	; bit 0 and bit 1 is inputs 
+				; the rest is outputs
+	MOVWF	INDF	; and set it
+
+	; setup PORTB
+	; set in/out for portb pins
+	MOVLW	TRISB	; get adress for portb control reg
+	MOVWF	FSR	; setup fsr
+	MOVLW	b'00000001'	; all outputs except RB0 ( int ) ( se also option )
+	MOVWF	INDF	; and set it
+
+	; setup PORTC
+	; note PORTC must be setup properly when using SPI/UART/CCP/TIMER
+	; look in data sheet, some setups are 'unlogical' and/or overridden
+	; as TX pin configured as input etc.
+
+	; set in/out for portc pins
+	MOVLW	TRISC	; get adress for portc control reg
+	MOVWF	FSR	; setup fsr
+	
+	MOVLW	b'11010000'; 7-6 for uart must be set,4 (SDI) MUST be input i.e set ( for SPI master )
+			   ;  5 ( SDO ) must be cleared, 3 (SCK) must be cleared
+			   ; for master mode. 1-2 is for CCP module, 0 is for timer inp.
+	MOVWF	INDF	; and set it
+
+	; setup OPTION reg
+	
+	MOVLW	OPTION_REG; get adress for option reg
+	MOVWF	FSR	; setup fsr
+	MOVLW	b'00000000'	; pull up portb by latch, int edge falling,TMR0 source internal
+				; TMR0 source edge inc on low->high, prescaler to Timer0, TMR0 rate 1:2
+	MOVWF	INDF	; and set it
+
+
+	RETURN
+	

@@ -1,0 +1,3 @@
+Error[1174] C:\Program Files\Microchip\mplabc18\v3.47\h\string.h 623 : local 'c' in program memory can not be 'auto'
+Warning[2066] C:\Users\Chas\Google Drive\Development\PIC\boot loader\LPC_FSUSB-HID-X-r2\src\LPC_FSUSB-HID-X.X\app_custom_hid.c 157 : type qualifier mismatch in assignment
+Warning[2066] C:\Users\Chas\Google Drive\Development\PIC\boot loader\LPC_FSUSB-HID-X-r2\src\LPC_FSUSB-HID-X.X\app_custom_hid.c 181 : type qualifier mismatch in assignment

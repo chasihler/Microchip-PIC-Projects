@@ -1,0 +1,16 @@
+8 byte packet to go out
+
+char info[64]
+int *pointer, end
+
+pointer = &info;
+
+pointer = rx[2] 
+end = rx[4]
+
+while pointer < end
+   while i < 8
+   out[i] = pointer
+   i++
+   pointer++
+

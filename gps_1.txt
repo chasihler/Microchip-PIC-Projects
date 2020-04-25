@@ -1,0 +1,62 @@
+ // LATITUDE
+  start_ptr=strchr(gps_string,'$'); //find start of sentence
+  start_ptr=strchr(start_ptr+1,','); //find start of time field
+  start_ptr=strchr(start_ptr+1,','); //find start of latitude field
+  latitude = start_ptr+1; //find first character in latitude field
+  printf ("Latitude starts at gps_string[%d]\n",latitude-gps_string);
+  end_ptr=strchr(latitude,','); //find end of latitude field
+  printf ("Latitude ends at gps_string[%d]\n",end_ptr-gps_string-1);
+  if (latitude-gps_string>=end_ptr-gps_string) //determine if latitude exists
+    {printf("Latitude not received\n");}
+  else
+    {
+      lat=atof(latitude); //convert to float
+      printf("Latitude = %f\n",lat); 
+    }
+  // LATITUDE
+ 
+  // LONGITUDE
+  start_ptr=strchr(start_ptr+1,',');
+  start_ptr=strchr(start_ptr+1,',');
+  longitude = start_ptr+1;
+  printf ("Longitude starts at gps_string[%d]\n",longitude-gps_string);
+  end_ptr=strchr(longitude,',');
+  printf ("Longitude ends at gps_string[%d]\n",end_ptr-gps_string-1);
+  if (longitude-gps_string>=end_ptr-gps_string)
+    {printf("Longitude not received\n");}
+  else
+    {
+      lon=atof(longitude);
+      printf("Longitude = %f\n",lon);
+    }
+  // LONGITUDE
+ 
+  // QUALITY
+  start_ptr=strchr(start_ptr+1,',');
+  start_ptr=strchr(start_ptr+1,',');
+  quality = start_ptr+1;
+  printf ("Quality starts at gps_string[%d]\n",quality-gps_string);
+  end_ptr=strchr(quality,',');
+  printf ("Quality ends at gps_string[%d]\n",end_ptr-gps_string-1);
+  if (quality-gps_string>=end_ptr-gps_string)
+    {
+      printf("Quality not received\n");
+      fix = 0; 
+      //RB1=0;
+    }
+  else
+    {
+      qual=atoi(quality);
+      printf("Quality = %d\n",qual);
+      if (qual==1|qual==2){
+          printf("Fix acquired\n");
+        fix = 1; //if fix acquired, turn GPS LED on
+        //RB1=1;
+        }
+      else{
+        printf("Fix not aquired\n");
+        fix=0; //if fix not acquired, turn GPS LED off
+        //RB1=0;
+        }
+  }
+ 

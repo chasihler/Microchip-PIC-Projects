@@ -1,0 +1,7 @@
+_ISR: CODE, 8 0 134
+_main: CODE, 146 0 1302
+__initialization: CODE, 1536 0 12
+_serial_init: CODE, 1448 0 44
+_init_io: CODE, 1492 0 44
+_uart_xmit: CODE, 1558 0 10
+Total: 1546

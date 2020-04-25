@@ -1,0 +1,9 @@
+_calculateparity: CODE, 1904 0 19
+_uart_write: CODE, 1923 0 27
+__stringdata: STRCODE, 2048 0 24
+_main: CODE, 2010 0 33
+_init_uart: CODE, 1978 0 32
+__initialization: CODE, 2043 0 1
+_init_io: CODE, 1950 0 28
+_uart_xmit: CODE, 1888 0 16
+Total: 180

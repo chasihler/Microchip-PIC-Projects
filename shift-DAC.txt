@@ -1,0 +1,350 @@
+; This is serial shift register input to DAC output converter for the tymkrs
+; 17OCT14 V00.00 PJS New
+; 31OCT14 V01.00 PJS Working version with bit swizle
+; 04NOV14 V01.01 PJS fixed bug where it would pick up every shift not just the last one before latch was driven high.
+ 
+#define CODE_VER_STRING "Peter Shabino 04NOV14 serial2analog V01.01 www.wire2wire.org for tymkrs.com" ;Just in ROM
+ 
+;****************************************************************************************
+; port list
+; Vss(14)
+; Vdd(1)
+; RA0(13)   ICSPDAT
+; RA1(12)   ICSPCLK
+; RA2(11)
+; RA3(4)        Vpp/#MCLR
+; RA4(3)
+; RA5(2)
+; RC0(10)       < Sclk
+; RC1(9)        < SDI
+; RC2(8)        OPA1OUT         > analog out
+; RC3(7)        OPA2OUT
+; RC4(6)        > SDO
+; RC5(5)        < Slatch
+;****************************************************************************************
+ 
+ 
+;-----------------------------------------------------------------------------------------------------------
+; compiler configuration
+;-----------------------------------------------------------------------------------------------------------
+                ; set processor type and output file type (intel merged hex (.hex))
+                list    f=INHX8M
+                ; PIC16F1705 Configuration Bit Settings
+        #include "p16F1705.inc"
+        ; CONFIG1
+        ; __config 0xCF84
+         __CONFIG _CONFIG1, _FOSC_INTOSC & _WDTE_OFF & _PWRTE_ON & _MCLRE_OFF & _CP_OFF & _BOREN_ON & _CLKOUTEN_OFF & _IESO_OFF & _FCMEN_OFF
+        ; CONFIG2
+        ; __config 0xD7FF
+         __CONFIG _CONFIG2, _WRT_OFF & _PPS1WAY_ON & _ZCDDIS_ON & _PLLEN_ON & _STVREN_ON & _BORV_LO & _LPBOR_ON & _LVP_OFF
+ 
+ 
+;-----------------------------------------------------------------------------------------------------------
+;constants
+;-----------------------------------------------------------------------------------------------------------
+ 
+ 
+;-----------------------------------------------------------------------------------------------------------
+;variables (0x20 - 0x6F only), 0x0A0-0x0EF, 0x120-0x16f, 0x1A0-0x1EF, 0x1A0-0x1EF, 0x220-0x26F, 0x2A0-0x2EF, 0x320-0x32F
+;-----------------------------------------------------------------------------------------------------------
+temp        equ         0x20
+shiftdata       equ             0x21
+thisdata        equ             0x22
+lastdata        equ             0x23
+count       equ         0x24
+lastdac     equ     0x25
+ 
+ 
+;-----------------------------------------------------------------------------------------------------------
+;global variables (0x70 - 0x7F only)
+;-----------------------------------------------------------------------------------------------------------
+wstore      equ     0x70
+gtemp       equ     0x71
+ 
+;-----------------------------------------------------------------------------------------------------------
+;put the following at address 0000h (starting vector)
+;-----------------------------------------------------------------------------------------------------------
+                org     0000h
+                goto    START
+ 
+;-----------------------------------------------------------------------------------------------------------
+;put the following at address 0004h (IRQ vector)
+;-----------------------------------------------------------------------------------------------------------
+                org     0004h
+                goto    ENDLOOP ; since not used go to the lockout loop
+ 
+ 
+;-----------------------------------------------------------------------------------------------------------
+;put the following at address 0005h (Start of program space)
+;-----------------------------------------------------------------------------------------------------------
+                org     0005h
+START
+ 
+ 
+        ;-----------------
+        ; change banks
+        ;-----------------
+        movlb   d'00'
+        ;-----------------
+        clrf    PORTA
+        clrf    PORTC
+        ; clear the vars
+        clrf    temp
+        clrf    shiftdata
+        clrf    thisdata
+        clrf    lastdata
+        clrf    count
+        clrf    lastdac
+ 
+        ;-----------------
+        ; change banks
+        ;-----------------
+        movlb   d'01'
+        ;-----------------
+                ; set up IOs
+                movlw   0xFF            ; all pins inputs
+                movwf   TRISA
+                movlw   0xEF            ; all pins input other than SDO on RC4
+                ;movlw  0xE7        ; all pins input other than SDO on RC4 and TX on RC3
+                movwf   TRISC
+ 
+        ; set up clocks to 32MHz
+        movlw   0xF0
+        movwf   OSCCON
+ 
+        ; check if the high freq osc is stable
+CHECKPLL
+        btfss   OSCSTAT, PLLR
+        goto    CHECKPLL
+ 
+CHECKLA
+        btfss   OSCSTAT, HFIOFL
+        goto    CHECKLA
+ 
+CHECKHA
+        btfss   OSCSTAT, HFIOFS
+        goto    CHECKHA
+ 
+ 
+        ;-----------------
+        ; change banks
+        ;-----------------
+        movlb   d'02'
+        ;-----------------
+                movlw   0x80                    ; enable the DAC, disable DAC1OUT1 and DAC1OUT2, +ref set to Vdd, -ref set to Vss
+                movwf   DAC1CON0       
+        clrf    DAC1CON1        ; set dac output to 0
+ 
+        ;-----------------
+        ; change banks
+        ;-----------------
+        movlb   d'03'
+        ;-----------------
+ 
+        ; only affects the ADC inputs not the other analog functions
+        clrf    ANSELA
+        clrf    ANSELC
+ 
+        ; serial port config
+        ;movlw   0x08        ;non inverted output, 16 bit baud rate
+        ;movwf   BAUD1CON
+        ;movlw   0x44        ;115.2k baud
+        ;movwf   SP1BRGL
+        ;clrf    SP1BRGH
+        ;movlw   0x24        ;enable transmitter, set baud rate to high
+        ;movwf   TX1STA
+        ;movlw   0x80        ;enable the serial port, disable the reciever
+        ;movwf   RC1STA
+ 
+ 
+        ;-----------------
+        ; change banks
+        ;-----------------
+        movlb   d'04'
+        ;-----------------
+        ; SPI slave setup
+                movlw   0x40            ; CKE = 1
+                movwf   SSP1STAT
+                ;movlw  0x25            ; configure SPI slave mode, clock active high, no SS pin control
+                movlw   0x24        ; configure SPI slave mode, clock active high, SS pin control
+        movwf   SSP1CON1
+        clrf    SSP1CON2
+                movlw   0x10            ; configure SPI to ignore BF bit
+                movwf   SSP1CON3
+ 
+        ;-----------------
+        ; change banks
+        ;-----------------
+        movlb   d'10'
+        ;-----------------
+                movlw   0xD2            ; Configure op amp 1 to on, high GBWP, Unity gain, connect to DAC output
+                movwf   OPA1CON
+ 
+        ;-----------------
+        ; change banks
+        ;-----------------
+        movlb   d'28'
+        ;-----------------
+                ; Lock the peripheral pin selects required sequence, next 5 instructions
+                movlw   0x55
+                movwf   PPSLOCK
+                movlw   0xAA
+                movwf   PPSLOCK
+                ; Set PPSLOCKED bit to disable writes
+                bcf             PPSLOCK, PPSLOCKED
+        ; set up the SPI input pins
+                movlw   0x10            ; Set RC0 as the MSSP sclk input
+                movwf   SSPCLKPPS
+                movlw   0x11            ; Set RC1 as the MSSP SDI input
+                movwf   SSPDATPPS
+                movlw   0x15            ; Set RC5 as the MSSP SS input (not used as SS)
+                movwf   SSPSSPPS
+ 
+        ;-----------------
+        ; change banks
+        ;-----------------
+        movlb   d'29'
+        ;-----------------
+        ; set up SPI output pins
+                movlw   0x10            ; set up RC0 to the output of the MSSP (Sclk even though not used)
+                movwf   RC0PPS
+                movlw   0x12            ; set up RC4 to the output of the MSSP (SDO)
+                movwf   RC4PPS
+        ; set up UART output pins
+                movlw   0x14            ; set up RC3 to the output of the EUSART (TX)
+                movwf   RC3PPS
+ 
+        ;-----------------
+        ; change banks
+        ;-----------------
+        movlb   d'28'
+        ;-----------------
+                ; Lock the peripheral pin selects required sequence, next 5 instructions
+                movlw   0x55
+                movwf   PPSLOCK
+                movlw   0xAA
+                movwf   PPSLOCK
+                ; Set PPSLOCKED bit to disable writes
+                bsf             PPSLOCK, PPSLOCKED
+ 
+ 
+        ;-----------------
+        ; change banks
+        ;-----------------
+        movlb   d'00'
+        ;-----------------
+ 
+        ; serial debug code
+        ;movlw   'R'
+        ;call    _sendw_
+        ;movlw   'e'
+        ;call    _sendw_
+        ;movlw   's'
+        ;call    _sendw_
+        ;movlw   'e'
+        ;call    _sendw_
+        ;movlw   't'
+        ;call    _sendw_
+ 
+ 
+MAINLOOP
+                btfss   PORTC, 5                ; if the latch line goes high copy the last value shifted in to the DAC
+                goto    UPDATEDAC
+ 
+        btfss   PIR1, SSP1IF    ; wait for 8 bits to shift into the SPI register
+        goto    MAINLOOP
+        bcf     PIR1, SSP1IF    ; clear the status flag
+ 
+ 
+        ;-----------------
+        ; change banks
+        ;-----------------
+        movlb   d'04'
+        ;-----------------
+        movf    SSP1BUF, W      ; grab the byte just shifted in the SPI engine
+        ;-----------------
+        ; change banks
+        ;-----------------
+        movlb   d'00'
+        ;-----------------
+        movwf   temp            ; store the value for later use
+                movf    thisdata, W             ; move the last shift to the lastdata var
+                movwf   lastdata
+                movf    temp, W                 ; store the new value in thisdata
+                movwf   thisdata
+ 
+                goto    MAINLOOP
+ 
+ 
+ 
+UPDATEDAC
+                movf    lastdata, W             ; grab N-1 shift data to see if the dac should be updated.
+                movwf   temp                    ; save a temp copy for shifting
+        xorwf   lastdac, W      ; see if the value changed
+        btfsc   STATUS, Z       ; if the value is the same skip updating the DAC
+        goto    MAINLOOP
+ 
+        movf    temp, W                 ; save a copy of the new value to lastdac
+        movwf   lastdac
+ 
+        ; reverse the data end for end ignoring the input MSB and set it to 0 in the output
+        clrf    shiftdata       ; clear out the output regiser
+        movlw   0x07            ; load up the counter to shift 7 times
+        movwf   count
+FLIPBITS
+        rlf     temp, F                 ; shift one bit out the left side (MSB)
+        rrf     shiftdata, F    ; shift one bit in the left side (MSB)
+        decfsz  count, F
+        goto    FLIPBITS
+ 
+        ; serial debug code
+        ;movf    shiftdata, W
+        ;call    _sendw_
+ 
+        movf    shiftdata, W    ; move shiftdata to the W regiser
+        ;-----------------
+        ; change banks
+        ;-----------------
+        movlb   d'02'
+        ;-----------------
+                movwf   DAC1CON1                ; set dac output
+        ;-----------------
+        ; change banks
+        ;-----------------
+        movlb   d'00'
+        ;-----------------
+ 
+        goto    MAINLOOP
+ 
+ 
+ENDLOOP
+        ;catchall loop if things go bad just stop.
+        goto    ENDLOOP
+ 
+ 
+;-----------------------------------------------
+;_sendw_
+;        btfss   PIR1, TXIF     ; check if the TX regiser is empty
+;        goto    _sendw_
+;        movwf   gtemp          ; save the W in a temp reg
+        ;-----------------
+        ; save away the bank
+        ;-----------------
+;        movf    BSR, W         ; grab the bank select bits
+;        movwf   wstore         ; store it away in a global regiser
+        ;-----------------
+        ; change banks
+        ;-----------------
+;        movlb   d'03'
+;        movf    gtemp, W       ; grab the char to send
+;        movwf   TX1REG         ; write it to the TX regiser to start the transmit
+        ;-----------------
+        ; restore the bank
+        ;-----------------
+;        movf    wstore, W      ; grab the old value of BSR
+;        movwf   BSR            ; set the bank select to the old value
+ 
+;        return
+ 
+                de  CODE_VER_STRING     ; put the description string in the ROM
+                end

@@ -1,0 +1,404 @@
+[p LITE_MODE AUTOSTATIC PIC14 PIC14E ]
+[d version 1.1 ]
+[d edition pro ]
+[d chip 16F1509 ]
+[d frameptr 6 ]
+"50 C:\Users\Chas\MPLABXProjects\4707_WX_Radio.X\4707.c
+[v _init_io init_io `(v  1 e 0 0 ]
+"78
+[v _lcd_init lcd_init `(v  1 e 0 0 ]
+"90
+[v _I2C_ACK I2C_ACK `(v  1 e 0 0 ]
+"99
+[v _Send_I2C_Data Send_I2C_Data `(v  1 e 0 0 ]
+"106
+[v _RX_I2C_Data RX_I2C_Data `(uc  1 e 1 0 ]
+"116
+[v _I2C_Control_Write I2C_Control_Write `(v  1 e 0 0 ]
+"129
+[v _I2C_Control_Read I2C_Control_Read `(v  1 e 0 0 ]
+"141
+[v _I2C_Start_Bit I2C_Start_Bit `(v  1 e 0 0 ]
+"152
+[v _I2C_check_idle I2C_check_idle `(v  1 e 0 0 ]
+"166
+[v _I2C_restart I2C_restart `(v  1 e 0 0 ]
+"173
+[v _I2C_Stop_Bit I2C_Stop_Bit `(v  1 e 0 0 ]
+"184
+[v _I2C_NAK I2C_NAK `(v  1 e 0 0 ]
+"201
+[v _Tune400 Tune400 `(v  1 e 0 0 ]
+"218
+[v _Tune425 Tune425 `(v  1 e 0 0 ]
+"235
+[v _Tune450 Tune450 `(v  1 e 0 0 ]
+"252
+[v _Tune475 Tune475 `(v  1 e 0 0 ]
+"269
+[v _Tune500 Tune500 `(v  1 e 0 0 ]
+"286
+[v _Tune525 Tune525 `(v  1 e 0 0 ]
+"303
+[v _Tune550 Tune550 `(v  1 e 0 0 ]
+"320
+[v _VolumeUp VolumeUp `(v  1 e 0 0 ]
+"325
+[v _VolumeDown VolumeDown `(v  1 e 0 0 ]
+"330
+[v _VolumeMAX VolumeMAX `(v  1 e 0 0 ]
+"334
+[v _VolumeMUTE VolumeMUTE `(v  1 e 0 0 ]
+"340
+[v _CheckStatus CheckStatus `(v  1 e 0 0 ]
+"414
+[v _CheckFlag CheckFlag `(i  1 e 2 0 ]
+"423
+[v _CheckSAME CheckSAME `(v  1 e 0 0 ]
+"504
+[v _ResetSAME ResetSAME `(v  1 e 0 0 ]
+"568
+[v _Monitor Monitor `(v  1 e 0 0 ]
+"574
+[v _Standby Standby `(v  1 e 0 0 ]
+"580
+[v _MultiFunction MultiFunction `(i  1 e 2 0 ]
+"594
+[v _poll_lcd poll_lcd `(i  1 e 2 0 ]
+"600
+[v _RST_4707 RST_4707 `(v  1 e 0 0 ]
+"607
+[v _display_missing display_missing `(v  1 e 0 0 ]
+"614
+[v _display_freq display_freq `(v  1 e 0 0 ]
+"636
+[v _main main `(i  1 e 2 0 ]
+"4 C:\Program Files\Microchip\xc8\v1.30\sources\common\abdiv.c
+[v ___abdiv __abdiv `(c  1 e 1 0 ]
+"4 C:\Program Files\Microchip\xc8\v1.30\sources\common\abmod.c
+[v ___abmod __abmod `(c  1 e 1 0 ]
+"33 C:\Program Files\Microchip\xc8\v1.30\sources\common\abtoft.c
+[v ___abtoft __abtoft `(f  1 e 3 0 ]
+"6 C:\Program Files\Microchip\xc8\v1.30\sources\common\aldiv.c
+[v ___aldiv __aldiv `(l  1 e 4 0 ]
+"5 C:\Program Files\Microchip\xc8\v1.30\sources\common\almod.c
+[v ___almod __almod `(l  1 e 4 0 ]
+"42 C:\Program Files\Microchip\xc8\v1.30\sources\common\altoft.c
+[v ___altoft __altoft `(f  1 e 3 0 ]
+"6 C:\Program Files\Microchip\xc8\v1.30\sources\common\atdiv.c
+[v ___atdiv __atdiv `(m  1 e 3 0 ]
+"6 C:\Program Files\Microchip\xc8\v1.30\sources\common\atmod.c
+[v ___atmod __atmod `(m  1 e 3 0 ]
+"37 C:\Program Files\Microchip\xc8\v1.30\sources\common\attoft.c
+[v ___attoft __attoft `(f  1 e 3 0 ]
+"6 C:\Program Files\Microchip\xc8\v1.30\sources\common\awdiv.c
+[v ___awdiv __awdiv `(i  1 e 2 0 ]
+"6 C:\Program Files\Microchip\xc8\v1.30\sources\common\awmod.c
+[v ___awmod __awmod `(i  1 e 2 0 ]
+"32 C:\Program Files\Microchip\xc8\v1.30\sources\common\awtoft.c
+[v ___awtoft __awtoft `(f  1 e 3 0 ]
+"2 C:\Program Files\Microchip\xc8\v1.30\sources\common\bmul.c
+[v ___bmul __bmul `(uc  1 e 1 0 ]
+"62 C:\Program Files\Microchip\xc8\v1.30\sources\common\float.c
+[v ___ftpack __ftpack `(f  1 e 3 0 ]
+"86 C:\Program Files\Microchip\xc8\v1.30\sources\common\ftadd.c
+[v ___ftadd __ftadd `(f  1 e 3 0 ]
+"4 C:\Program Files\Microchip\xc8\v1.30\sources\common\ftge.c
+[v ___ftge __ftge `(b  1 e 0 0 ]
+"51 C:\Program Files\Microchip\xc8\v1.30\sources\common\ftmul.c
+[v ___ftmul __ftmul `(f  1 e 3 0 ]
+"15 C:\Program Files\Microchip\xc8\v1.30\sources\common\ftneg.c
+[v ___ftneg __ftneg `(f  1 e 3 0 ]
+"18 C:\Program Files\Microchip\xc8\v1.30\sources\common\ftsub.c
+[v ___ftsub __ftsub `(f  1 e 3 0 ]
+"44 C:\Program Files\Microchip\xc8\v1.30\sources\common\fttol.c
+[v ___fttol __fttol `(l  1 e 4 0 ]
+"4 C:\Program Files\Microchip\xc8\v1.30\sources\common\lbdiv.c
+[v ___lbdiv __lbdiv `(uc  1 e 1 0 ]
+"4 C:\Program Files\Microchip\xc8\v1.30\sources\common\lbmod.c
+[v ___lbmod __lbmod `(uc  1 e 1 0 ]
+"27 C:\Program Files\Microchip\xc8\v1.30\sources\common\lbtoft.c
+[v ___lbtoft __lbtoft `(f  1 e 3 0 ]
+"6 C:\Program Files\Microchip\xc8\v1.30\sources\common\lldiv.c
+[v ___lldiv __lldiv `(ul  1 e 4 0 ]
+"6 C:\Program Files\Microchip\xc8\v1.30\sources\common\llmod.c
+[v ___llmod __llmod `(ul  1 e 4 0 ]
+"35 C:\Program Files\Microchip\xc8\v1.30\sources\common\lltoft.c
+[v ___lltoft __lltoft `(f  1 e 3 0 ]
+"2 C:\Program Files\Microchip\xc8\v1.30\sources\common\lmul.c
+[v ___lmul __lmul `(ul  1 e 4 0 ]
+"6 C:\Program Files\Microchip\xc8\v1.30\sources\common\ltdiv.c
+[v ___ltdiv __ltdiv `(um  1 e 3 0 ]
+"6 C:\Program Files\Microchip\xc8\v1.30\sources\common\ltmod.c
+[v ___ltmod __ltmod `(um  1 e 3 0 ]
+"7 C:\Program Files\Microchip\xc8\v1.30\sources\common\ltoa.c
+[v _ltoa ltoa `(*.4uc  1 e 1 0 ]
+"32
+[v _ultoa ultoa `(*.4uc  1 e 1 0 ]
+"30 C:\Program Files\Microchip\xc8\v1.30\sources\common\lttoft.c
+[v ___lttoft __lttoft `(f  1 e 3 0 ]
+"6 C:\Program Files\Microchip\xc8\v1.30\sources\common\lwdiv.c
+[v ___lwdiv __lwdiv `(ui  1 e 2 0 ]
+"6 C:\Program Files\Microchip\xc8\v1.30\sources\common\lwmod.c
+[v ___lwmod __lwmod `(ui  1 e 2 0 ]
+"28 C:\Program Files\Microchip\xc8\v1.30\sources\common\lwtoft.c
+[v ___lwtoft __lwtoft `(f  1 e 3 0 ]
+"2 C:\Program Files\Microchip\xc8\v1.30\sources\common\tmul.c
+[v ___tmul __tmul `(um  1 e 3 0 ]
+"4 C:\Program Files\Microchip\xc8\v1.30\sources\common\wmul.c
+[v ___wmul __wmul `(ui  1 e 2 0 ]
+"49 C:\Program Files\Microchip\xc8\v1.30\sources\pic\ftdiv.c
+[v ___ftdiv __ftdiv `(f  1 e 3 0 ]
+"40 C:\Users\Chas\MPLABXProjects\4707_WX_Radio.X\4707.c
+[v _ACK_bit ACK_bit `ui  1 e 2 0 ]
+"41
+[v _i i `i  1 e 2 0 ]
+[v _x x `i  1 e 2 0 ]
+"42
+[v _tempi tempi `l  1 e 4 0 ]
+[v _tempn tempn `l  1 e 4 0 ]
+[v _tempx tempx `l  1 e 4 0 ]
+[v _tempy tempy `l  1 e 4 0 ]
+[v _temp10 temp10 `l  1 e 4 0 ]
+[v _temp25 temp25 `l  1 e 4 0 ]
+"43
+[v _byte byte `uc  1 e 1 0 ]
+[v _tempbyte1 tempbyte1 `uc  1 e 1 0 ]
+[v _tempbyte2 tempbyte2 `uc  1 e 1 0 ]
+"44
+[v _StatusByte StatusByte `uc  1 e 1 0 ]
+"45
+[v _RESP1Byte RESP1Byte `uc  1 e 1 0 ]
+[v _RESP2Byte RESP2Byte `uc  1 e 1 0 ]
+[v _RESP3Byte RESP3Byte `uc  1 e 1 0 ]
+[v _RESP4Byte RESP4Byte `uc  1 e 1 0 ]
+[v _RESP5Byte RESP5Byte `uc  1 e 1 0 ]
+"46
+[v _RESP6Byte RESP6Byte `uc  1 e 1 0 ]
+[v _RESP7Byte RESP7Byte `uc  1 e 1 0 ]
+[v _RESP8Byte RESP8Byte `uc  1 e 1 0 ]
+[v _RESP9Byte RESP9Byte `uc  1 e 1 0 ]
+[v _RESP10Byte RESP10Byte `uc  1 e 1 0 ]
+"47
+[v _RESP11Byte RESP11Byte `uc  1 e 1 0 ]
+[v _RESP12Byte RESP12Byte `uc  1 e 1 0 ]
+[v _RESP13Byte RESP13Byte `uc  1 e 1 0 ]
+[v _RESP14Byte RESP14Byte `uc  1 e 1 0 ]
+"48
+[v _buf buf `[10]uc  1 e 10 0 ]
+[s S54 . 1 `uc 1 TRISC0 1 0 :1:0 
+`uc 1 TRISC1 1 0 :1:1 
+`uc 1 TRISC2 1 0 :1:2 
+`uc 1 TRISC3 1 0 :1:3 
+`uc 1 TRISC4 1 0 :1:4 
+`uc 1 TRISC5 1 0 :1:5 
+`uc 1 TRISC6 1 0 :1:6 
+`uc 1 TRISC7 1 0 :1:7 
+]
+"574 C:\Program Files\Microchip\xc8\v1.30\include\pic16f1509.h
+[u S63 . 1 `S54 1 . 1 0 ]
+[v _PIR1bits PIR1bits `VES63  1 e 1 @17 ]
+[s S22 . 1 `uc 1 TRISA0 1 0 :1:0 
+`uc 1 TRISA1 1 0 :1:1 
+`uc 1 TRISA2 1 0 :1:2 
+`uc 1 TRISA3 1 0 :1:3 
+`uc 1 TRISA4 1 0 :1:4 
+`uc 1 TRISA5 1 0 :1:5 
+]
+"1021
+[u S29 . 1 `S22 1 . 1 0 ]
+[v _TRISAbits TRISAbits `VES29  1 e 1 @140 ]
+[s S39 . 1 `uc 1 . 1 0 :4:0 
+`uc 1 TRISB4 1 0 :1:4 
+`uc 1 TRISB5 1 0 :1:5 
+`uc 1 TRISB6 1 0 :1:6 
+`uc 1 TRISB7 1 0 :1:7 
+]
+"1069
+[u S45 . 1 `S39 1 . 1 0 ]
+[v _TRISBbits TRISBbits `VES45  1 e 1 @141 ]
+"1110
+[v _TRISCbits TRISCbits `VES63  1 e 1 @142 ]
+[s S217 . 1 `uc 1 PS 1 0 :3:0 
+`uc 1 PSA 1 0 :1:3 
+`uc 1 TMR0SE 1 0 :1:4 
+`uc 1 TMR0CS 1 0 :1:5 
+`uc 1 INTEDG 1 0 :1:6 
+`uc 1 nWPUEN 1 0 :1:7 
+]
+"1315
+[s S224 . 1 `uc 1 PS0 1 0 :1:0 
+`uc 1 PS1 1 0 :1:1 
+`uc 1 PS2 1 0 :1:2 
+`uc 1 . 1 0 :1:3 
+`uc 1 T0SE 1 0 :1:4 
+`uc 1 T0CS 1 0 :1:5 
+]
+[u S231 . 1 `S217 1 . 1 0 `S224 1 . 1 0 ]
+[v _OPTION_REGbits OPTION_REGbits `VES231  1 e 1 @149 ]
+[s S189 . 1 `uc 1 SCS 1 0 :2:0 
+`uc 1 . 1 0 :1:2 
+`uc 1 IRCF 1 0 :4:3 
+]
+"1509
+[s S193 . 1 `uc 1 SCS0 1 0 :1:0 
+`uc 1 SCS1 1 0 :1:1 
+`uc 1 . 1 0 :1:2 
+`uc 1 IRCF0 1 0 :1:3 
+`uc 1 IRCF1 1 0 :1:4 
+`uc 1 IRCF2 1 0 :1:5 
+`uc 1 IRCF3 1 0 :1:6 
+]
+[u S201 . 1 `S189 1 . 1 0 `S193 1 . 1 0 ]
+[v _OSCCONbits OSCCONbits `VES201  1 e 1 @153 ]
+"1829
+[v _LATAbits LATAbits `VES29  1 e 1 @268 ]
+"1913
+[v _LATCbits LATCbits `VES63  1 e 1 @270 ]
+"2480
+[v _ANSELA ANSELA `VEuc  1 e 1 @396 ]
+"2526
+[v _ANSELB ANSELB `VEuc  1 e 1 @397 ]
+"2561
+[v _ANSELC ANSELC `VEuc  1 e 1 @398 ]
+"3166
+[v _SSP1BUF SSP1BUF `VEuc  1 e 1 @529 ]
+"3171
+[v _SSPBUF SSPBUF `VEuc  1 e 1 @529 ]
+"3203
+[v _SSP1ADD SSP1ADD `VEuc  1 e 1 @530 ]
+"3208
+[v _SSPADD SSPADD `VEuc  1 e 1 @530 ]
+"3282
+[v _SSPSTAT SSPSTAT `VEuc  1 e 1 @532 ]
+"3354
+[v _SSPSTATbits SSPSTATbits `VES63  1 e 1 @532 ]
+[s S270 . 1 `uc 1 SSPM0 1 0 :1:0 
+`uc 1 SSPM1 1 0 :1:1 
+`uc 1 SSPM2 1 0 :1:2 
+`uc 1 SSPM3 1 0 :1:3 
+`uc 1 CKP 1 0 :1:4 
+`uc 1 SSPEN 1 0 :1:5 
+`uc 1 SSPOV 1 0 :1:6 
+`uc 1 WCOL 1 0 :1:7 
+]
+"3490
+[s S279 . 1 `uc 1 SSPM 1 0 :4:0 
+]
+[u S281 . 1 `S270 1 . 1 0 `S279 1 . 1 0 ]
+[v _SSPCONbits SSPCONbits `VES281  1 e 1 @533 ]
+"3606
+[v _SSPCON2 SSPCON2 `VEuc  1 e 1 @534 ]
+"3623
+[v _SSP1CON2bits SSP1CON2bits `VES63  1 e 1 @534 ]
+"3678
+[v _SSPCON2bits SSPCON2bits `VES63  1 e 1 @534 ]
+"9715
+[v _BF BF `VEb  1 e 0 @4256 ]
+"10893
+[v _RCEN RCEN `VEb  1 e 0 @4275 ]
+"10903
+[v _RSEN RSEN `VEb  1 e 0 @4273 ]
+"636 C:\Users\Chas\MPLABXProjects\4707_WX_Radio.X\4707.c
+[v _main main `(i  1 e 2 0 ]
+{
+"709
+} 0
+"594
+[v _poll_lcd poll_lcd `(i  1 e 2 0 ]
+{
+"598
+} 0
+"7 C:\Program Files\Microchip\xc8\v1.30\sources\common\ltoa.c
+[v _ltoa ltoa `(*.4uc  1 e 1 0 ]
+{
+[v ltoa@buf buf `*.4uc  1 a 1 wreg ]
+"10
+[v ltoa@cp cp `*.4uc  1 a 1 20 ]
+"7
+[v ltoa@buf buf `*.4uc  1 a 1 wreg ]
+[v ltoa@val val `l  1 p 4 13 ]
+[v ltoa@base base `i  1 p 2 17 ]
+"10
+[v ltoa@buf buf `*.4uc  1 a 1 21 ]
+"22
+} 0
+"32
+[v _ultoa ultoa `(*.4uc  1 e 1 0 ]
+{
+[v ultoa@buf buf `*.4uc  1 a 1 wreg ]
+"35
+[v ultoa@v v `ul  1 a 4 7 ]
+"36
+[v ultoa@c c `uc  1 a 1 11 ]
+"32
+[v ultoa@buf buf `*.4uc  1 a 1 wreg ]
+[v ultoa@val val `ul  1 p 4 0 ]
+[v ultoa@base base `i  1 p 2 4 ]
+"38
+[v ultoa@buf buf `*.4uc  1 a 1 12 ]
+"53
+} 0
+"6 C:\Program Files\Microchip\xc8\v1.30\sources\common\llmod.c
+[v ___llmod __llmod `(ul  1 e 4 0 ]
+{
+"11
+[v ___llmod@counter counter `uc  1 a 1 9 ]
+"6
+[v ___llmod@divisor divisor `ul  1 p 4 0 ]
+[v ___llmod@dividend dividend `ul  1 p 4 4 ]
+"26
+} 0
+"6 C:\Program Files\Microchip\xc8\v1.30\sources\common\lldiv.c
+[v ___lldiv __lldiv `(ul  1 e 4 0 ]
+{
+"11
+[v ___lldiv@quotient quotient `ul  1 a 4 9 ]
+"12
+[v ___lldiv@counter counter `uc  1 a 1 13 ]
+"6
+[v ___lldiv@divisor divisor `ul  1 p 4 0 ]
+[v ___lldiv@dividend dividend `ul  1 p 4 4 ]
+"31
+} 0
+"78 C:\Users\Chas\MPLABXProjects\4707_WX_Radio.X\4707.c
+[v _lcd_init lcd_init `(v  1 e 0 0 ]
+{
+"83
+} 0
+"50
+[v _init_io init_io `(v  1 e 0 0 ]
+{
+"76
+} 0
+"303
+[v _Tune550 Tune550 `(v  1 e 0 0 ]
+{
+"318
+} 0
+"99
+[v _Send_I2C_Data Send_I2C_Data `(v  1 e 0 0 ]
+{
+[v Send_I2C_Data@databyte databyte `ui  1 p 2 0 ]
+"104
+} 0
+"173
+[v _I2C_Stop_Bit I2C_Stop_Bit `(v  1 e 0 0 ]
+{
+"182
+} 0
+"141
+[v _I2C_Start_Bit I2C_Start_Bit `(v  1 e 0 0 ]
+{
+"150
+} 0
+"116
+[v _I2C_Control_Write I2C_Control_Write `(v  1 e 0 0 ]
+{
+"127
+} 0
+"600
+[v _RST_4707 RST_4707 `(v  1 e 0 0 ]
+{
+"605
+} 0

@@ -1,0 +1,7 @@
+_calculateparity: CODE, 380 0 28
+_ISR: CODE, 8 0 134
+_main: CODE, 146 0 132
+__initialization: CODE, 408 0 12
+_serial_init: CODE, 334 0 46
+_init_io: CODE, 278 0 56
+Total: 408

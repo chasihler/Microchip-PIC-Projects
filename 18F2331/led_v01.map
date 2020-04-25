@@ -1,0 +1,52 @@
+MPLINK 4.45, Linker
+Linker Map File - Created Wed Jan 16 16:39:08 2013
+
+                                 Section Info
+                  Section       Type    Address   Location Size(Bytes)
+                ---------  ---------  ---------  ---------  ---------
+                   .org_0       code   0x000000    program   0x000002
+                   .cinit    romdata   0x000002    program   0x000002
+                   .org_1       code   0x000008    program   0x000046
+       .config_300000_M.O       code   0x300000    program   0x000002
+       .config_300002_M.O       code   0x300002    program   0x000002
+       .config_300004_M.O       code   0x300004    program   0x000002
+       .config_300006_M.O       code   0x300006    program   0x000002
+       .config_300008_M.O       code   0x300008    program   0x000002
+       .config_30000A_M.O       code   0x30000a    program   0x000002
+       .config_30000C_M.O       code   0x30000c    program   0x000002
+
+
+
+                              Program Memory Usage 
+                               Start         End      
+                           ---------   ---------      
+                            0x000000    0x000003      
+                            0x000008    0x00004d      
+                            0x300000    0x30000d      
+            88 out of 8472 program addresses used, program memory utilization is 1%
+
+
+
+                              Symbols - Sorted by Name
+                     Name    Address   Location    Storage File                     
+                ---------  ---------  ---------  --------- ---------                
+                    LOOP1   0x00000e    program     static C:\Users\CHAS\Documents\Development\PIC\18F2331\m.asm
+                    LOOP2   0x000012    program     static C:\Users\CHAS\Documents\Development\PIC\18F2331\m.asm
+                    LOOP3   0x000016    program     static C:\Users\CHAS\Documents\Development\PIC\18F2331\m.asm
+                 delay_1s   0x00000a    program     static C:\Users\CHAS\Documents\Development\PIC\18F2331\m.asm
+                     loop   0x00003c    program     static C:\Users\CHAS\Documents\Development\PIC\18F2331\m.asm
+                    start   0x00002a    program     static C:\Users\CHAS\Documents\Development\PIC\18F2331\m.asm
+
+
+
+                              Symbols - Sorted by Address
+                     Name    Address   Location    Storage File                     
+                ---------  ---------  ---------  --------- ---------                
+                 delay_1s   0x00000a    program     static C:\Users\CHAS\Documents\Development\PIC\18F2331\m.asm
+                    LOOP1   0x00000e    program     static C:\Users\CHAS\Documents\Development\PIC\18F2331\m.asm
+                    LOOP2   0x000012    program     static C:\Users\CHAS\Documents\Development\PIC\18F2331\m.asm
+                    LOOP3   0x000016    program     static C:\Users\CHAS\Documents\Development\PIC\18F2331\m.asm
+                    start   0x00002a    program     static C:\Users\CHAS\Documents\Development\PIC\18F2331\m.asm
+                     loop   0x00003c    program     static C:\Users\CHAS\Documents\Development\PIC\18F2331\m.asm
+
+

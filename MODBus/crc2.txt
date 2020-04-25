@@ -1,0 +1,162 @@
+http://www.microchip.com/forums/m15979.aspx
+mscoville
+[mscoville]
+Starting Member
+
+    Total Posts : 85
+    Reward points : 0
+    Joined: 11/7/2003
+    Location: Cleveland, Ohio, USA
+    Status: offline
+
+Modbus Slave Application Friday, May 10, 2002 7:14 AM (permalink)
+0
+
+I have implemented a Modbus slave on a 16C73B, and also on a 17C756A. I would feel uncomfortable sharing the assembler source, since it is being used in 6 new products that my company is manufacturing. However, I would be more than happy to answer questions. I know it is hard to know where to start. If you already have the Modbus spec (PI_MBUS_300) then you have a good start.
+
+
+
+For debugging my stuff we used a shareware PC utility called ModScan. It was very helpful. I found some bugs in it and the ModScan people responded quickly with fixes.
+
+
+
+For what it is worth here are a few suggestions to start out. This is how I did my development.
+
+
+
+1. Do initial development/debug work using RS-232. Don't bother with the RS-485 hardware until it works on RS-232. Once things are working (at least partially) then you can add the RS-485 hardware driver chip.
+
+
+
+2. Ignore incoming Modbus messages if they are not addressed to you (probably obvious)
+
+
+
+3. If a message is addressed to you, then store the incoming message to a buffer in the PICs RAM.
+
+
+
+4. Once you have the entire message received, calculate the CRC
+
+
+
+5. Compare the calculated CRC to the CRC recieved in the message. If they differ, don't send a reply message
+
+
+
+6. If the CRC matches, then construct the return message in the PICs RAM and send it
+
+
+
+7. Keep in mind that the Recieve message buffer and the transmitt buffer could share the same RAM.
+
+
+
+I hope this helps. As I said, I would be happy to help by answering questions you might have. Good Luck
+
+
+Hi
+The function for PIC CRC :
+
+bit CRC16(unsigned int dataLength,char check) //CRC 16 for modbus checksum
+{
+unsigned int CheckSum;
+unsigned int j;
+unsigned char lowCRC;
+unsigned char highCRC;
+unsigned short i;
+CheckSum = 0xffff;
+for (j=0; j<dataLength; j++)
+{
+CheckSum = CheckSum^(unsigned int)buffer[j];
+for(i=8;i>0;i--)
+if((CheckSum)&0x0001)
+CheckSum = (CheckSum>>1)^0xa001;
+else
+CheckSum>>=1;
+}
+highCRC = CheckSum>>8;
+CheckSum<<=8;
+lowCRC = CheckSum>>8;
+if (check==1){
+if ( (buffer[dataLength+1] == highCRC) & (buffer[dataLength] == lowCRC ))
+return 1;
+else
+return 0;
+}
+else
+{
+buffer[dataLength] = lowCRC;
+buffer[dataLength+1] = highCRC;
+return 1;
+}
+
+}
+
+
+
+
+
+
+
+void modbus (void)
+{
+unsigned char crc;
+
+Delay100TCYx(27); //3.5 Character Start bit at 38K4 baud rate
+TXREG = 0x01; //Addresses the HMI as address 1
+while (!TXSTAbits.TRMT); //Waits for serial to transfer the address
+TXREG = 0x02; //Tells HMI to read registers
+while (!TXSTAbits.TRMT); //Waits for serial to transfer the address
+TXREG = 4; //Data to send to HMI
+while (!TXSTAbits.TRMT); //Waits for serial to transfer the address
+crc = CRC16 ();
+if (crc = 1) //Data is ok
+{
+Delay100TCYx(27); //3.5 Character Stop bit at 38K4 baud rate
+return;
+}
+if (crc = 0) //Data is not ok
+{
+modbus(); //Go through routine again
+}
+}
+
+unsigned char CRC16(void) //CRC 16 for modbus checksum
+{
+    unsigned int CheckSum;     
+    unsigned int j;
+    unsigned char lowCRC;
+    unsigned char highCRC;
+    unsigned short i;
+    unsigned int dataLength = 16;
+    unsigned char check;
+    char buffer[];
+
+    CheckSum = 0xffff;
+    for (j=0; j<dataLength; j++)
+    {
+    CheckSum = CheckSum^(unsigned int)buffer[j];
+    for(i=8;i>0;i--)
+if((CheckSum)&0x0001)
+CheckSum = (CheckSum>>1)^0xa001;
+else
+CheckSum>>=1;
+    }
+    highCRC = CheckSum>>8;
+    CheckSum<<=8;
+    lowCRC = CheckSum>>8;
+    if (check==1){
+    if ( (buffer[dataLength+1] == highCRC) & (buffer[dataLength] == lowCRC ))
+       return 1;
+    else
+       return 0;
+    }
+    else
+    {  
+    buffer[dataLength] = lowCRC;
+    buffer[dataLength+1] = highCRC;
+    return 1;
+    }
+
+}

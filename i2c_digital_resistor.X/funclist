@@ -1,0 +1,9 @@
+_I2C_Start_Bit: CODE, 1912 0 14
+_set_resistor: CODE, 1941 0 16
+_main: CODE, 1981 0 56
+_Send_I2C_Data: CODE, 1891 0 9
+__initialization: CODE, 2037 0 7
+_I2C_Stop_Bit: CODE, 1900 0 12
+_I2C_Control_Write0: CODE, 1926 0 15
+_init_io: CODE, 1957 0 24
+Total: 153

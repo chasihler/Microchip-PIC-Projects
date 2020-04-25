@@ -1,0 +1,12 @@
+#pragma config FOSC = INTOSC
+// FOSC configuration
+ OSCCON = 0x78;// Fosc = 16 MHz with internal oscillator
+ __delay_us(100);
+ TRISC = 0x00; // Port C as digital output port
+ ANSELC = 0x00; // Port C as digital output port
+ APFCON = 0x00;
+ NCO1CON = 0xC0; // NCO enable, NCO output enable, fixed frequency
+ NCO1CLK = 0x01; // NCO clock = FOSC = 16 MHz
+ NCO1INCH = 0x00; // NCO increment register high byte
+ NCO1INCL = 0x84; // NCO increment register high byte
+// NCO output toggled at frequency = 2 kHz to get the square wave of 1 kHz

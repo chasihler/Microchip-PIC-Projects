@@ -1,0 +1,572 @@
+%CMF
+# %PSECTS Section
+# For each object file, details of its psects are enumerated here.
+# The begining of the section is indicated by %PSECTS.  The first
+# line indicates the name of the first object file, e.g.
+#    $foo.obj
+# Each line that follows describes a psect in that object file, until
+# the next object file.  The lines that describe a psect have the
+# format:
+#    <psect name> <class name> <space> <link address> <load addresses> <length> <delta>
+# All addresses and the length are given in unqualified hexadecimal
+# in delta units.  Any other numeric values are decimal.
+%PSECTS
+$C:\Users\Chas\AppData\Local\Temp\s9o.obj
+end_init CODE 0 F8 F8 4 1
+reset_vec CODE 0 0 0 4 1
+config CONFIG 0 1FFF8 1FFF8 8 1
+$dist/default/production\gps2_click.X.production.obj
+intcode CODE 0 8 8 F0 1
+smallconst SMALLCONST 0 F00 F00 8 1
+text7 CODE 0 1162 1162 66 1
+text6 CODE 0 128E 128E A 1
+text5 CODE 0 123E 123E 32 1
+text4 CODE 0 120A 120A 34 1
+text3 CODE 0 11C8 11C8 42 1
+text2 CODE 0 1050 1050 8A 1
+text1 CODE 0 10DA 10DA 88 1
+text0 CODE 0 F08 F08 148 1
+cstackCOMRAM COMRAM 1 1 1 23 1
+bssBANK0 BANK0 1 60 60 78 1
+bssCOMRAM COMRAM 1 24 24 E 1
+cinit CODE 0 1270 1270 1E 1
+# %UNUSED Section
+# This section enumerates the unused ranges of each CLASS. Each entry
+# is described on a single line as follows:
+#    <class name> <range> <delta>
+# Addresses given in the range are in hexadecimal and units of delta.
+%UNUSED
+BANK0 000D8-000FF 1
+BANK1 00100-001FF 1
+BANK10 00A00-00AFF 1
+BANK11 00B00-00BFF 1
+BANK12 00C00-00CFF 1
+BANK13 00D00-00DFF 1
+BANK14 00E00-00EAF 1
+BANK2 00200-002FF 1
+BANK3 00300-003FF 1
+BANK4 00400-004FF 1
+BANK5 00500-005FF 1
+BANK6 00600-006FF 1
+BANK7 00700-007FF 1
+BANK8 00800-008FF 1
+BANK9 00900-009FF 1
+BIGRAM 00032-0005F 1
+BIGRAM 000D8-00EAF 1
+CODE 00004-00007 1
+CODE 000FC-00EFF 1
+CODE 01298-1FFF7 1
+COMRAM 00032-0005F 1
+CONST 00004-00007 1
+CONST 000FC-00EFF 1
+CONST 01298-1FFF7 1
+MEDIUMCONST 01298-0FFFF 1
+MEDIUMCONST 10F00-1FFF7 1
+RAM 000D8-00EAF 1
+SFR 00EB0-00FFF 1
+SMALLCONST 01298-1FFF7 1
+STACK 000D8-009FF 1
+# %LINETAB Section
+# This section enumerates the file/line to address mappings.
+# The beginning of the section is indicated by %LINETAB.
+# The first line indicates the name of the first object file, e.g.
+#   $foo.obj
+# Each line that follows describes a single mapping until the next
+# object file.  Mappings have the following format:
+#    <file name>:<line number> <address> <psect name> <class name>
+# The address is absolute and given given in unqualified hex 
+# in delta units of the psect. All mappings within an object file
+# are in ascending order of addresses.
+# All other numeric values are in decimal.
+%LINETAB
+$dist/default/production\gps2_click.X.production.obj
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":47 8 intcode CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":137 8 intcode CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":49 40 intcode CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":51 44 intcode CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":53 4C intcode CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":54 50 intcode CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":56 60 intcode CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":57 68 intcode CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":58 70 intcode CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":59 72 intcode CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":61 7A intcode CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":62 8E intcode CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":63 92 intcode CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":64 9A intcode CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":66 A6 intcode CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":67 AE intcode CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":68 B6 intcode CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":75 BE intcode CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":169 F08 text0 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":170 F08 text0 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":171 F10 text0 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":172 F18 text0 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":173 F20 text0 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":174 F24 text0 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":177 F28 text0 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":178 F2E text0 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":179 F36 text0 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":181 F44 text0 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":182 F46 text0 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":184 F48 text0 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":185 F4A text0 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":188 F4C text0 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":189 F4E text0 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":190 F5C text0 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":192 F5E text0 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":193 F60 text0 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":194 F6E text0 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":196 F70 text0 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":197 F72 text0 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":198 F7A text0 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":200 F7C text0 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":201 F7E text0 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":202 F86 text0 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":204 F88 text0 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":205 F8C text0 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":219 F90 text0 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":220 F92 text0 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":221 F94 text0 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":222 FA2 text0 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":223 FA4 text0 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":219 FB4 text0 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":226 FB8 text0 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":231 FBA text0 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":232 FC2 text0 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":233 FCA text0 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":234 FD2 text0 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":236 FD6 text0 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":237 FD8 text0 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":238 FDC text0 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":241 FDE text0 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":243 FE6 text0 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":245 1006 text0 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":246 100E text0 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":247 100E text0 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":250 1016 text0 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":251 101E text0 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":252 1020 text0 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":253 1028 text0 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":256 102A text0 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":257 1032 text0 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":258 1034 text0 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":259 1036 text0 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":260 1038 text0 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":261 103A text0 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":263 1046 text0 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":264 1048 text0 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":265 104A text0 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":266 104C text0 CODE
+"C:\Program Files\Microchip\xc8\v1.31\sources\common\strncmp.c":4 1050 text2 CODE
+"C:\Program Files\Microchip\xc8\v1.31\sources\common\strncmp.c":6 1050 text2 CODE
+"C:\Program Files\Microchip\xc8\v1.31\sources\common\strncmp.c":7 1052 text2 CODE
+"C:\Program Files\Microchip\xc8\v1.31\sources\common\strncmp.c":8 1082 text2 CODE
+"C:\Program Files\Microchip\xc8\v1.31\sources\common\strncmp.c":10 10B8 text2 CODE
+"C:\Program Files\Microchip\xc8\v1.31\sources\common\strncmp.c":11 10BC text2 CODE
+"C:\Program Files\Microchip\xc8\v1.31\sources\common\strncmp.c":6 10C0 text2 CODE
+"C:\Program Files\Microchip\xc8\v1.31\sources\common\strncmp.c":13 10D0 text2 CODE
+"C:\Program Files\Microchip\xc8\v1.31\sources\common\strstr.c":4 10DA text1 CODE
+"C:\Program Files\Microchip\xc8\v1.31\sources\common\strstr.c":6 10DA text1 CODE
+"C:\Program Files\Microchip\xc8\v1.31\sources\common\strstr.c":7 10DC text1 CODE
+"C:\Program Files\Microchip\xc8\v1.31\sources\common\strstr.c":8 110C text1 CODE
+"C:\Program Files\Microchip\xc8\v1.31\sources\common\strstr.c":9 1116 text1 CODE
+"C:\Program Files\Microchip\xc8\v1.31\sources\common\strstr.c":6 1142 text1 CODE
+"C:\Program Files\Microchip\xc8\v1.31\sources\common\strstr.c":11 1158 text1 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":81 1162 text7 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":82 1162 text7 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":83 1164 text7 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":84 1168 text7 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":85 116C text7 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":99 1172 text7 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":100 117A text7 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":102 1182 text7 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":103 1186 text7 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":104 118A text7 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":106 1190 text7 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":108 1194 text7 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":109 1196 text7 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":110 1198 text7 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":112 119A text7 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":113 119C text7 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":114 119E text7 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":115 11A0 text7 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":116 11A2 text7 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":117 11A4 text7 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":119 11A6 text7 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":121 11AA text7 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":122 11AC text7 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":123 11AE text7 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":124 11B0 text7 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":125 11B2 text7 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":126 11B4 text7 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":128 11B6 text7 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":129 11B8 text7 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":130 11BA text7 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":131 11BC text7 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":132 11BE text7 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":134 11C0 text7 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":135 11C2 text7 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":136 11C4 text7 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":137 11C6 text7 CODE
+"C:\Program Files\Microchip\xc8\v1.31\sources\common\strlen.c":4 11C8 text3 CODE
+"C:\Program Files\Microchip\xc8\v1.31\sources\common\strlen.c":8 11C8 text3 CODE
+"C:\Program Files\Microchip\xc8\v1.31\sources\common\strlen.c":9 11D0 text3 CODE
+"C:\Program Files\Microchip\xc8\v1.31\sources\common\strlen.c":10 11D2 text3 CODE
+"C:\Program Files\Microchip\xc8\v1.31\sources\common\strlen.c":9 11D6 text3 CODE
+"C:\Program Files\Microchip\xc8\v1.31\sources\common\strlen.c":12 11EC text3 CODE
+"C:\Program Files\Microchip\xc8\v1.31\sources\common\strchr.c":4 120A text4 CODE
+"C:\Program Files\Microchip\xc8\v1.31\sources\common\strchr.c":6 120A text4 CODE
+"C:\Program Files\Microchip\xc8\v1.31\sources\common\strchr.c":7 120A text4 CODE
+"C:\Program Files\Microchip\xc8\v1.31\sources\common\strchr.c":8 1218 text4 CODE
+"C:\Program Files\Microchip\xc8\v1.31\sources\common\strchr.c":9 1222 text4 CODE
+"C:\Program Files\Microchip\xc8\v1.31\sources\common\strchr.c":10 1234 text4 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":143 123E text5 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":152 123E text5 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":154 1240 text5 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":155 1242 text5 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":156 1244 text5 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":157 1246 text5 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":158 1248 text5 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":159 124A text5 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":160 124C text5 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":161 1250 text5 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":164 1254 text5 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":165 1262 text5 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":166 126E text5 CODE
+"C:\Users\Chas\AppData\Local\Temp\s9o.":949 1270 cinit CODE
+"C:\Users\Chas\AppData\Local\Temp\s9o.":951 1270 cinit CODE
+"C:\Users\Chas\AppData\Local\Temp\s9o.":954 1270 cinit CODE
+"C:\Users\Chas\AppData\Local\Temp\s9o.":990 1270 cinit CODE
+"C:\Users\Chas\AppData\Local\Temp\s9o.":991 1274 cinit CODE
+"C:\Users\Chas\AppData\Local\Temp\s9o.":992 1276 cinit CODE
+"C:\Users\Chas\AppData\Local\Temp\s9o.":993 1276 cinit CODE
+"C:\Users\Chas\AppData\Local\Temp\s9o.":994 1278 cinit CODE
+"C:\Users\Chas\AppData\Local\Temp\s9o.":995 127A cinit CODE
+"C:\Users\Chas\AppData\Local\Temp\s9o.":998 127C cinit CODE
+"C:\Users\Chas\AppData\Local\Temp\s9o.":999 1280 cinit CODE
+"C:\Users\Chas\AppData\Local\Temp\s9o.":1000 1282 cinit CODE
+"C:\Users\Chas\AppData\Local\Temp\s9o.":1001 1282 cinit CODE
+"C:\Users\Chas\AppData\Local\Temp\s9o.":1002 1284 cinit CODE
+"C:\Users\Chas\AppData\Local\Temp\s9o.":1003 1286 cinit CODE
+"C:\Users\Chas\AppData\Local\Temp\s9o.":1009 1288 cinit CODE
+"C:\Users\Chas\AppData\Local\Temp\s9o.":1010 1288 cinit CODE
+"C:\Users\Chas\AppData\Local\Temp\s9o.":1011 128A cinit CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":138 128E text6 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":139 128E text6 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":140 1292 text6 CODE
+"C:\Users\Chas\MPLABXProjects\gps2_click.X\main.c":141 1296 text6 CODE
+# %SYMTAB Section
+# An enumeration of all symbols in the program.
+# The beginning of the section is indicated by %SYMTAB.
+# Each line describes a single symbol as follows:
+#    <label> <value> [-]<load-adj> <class> <space> <psect> <file-name>
+# The value and load-adj are both in unqualified hexadecimal.
+# All other numeric values are in decimal.  The load-adj is the
+# quantity one needs to add to the symbol value in order to obtain the load
+# address of the symbol.  This value may be signed. If the symbol
+# was defined in a psect then <psect> will be "-". File-name
+# is the name of the object file in which the symbol was defined.
+%SYMTAB
+__CFG_XINST$OFF 0 0 ABS 0 - dist/default/production\gps2_click.X.production.obj
+__S0 20000 0 ABS 0 - dist/default/production\gps2_click.X.production.obj
+__S1 D8 0 ABS 0 - dist/default/production\gps2_click.X.production.obj
+__S2 0 0 ABS 0 - dist/default/production\gps2_click.X.production.obj
+_ISR 8 0 CODE 0 intcode dist/default/production\gps2_click.X.production.obj
+__size_of_init_io 0 0 ABS 0 - dist/default/production\gps2_click.X.production.obj
+__Hintentry 0 0 ABS 0 intentry dist/default/production\gps2_click.X.production.obj
+__Lintentry 0 0 ABS 0 intentry dist/default/production\gps2_click.X.production.obj
+_LATA F89 0 ABS 0 - dist/default/production\gps2_click.X.production.obj
+_LATC F8B 0 ABS 0 - dist/default/production\gps2_click.X.production.obj
+_ping 2A 0 COMRAM 1 bssCOMRAM dist/default/production\gps2_click.X.production.obj
+_main F08 0 CODE 0 text0 dist/default/production\gps2_click.X.production.obj
+___sp 0 0 STACK 2 stack C:\Users\Chas\AppData\Local\Temp\s9o.obj
+start F8 0 CODE 0 init C:\Users\Chas\AppData\Local\Temp\s9o.obj
+_ctxt 60 0 BANK0 1 bssBANK0 dist/default/production\gps2_click.X.production.obj
+strlen@cp 14 0 COMRAM 1 cstackCOMRAM dist/default/production\gps2_click.X.production.obj
+__Hirdata 0 0 CODE 0 irdata dist/default/production\gps2_click.X.production.obj
+__Lirdata 0 0 CODE 0 irdata dist/default/production\gps2_click.X.production.obj
+__HRAM 0 0 ABS 0 - dist/default/production\gps2_click.X.production.obj
+__LRAM 1 0 ABS 0 - dist/default/production\gps2_click.X.production.obj
+__Hconfig 20000 0 CONFIG 0 config dist/default/production\gps2_click.X.production.obj
+__Lconfig 1FFF8 0 CONFIG 0 config dist/default/production\gps2_click.X.production.obj
+__Hbigram 0 0 ABS 0 bigram dist/default/production\gps2_click.X.production.obj
+__Lbigram 0 0 ABS 0 bigram dist/default/production\gps2_click.X.production.obj
+__Hrparam 0 0 ABS 0 rparam dist/default/production\gps2_click.X.production.obj
+__Lrparam 0 0 ABS 0 rparam dist/default/production\gps2_click.X.production.obj
+__Hram 0 0 ABS 0 ram dist/default/production\gps2_click.X.production.obj
+__Lram 0 0 ABS 0 ram dist/default/production\gps2_click.X.production.obj
+__Hcomram 0 0 ABS 0 comram dist/default/production\gps2_click.X.production.obj
+__Lcomram 0 0 ABS 0 comram dist/default/production\gps2_click.X.production.obj
+__Hsfr 0 0 ABS 0 sfr dist/default/production\gps2_click.X.production.obj
+__Lsfr 0 0 ABS 0 sfr dist/default/production\gps2_click.X.production.obj
+__end_of__stringdata F07 0 SMALLCONST 0 smallconst dist/default/production\gps2_click.X.production.obj
+__Hbss 0 0 RAM 1 bss dist/default/production\gps2_click.X.production.obj
+__CFG_STVREN$ON 0 0 ABS 0 - dist/default/production\gps2_click.X.production.obj
+__Lbss 0 0 RAM 1 bss dist/default/production\gps2_click.X.production.obj
+_ready 2E 0 COMRAM 1 bssCOMRAM dist/default/production\gps2_click.X.production.obj
+__Hnvrram 0 0 COMRAM 1 nvrram dist/default/production\gps2_click.X.production.obj
+__Lnvrram 0 0 COMRAM 1 nvrram dist/default/production\gps2_click.X.production.obj
+_index 24 0 COMRAM 1 bssCOMRAM dist/default/production\gps2_click.X.production.obj
+_RPOR23 ED7 0 ABS 0 - dist/default/production\gps2_click.X.production.obj
+__end_of_ISR F8 0 CODE 0 intcode dist/default/production\gps2_click.X.production.obj
+_RCREG2 FAA 0 ABS 0 - dist/default/production\gps2_click.X.production.obj
+_TXREG2 FA9 0 ABS 0 - dist/default/production\gps2_click.X.production.obj
+_ADCON0 FC2 0 ABS 0 - dist/default/production\gps2_click.X.production.obj
+_SPBRG2 FAB 0 ABS 0 - dist/default/production\gps2_click.X.production.obj
+_ADCON1 FC1 0 ABS 0 - dist/default/production\gps2_click.X.production.obj
+_EECON2 FA7 0 ABS 0 - dist/default/production\gps2_click.X.production.obj
+?_strncmp 16 0 COMRAM 1 cstackCOMRAM dist/default/production\gps2_click.X.production.obj
+_PIE3bits FA3 0 ABS 0 - dist/default/production\gps2_click.X.production.obj
+_PIR3bits FA4 0 ABS 0 - dist/default/production\gps2_click.X.production.obj
+_LATAbits F89 0 ABS 0 - dist/default/production\gps2_click.X.production.obj
+_LATBbits F8A 0 ABS 0 - dist/default/production\gps2_click.X.production.obj
+_LATCbits F8B 0 ABS 0 - dist/default/production\gps2_click.X.production.obj
+__Hintsave_regs 0 0 BIGRAM 1 intsave_regs dist/default/production\gps2_click.X.production.obj
+__Lintsave_regs 0 0 BIGRAM 1 intsave_regs dist/default/production\gps2_click.X.production.obj
+_RCONbits FD0 0 ABS 0 - dist/default/production\gps2_click.X.production.obj
+__Hbigbss 0 0 BIGRAM 1 bigbss dist/default/production\gps2_click.X.production.obj
+__Lbigbss 0 0 BIGRAM 1 bigbss dist/default/production\gps2_click.X.production.obj
+__Hintret 0 0 ABS 0 intret dist/default/production\gps2_click.X.production.obj
+__Lintret 0 0 ABS 0 intret dist/default/production\gps2_click.X.production.obj
+__Hramtop F00 0 RAM 0 ramtop dist/default/production\gps2_click.X.production.obj
+__Lramtop F00 0 RAM 0 ramtop dist/default/production\gps2_click.X.production.obj
+__Hstruct 0 0 COMRAM 1 struct dist/default/production\gps2_click.X.production.obj
+__Lstruct 0 0 COMRAM 1 struct dist/default/production\gps2_click.X.production.obj
+__Hbigdata 0 0 BIGRAM 1 bigdata dist/default/production\gps2_click.X.production.obj
+__Lbigdata 0 0 BIGRAM 1 bigdata dist/default/production\gps2_click.X.production.obj
+__Hmediumconst 0 0 MEDIUMCONST 0 mediumconst dist/default/production\gps2_click.X.production.obj
+__end_of_strlen 120A 0 CODE 0 text3 dist/default/production\gps2_click.X.production.obj
+__Lmediumconst 0 0 MEDIUMCONST 0 mediumconst dist/default/production\gps2_click.X.production.obj
+__Hfarbss 0 0 FARRAM 0 farbss dist/default/production\gps2_click.X.production.obj
+__Lfarbss 0 0 FARRAM 0 farbss dist/default/production\gps2_click.X.production.obj
+_uart_data 30 0 COMRAM 1 bssCOMRAM dist/default/production\gps2_click.X.production.obj
+__Hintcode F8 0 CODE 0 intcode dist/default/production\gps2_click.X.production.obj
+__Lintcode 8 0 CODE 0 intcode dist/default/production\gps2_click.X.production.obj
+__Hfardata 0 0 FARRAM 0 fardata dist/default/production\gps2_click.X.production.obj
+__Lfardata 0 0 FARRAM 0 fardata dist/default/production\gps2_click.X.production.obj
+__CFG_CPUDIV$OSC1 0 0 ABS 0 - dist/default/production\gps2_click.X.production.obj
+__pintcode 8 0 CODE 0 intcode dist/default/production\gps2_click.X.production.obj
+__Habs1 0 0 ABS 0 abs1 dist/default/production\gps2_click.X.production.obj
+__Labs1 0 0 ABS 0 abs1 dist/default/production\gps2_click.X.production.obj
+__HnvFARRAM 0 0 FARRAM 0 nvFARRAM dist/default/production\gps2_click.X.production.obj
+__LnvFARRAM 0 0 FARRAM 0 nvFARRAM dist/default/production\gps2_click.X.production.obj
+__Hdata 0 0 ABS 0 data dist/default/production\gps2_click.X.production.obj
+__Ldata 0 0 ABS 0 data dist/default/production\gps2_click.X.production.obj
+stackhi 9FF 0 ABS 0 - C:\Users\Chas\AppData\Local\Temp\s9o.obj
+strchr@chr 12 0 COMRAM 1 cstackCOMRAM dist/default/production\gps2_click.X.production.obj
+_strlen 11C8 0 CODE 0 text3 dist/default/production\gps2_click.X.production.obj
+__Htemp 0 0 COMRAM 1 temp dist/default/production\gps2_click.X.production.obj
+__Ltemp 0 0 COMRAM 1 temp dist/default/production\gps2_click.X.production.obj
+stacklo D8 0 ABS 0 - C:\Users\Chas\AppData\Local\Temp\s9o.obj
+__Hrbit 0 0 COMRAM 1 rbit dist/default/production\gps2_click.X.production.obj
+__Lrbit 0 0 COMRAM 1 rbit dist/default/production\gps2_click.X.production.obj
+_strchr 120A 0 CODE 0 text4 dist/default/production\gps2_click.X.production.obj
+__Hinit F8 0 CODE 0 init dist/default/production\gps2_click.X.production.obj
+__Linit F8 0 CODE 0 init dist/default/production\gps2_click.X.production.obj
+__Hintcodelo F8 0 CODE 0 intcodelo dist/default/production\gps2_click.X.production.obj
+__Lintcodelo F8 0 CODE 0 intcodelo dist/default/production\gps2_click.X.production.obj
+__Hrbss 0 0 COMRAM 1 rbss dist/default/production\gps2_click.X.production.obj
+__end_of_main 1050 0 CODE 0 text0 dist/default/production\gps2_click.X.production.obj
+__Lrbss 0 0 COMRAM 1 rbss dist/default/production\gps2_click.X.production.obj
+__Htext 0 0 ABS 0 text dist/default/production\gps2_click.X.production.obj
+__Ltext 0 0 ABS 0 text dist/default/production\gps2_click.X.production.obj
+_new_rx 28 0 COMRAM 1 bssCOMRAM dist/default/production\gps2_click.X.production.obj
+_strstr 10DA 0 CODE 0 text1 dist/default/production\gps2_click.X.production.obj
+__end_of_strchr 123E 0 CODE 0 text4 dist/default/production\gps2_click.X.production.obj
+_RPINR16 EF7 0 ABS 0 - dist/default/production\gps2_click.X.production.obj
+end_of_initialization 1288 0 CODE 0 cinit dist/default/production\gps2_click.X.production.obj
+__size_of_ISR 0 0 ABS 0 - dist/default/production\gps2_click.X.production.obj
+_SPBRGH2 F7D 0 ABS 0 - dist/default/production\gps2_click.X.production.obj
+__CFG_PLLDIV$1 0 0 ABS 0 - dist/default/production\gps2_click.X.production.obj
+__size_of_strncmp 0 0 ABS 0 - dist/default/production\gps2_click.X.production.obj
+_TRISAbits F92 0 ABS 0 - dist/default/production\gps2_click.X.production.obj
+_TRISBbits F93 0 ABS 0 - dist/default/production\gps2_click.X.production.obj
+_TRISCbits F94 0 ABS 0 - dist/default/production\gps2_click.X.production.obj
+_TRISDbits F95 0 ABS 0 - dist/default/production\gps2_click.X.production.obj
+_TRISEbits F96 0 ABS 0 - dist/default/production\gps2_click.X.production.obj
+_PORTCbits F82 0 ABS 0 - dist/default/production\gps2_click.X.production.obj
+strchr@ptr 10 0 COMRAM 1 cstackCOMRAM dist/default/production\gps2_click.X.production.obj
+__Hibigdata 0 0 CODE 0 ibigdata dist/default/production\gps2_click.X.production.obj
+__Libigdata 0 0 CODE 0 ibigdata dist/default/production\gps2_click.X.production.obj
+__size_of_strlen 0 0 ABS 0 - dist/default/production\gps2_click.X.production.obj
+_uart_xmit 128E 0 CODE 0 text6 dist/default/production\gps2_click.X.production.obj
+__Hifardata 0 0 CODE 0 ifardata dist/default/production\gps2_click.X.production.obj
+__Lifardata 0 0 CODE 0 ifardata dist/default/production\gps2_click.X.production.obj
+__Hbank0 0 0 ABS 0 bank0 dist/default/production\gps2_click.X.production.obj
+__Lbank0 0 0 ABS 0 bank0 dist/default/production\gps2_click.X.production.obj
+__Hbank1 0 0 ABS 0 bank1 dist/default/production\gps2_click.X.production.obj
+__Lbank1 0 0 ABS 0 bank1 dist/default/production\gps2_click.X.production.obj
+__Hbank2 0 0 ABS 0 bank2 dist/default/production\gps2_click.X.production.obj
+__Lbank2 0 0 ABS 0 bank2 dist/default/production\gps2_click.X.production.obj
+__Hbank3 0 0 ABS 0 bank3 dist/default/production\gps2_click.X.production.obj
+__Lbank3 0 0 ABS 0 bank3 dist/default/production\gps2_click.X.production.obj
+__Hbank4 0 0 ABS 0 bank4 dist/default/production\gps2_click.X.production.obj
+__Lbank4 0 0 ABS 0 bank4 dist/default/production\gps2_click.X.production.obj
+__Hbank5 0 0 ABS 0 bank5 dist/default/production\gps2_click.X.production.obj
+__Lbank5 0 0 ABS 0 bank5 dist/default/production\gps2_click.X.production.obj
+__Hpowerup F8 0 CODE 0 powerup dist/default/production\gps2_click.X.production.obj
+__Lpowerup F8 0 CODE 0 powerup dist/default/production\gps2_click.X.production.obj
+__Hbank6 0 0 ABS 0 bank6 dist/default/production\gps2_click.X.production.obj
+__Lbank6 0 0 ABS 0 bank6 dist/default/production\gps2_click.X.production.obj
+uart_xmit@mydata_byte 10 0 COMRAM 1 cstackCOMRAM dist/default/production\gps2_click.X.production.obj
+__Hbank7 0 0 ABS 0 bank7 dist/default/production\gps2_click.X.production.obj
+__Lbank7 0 0 ABS 0 bank7 dist/default/production\gps2_click.X.production.obj
+__Hbank8 0 0 ABS 0 bank8 dist/default/production\gps2_click.X.production.obj
+__Lbank8 0 0 ABS 0 bank8 dist/default/production\gps2_click.X.production.obj
+__Htext0 0 0 ABS 0 text0 dist/default/production\gps2_click.X.production.obj
+__Ltext0 0 0 ABS 0 text0 dist/default/production\gps2_click.X.production.obj
+__Hbank9 0 0 ABS 0 bank9 dist/default/production\gps2_click.X.production.obj
+__Lbank9 0 0 ABS 0 bank9 dist/default/production\gps2_click.X.production.obj
+__Htext1 0 0 ABS 0 text1 dist/default/production\gps2_click.X.production.obj
+__Ltext1 0 0 ABS 0 text1 dist/default/production\gps2_click.X.production.obj
+__ptext0 F08 0 CODE 0 text0 dist/default/production\gps2_click.X.production.obj
+__Htext2 0 0 ABS 0 text2 dist/default/production\gps2_click.X.production.obj
+__Ltext2 0 0 ABS 0 text2 dist/default/production\gps2_click.X.production.obj
+__ptext1 10DA 0 CODE 0 text1 dist/default/production\gps2_click.X.production.obj
+__Htext3 0 0 ABS 0 text3 dist/default/production\gps2_click.X.production.obj
+__Ltext3 0 0 ABS 0 text3 dist/default/production\gps2_click.X.production.obj
+__ptext2 1050 0 CODE 0 text2 dist/default/production\gps2_click.X.production.obj
+__Htext4 0 0 ABS 0 text4 dist/default/production\gps2_click.X.production.obj
+__Ltext4 0 0 ABS 0 text4 dist/default/production\gps2_click.X.production.obj
+__ptext3 11C8 0 CODE 0 text3 dist/default/production\gps2_click.X.production.obj
+__Htext5 0 0 ABS 0 text5 dist/default/production\gps2_click.X.production.obj
+__Ltext5 0 0 ABS 0 text5 dist/default/production\gps2_click.X.production.obj
+__ptext4 120A 0 CODE 0 text4 dist/default/production\gps2_click.X.production.obj
+__Htext6 0 0 ABS 0 text6 dist/default/production\gps2_click.X.production.obj
+__Ltext6 0 0 ABS 0 text6 dist/default/production\gps2_click.X.production.obj
+__ptext5 123E 0 CODE 0 text5 dist/default/production\gps2_click.X.production.obj
+__Htext7 0 0 ABS 0 text7 dist/default/production\gps2_click.X.production.obj
+__Ltext7 0 0 ABS 0 text7 dist/default/production\gps2_click.X.production.obj
+__ptext6 128E 0 CODE 0 text6 dist/default/production\gps2_click.X.production.obj
+__HbssCOMRAM 0 0 ABS 0 bssCOMRAM dist/default/production\gps2_click.X.production.obj
+__LbssCOMRAM 0 0 ABS 0 bssCOMRAM dist/default/production\gps2_click.X.production.obj
+__ptext7 1162 0 CODE 0 text7 dist/default/production\gps2_click.X.production.obj
+__pbssCOMRAM 24 0 COMRAM 1 bssCOMRAM dist/default/production\gps2_click.X.production.obj
+__Hclrtext 0 0 ABS 0 clrtext dist/default/production\gps2_click.X.production.obj
+__Lclrtext 0 0 ABS 0 clrtext dist/default/production\gps2_click.X.production.obj
+__end_of__initialization 1288 0 CODE 0 cinit dist/default/production\gps2_click.X.production.obj
+strncmp@len 1A 0 COMRAM 1 cstackCOMRAM dist/default/production\gps2_click.X.production.obj
+__size_of_strstr 0 0 ABS 0 - dist/default/production\gps2_click.X.production.obj
+_serial_init 123E 0 CODE 0 text5 dist/default/production\gps2_click.X.production.obj
+strlen@s 10 0 COMRAM 1 cstackCOMRAM dist/default/production\gps2_click.X.production.obj
+__Hidata 0 0 CODE 0 idata dist/default/production\gps2_click.X.production.obj
+__Lidata 0 0 CODE 0 idata dist/default/production\gps2_click.X.production.obj
+__Hrdata 0 0 COMRAM 1 rdata dist/default/production\gps2_click.X.production.obj
+__Lrdata 0 0 COMRAM 1 rdata dist/default/production\gps2_click.X.production.obj
+__Hidloc 0 0 IDLOC 0 idloc dist/default/production\gps2_click.X.production.obj
+__Lidloc 0 0 IDLOC 0 idloc dist/default/production\gps2_click.X.production.obj
+__Hstack 0 0 STACK 2 stack dist/default/production\gps2_click.X.production.obj
+__Lstack 0 0 STACK 2 stack dist/default/production\gps2_click.X.production.obj
+__size_of_serial_init 0 0 ABS 0 - dist/default/production\gps2_click.X.production.obj
+_reading 2C 0 COMRAM 1 bssCOMRAM dist/default/production\gps2_click.X.production.obj
+__Hparam 0 0 ABS 0 rparam dist/default/production\gps2_click.X.production.obj
+__Lparam 0 0 ABS 0 rparam dist/default/production\gps2_click.X.production.obj
+__HcstackCOMRAM 0 0 ABS 0 cstackCOMRAM dist/default/production\gps2_click.X.production.obj
+__LcstackCOMRAM 0 0 ABS 0 cstackCOMRAM dist/default/production\gps2_click.X.production.obj
+__CFG_OSC$INTOSC 0 0 ABS 0 - dist/default/production\gps2_click.X.production.obj
+__pcstackCOMRAM 1 0 COMRAM 1 cstackCOMRAM dist/default/production\gps2_click.X.production.obj
+_isrcall 26 0 COMRAM 1 bssCOMRAM dist/default/production\gps2_click.X.production.obj
+_init_io 1162 0 CODE 0 text7 dist/default/production\gps2_click.X.production.obj
+?_strlen 10 0 COMRAM 1 cstackCOMRAM dist/default/production\gps2_click.X.production.obj
+ISR@temp F 0 COMRAM 1 cstackCOMRAM dist/default/production\gps2_click.X.production.obj
+__Hsmallconst F08 0 SMALLCONST 0 smallconst dist/default/production\gps2_click.X.production.obj
+__Lsmallconst F00 0 SMALLCONST 0 smallconst dist/default/production\gps2_click.X.production.obj
+__psmallconst F00 0 SMALLCONST 0 smallconst dist/default/production\gps2_click.X.production.obj
+?_strchr 10 0 COMRAM 1 cstackCOMRAM dist/default/production\gps2_click.X.production.obj
+_strncmp 1050 0 CODE 0 text2 dist/default/production\gps2_click.X.production.obj
+__Hnvbit 0 0 COMRAM 1 nvbit dist/default/production\gps2_click.X.production.obj
+__Lnvbit 0 0 COMRAM 1 nvbit dist/default/production\gps2_click.X.production.obj
+__Hcinit 0 0 ABS 0 cinit dist/default/production\gps2_click.X.production.obj
+__Lcinit 0 0 ABS 0 cinit dist/default/production\gps2_click.X.production.obj
+__pcinit 1270 0 CODE 0 cinit dist/default/production\gps2_click.X.production.obj
+__ramtop F00 0 RAM 0 ramtop C:\Users\Chas\AppData\Local\Temp\s9o.obj
+__mediumconst 0 0 MEDIUMCONST 0 mediumconst C:\Users\Chas\AppData\Local\Temp\s9o.obj
+__size_of_main 0 0 ABS 0 - dist/default/production\gps2_click.X.production.obj
+__Hconst 0 0 CODE 0 const dist/default/production\gps2_click.X.production.obj
+__Lconst 0 0 CODE 0 const dist/default/production\gps2_click.X.production.obj
+strncmp@s1 16 0 COMRAM 1 cstackCOMRAM dist/default/production\gps2_click.X.production.obj
+?_strstr 1F 0 COMRAM 1 cstackCOMRAM dist/default/production\gps2_click.X.production.obj
+strncmp@s2 18 0 COMRAM 1 cstackCOMRAM dist/default/production\gps2_click.X.production.obj
+__end_of_serial_init 1270 0 CODE 0 text5 dist/default/production\gps2_click.X.production.obj
+__size_of_strchr 0 0 ABS 0 - dist/default/production\gps2_click.X.production.obj
+__HbssBANK0 0 0 ABS 0 bssBANK0 dist/default/production\gps2_click.X.production.obj
+__LbssBANK0 0 0 ABS 0 bssBANK0 dist/default/production\gps2_click.X.production.obj
+__Hbank10 0 0 ABS 0 bank10 dist/default/production\gps2_click.X.production.obj
+__pbssBANK0 60 0 BANK0 1 bssBANK0 dist/default/production\gps2_click.X.production.obj
+__Lbank10 0 0 ABS 0 bank10 dist/default/production\gps2_click.X.production.obj
+__Hbank11 0 0 ABS 0 bank11 dist/default/production\gps2_click.X.production.obj
+__Lbank11 0 0 ABS 0 bank11 dist/default/production\gps2_click.X.production.obj
+__CFG_FCMEN$OFF 0 0 ABS 0 - dist/default/production\gps2_click.X.production.obj
+__Hbank12 0 0 ABS 0 bank12 dist/default/production\gps2_click.X.production.obj
+__Lbank12 0 0 ABS 0 bank12 dist/default/production\gps2_click.X.production.obj
+__Hbank13 0 0 ABS 0 bank13 dist/default/production\gps2_click.X.production.obj
+__Lbank13 0 0 ABS 0 bank13 dist/default/production\gps2_click.X.production.obj
+__Hbank14 0 0 ABS 0 bank14 dist/default/production\gps2_click.X.production.obj
+__Lbank14 0 0 ABS 0 bank14 dist/default/production\gps2_click.X.production.obj
+_RCSTA2bits F9C 0 ABS 0 - dist/default/production\gps2_click.X.production.obj
+_TXSTA2bits FA8 0 ABS 0 - dist/default/production\gps2_click.X.production.obj
+___inthi_sp 0 0 STACK 2 stack C:\Users\Chas\AppData\Local\Temp\s9o.obj
+__end_of_strncmp 10DA 0 CODE 0 text2 dist/default/production\gps2_click.X.production.obj
+__CFG_WDTEN$OFF 0 0 ABS 0 - dist/default/production\gps2_click.X.production.obj
+___intlo_sp 0 0 STACK 2 stack C:\Users\Chas\AppData\Local\Temp\s9o.obj
+_OSCCONbits FD3 0 ABS 0 - dist/default/production\gps2_click.X.production.obj
+__end_of_strstr 1162 0 CODE 0 text1 dist/default/production\gps2_click.X.production.obj
+_INTCONbits FF2 0 ABS 0 - dist/default/production\gps2_click.X.production.obj
+_PPSCONbits EBF 0 ABS 0 - dist/default/production\gps2_click.X.production.obj
+__Hend_init FC 0 CODE 0 end_init dist/default/production\gps2_click.X.production.obj
+__Lend_init F8 0 CODE 0 end_init dist/default/production\gps2_click.X.production.obj
+__Hjflash_buffer 1F800 0 CODE 0 jflash_buffer dist/default/production\gps2_click.X.production.obj
+__Ljflash_buffer 1F800 0 CODE 0 jflash_buffer dist/default/production\gps2_click.X.production.obj
+__CFG_CP0$OFF 0 0 ABS 0 - dist/default/production\gps2_click.X.production.obj
+__smallconst F00 0 SMALLCONST 0 smallconst C:\Users\Chas\AppData\Local\Temp\s9o.obj
+__Hreset_vec 4 0 CODE 0 reset_vec dist/default/production\gps2_click.X.production.obj
+__Lreset_vec 0 0 CODE 0 reset_vec dist/default/production\gps2_click.X.production.obj
+strstr@s1 1F 0 COMRAM 1 cstackCOMRAM dist/default/production\gps2_click.X.production.obj
+__stringdata F01 0 SMALLCONST 0 smallconst dist/default/production\gps2_click.X.production.obj
+strstr@s2 21 0 COMRAM 1 cstackCOMRAM dist/default/production\gps2_click.X.production.obj
+__accesstop 60 0 ABS 0 - C:\Users\Chas\AppData\Local\Temp\s9o.obj
+__Hintcode_body 0 0 ABS 0 intcode_body dist/default/production\gps2_click.X.production.obj
+__Lintcode_body 0 0 ABS 0 intcode_body dist/default/production\gps2_click.X.production.obj
+intlevel0 0 0 CODE 0 text C:\Users\Chas\AppData\Local\Temp\s9o.obj
+__size_of_uart_xmit 0 0 ABS 0 - dist/default/production\gps2_click.X.production.obj
+intlevel1 0 0 CODE 0 text C:\Users\Chas\AppData\Local\Temp\s9o.obj
+intlevel2 0 0 CODE 0 text C:\Users\Chas\AppData\Local\Temp\s9o.obj
+intlevel3 0 0 CODE 0 text C:\Users\Chas\AppData\Local\Temp\s9o.obj
+__end_of_init_io 11C8 0 CODE 0 text7 dist/default/production\gps2_click.X.production.obj
+start_initialization 1270 0 CODE 0 cinit dist/default/production\gps2_click.X.production.obj
+__end_of_uart_xmit 1298 0 CODE 0 text6 dist/default/production\gps2_click.X.production.obj
+__CFG_IESO$OFF 0 0 ABS 0 - dist/default/production\gps2_click.X.production.obj
+__initialization 1270 0 CODE 0 cinit dist/default/production\gps2_click.X.production.obj
+__activetblptr 3 0 ABS 0 - dist/default/production\gps2_click.X.production.obj
+# %SPLITSTAB Section
+# This section enumerates all the psect splits performed by the assembler.
+# The beginning of the section is indicated by %SPLITSTAB.
+# Each line is a record a particular split, where the parent psect in on
+# the left and the child on the right.  Note that a child psect is always
+# split form the top of the parent psect. All splits from a given parent
+# are listed in the order in which they occurred.
+%SPLITSTAB
+# %DABS Section
+# This section contains a table of all usuage of the assember
+# directive DABS in the program. Each line has the following format:
+#   <name> <space> <address> <size>
+# If the DABS was originally labelled then that shall be <name>,
+# otherwise name will be "-".  The <space> number is in decimal.
+# <address> and <size> are in byte units as unqaulified hexadecimal
+%DABS
+# %SEGMENTS Section
+# This sections enumerates the segments of the program.  Each segment
+# is described on a single line as follows:
+#    <name> <space> <link address> <file address> <size> <delta>
+# Addresses and size are in unqualified hexadecimal.  The link address
+# and size are in units of delta. The file address is in units of bytes.
+# All other numeric quantities are in decimal.
+%SEGMENTS
+reset_vec 0 0 0 4 1
+intcode 0 8 8 F4 1
+smallconst 0 F00 F00 8 1
+config 0 1FFF8 1FFF8 8 1
+cstackCOMRAM 1 1 1 31 1
+bssBANK0 1 60 60 78 1
+text0 0 F08 F08 390 1

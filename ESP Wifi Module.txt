@@ -1,0 +1,153 @@
+#include <SoftwareSerial.h>
+#include <JsonParser.h>
+ 
+#define cs   10  // Pins for the display
+#define dc   9
+#define rst  8
+ 
+#include <Adafruit_GFX.h>    // Core graphics library
+#include <Adafruit_ST7735.h> // Hardware-specific library
+#include <SPI.h>
+ 
+Adafruit_ST7735 tft = Adafruit_ST7735(cs, dc, rst);
+ 
+using namespace ArduinoJson::Parser;
+ 
+#define SSID "<ssid>" // insert your SSID
+#define PASS "<password>" // insert your password
+#define LOCATIONID "2925533" // location id
+#define DST_IP "188.226.224.148" //api.openweathermap.org
+SoftwareSerial dbgSerial(2, 3); // RX, TX for debugging
+JsonParser<32> parser;
+ 
+void setup()
+{
+  Serial.begin(115200);
+  Serial.setTimeout(5000);
+  dbgSerial.begin(9600); // for debuging
+  dbgSerial.println("Init");
+  tft.initR(INITR_BLACKTAB);
+  tft.setRotation(1);
+  tft.fillScreen(ST7735_BLACK);
+  tft.setCursor(2, 2);
+  tft.setTextColor(ST7735_WHITE);
+  Serial.println("AT+RST"); // restet and test if module is redy
+  delay(1000);
+  if(Serial.find("ready")) {
+    dbgSerial.println("WiFi - Module is ready");
+    tft.println("WiFi - Module is ready");
+  }else{
+    dbgSerial.println("Module dosn't respond.");
+    tft.println("Module dosn't respond.");
+    tft.println("Please reset.");
+    while(1);
+  }
+  delay(1000);
+  // try to connect to wifi
+  boolean connected=false;
+  for(int i=0;i<5;i++){
+    if(connectWiFi()){
+      connected = true;
+      tft.println("Connected to WiFi...");
+      break;
+    }
+  }
+  if (!connected){
+    tft.println("Coudn't connect to WiFi.");
+    while(1);
+  }
+  delay(5000);
+  Serial.println("AT+CIPMUX=0"); // set to single connection mode
+}
+void loop()
+{
+  String cmd = "AT+CIPSTART=\"TCP\",\"";
+  cmd += DST_IP;
+  cmd += "\",80";
+  Serial.println(cmd);
+  dbgSerial.println(cmd);
+  if(Serial.find("Error")) return;
+  cmd = "GET /data/2.5/weather?id=";
+  cmd += LOCATIONID;
+  cmd = " HTTP/1.0\r\nHost: api.openweathermap.org\r\n\r\n";
+  Serial.print("AT+CIPSEND=");
+  Serial.println(cmd.length());
+  if(Serial.find(">")){
+    dbgSerial.print(">");
+  }else{
+    Serial.println("AT+CIPCLOSE");
+    dbgSerial.println("connection timeout");
+    tft.fillScreen(ST7735_BLACK);
+    tft.setCursor(2, 2);
+    tft.setTextColor(ST7735_WHITE);
+    tft.println("connection timeout");
+    delay(1000);
+    return;
+  }
+  Serial.print(cmd);
+  unsigned int i = 0; //timeout counter
+  int n = 1; // char counter
+  char json[100]="{";
+  while (!Serial.find("\"main\":{")){} // find the part we are interested in.
+  while (i<60000) {
+    if(Serial.available()) {
+      char c = Serial.read();
+      json[n]=c;
+      if(c=='}') break;
+      n++;
+      i=0;
+    }
+    i++;
+  }
+  dbgSerial.println(json);
+  JsonObject root = parser.parse(json);
+  double temp = root["temp"];
+  double pressure = root["pressure"];
+  double humidity = root["humidity"];
+  temp -= 273.15; // from kelvin to degree celsius
+  tft.fillScreen(ST7735_BLACK);
+  tft.setCursor(2, 25);
+  tft.setTextColor(ST7735_BLUE);
+  tft.setTextSize(2);
+  tft.print("Temp: ");
+  tft.print((int)temp);
+  tft.print(".");
+  tft.print((int)((temp-(int)temp)*10));
+  tft.println(" C");
+  tft.setCursor(2, 55);
+  tft.setTextColor(ST7735_GREEN);
+  tft.setTextSize(2);
+  tft.print("Press: ");
+  tft.print((int)pressure);
+  tft.setCursor(2, 85);
+  tft.setTextColor(ST7735_YELLOW);
+  tft.setTextSize(2);
+  tft.print("Humidity: ");
+  tft.print((int)humidity);
+  tft.println("%");
+  dbgSerial.println(temp);
+  dbgSerial.println(pressure);
+  dbgSerial.println(humidity);
+  dbgSerial.println("====");
+  delay(600000);
+}
+ 
+boolean connectWiFi()
+{
+  Serial.println("AT+CWMODE=1");
+  String cmd="AT+CWJAP=\"";
+  cmd+=SSID;
+  cmd+="\",\"";
+  cmd+=PASS;
+  cmd+="\"";
+  dbgSerial.println(cmd);
+  Serial.println(cmd);
+  delay(2000);
+  if(Serial.find("OK")){
+    dbgSerial.println("OK, Connected to WiFi.");
+    return true;
+  }else{
+    dbgSerial.println("Can not connect to the WiFi.");
+    return false;
+  }
+}

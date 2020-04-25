@@ -1,0 +1,22 @@
+_uart_write: CODE, 6450 0 94
+__stringdata: SMALLCONST, 4137 0 21
+_ISR: CODE, 8 0 252
+_strlen: CODE, 6796 0 66
+_dpowers: SMALLCONST, 4097 0 40
+_main: CODE, 5280 0 298
+_lat: CODE, 4854 0 426
+_strchr: CODE, 6862 0 52
+___lmul: CODE, 6636 0 86
+__initialization: CODE, 6722 0 68
+___lldiv: CODE, 6116 0 134
+_serial_init: CODE, 6914 0 52
+_isdigit: CODE, 6966 0 42
+_sprintf: CODE, 4160 0 694
+_atol: CODE, 5578 0 264
+_strncmp: CODE, 5842 0 138
+_strstr: CODE, 5980 0 136
+___llmod: CODE, 6250 0 106
+_init_io: CODE, 6544 0 92
+_uart_xmit: CODE, 7040 0 10
+_strncpy: CODE, 6356 0 94
+Total: 3165

@@ -1,0 +1,12 @@
+_ISR: CODE, 4 0 110
+_main: CODE, 333 0 138
+_check_master_crc: CODE, 598 0 90
+_modbus_crc: CODE, 471 0 127
+_respond_input_status: CODE, 156 0 177
+__initialization: CODE, 116 0 36
+_check_my_address: CODE, 688 0 75
+_serial_init: CODE, 763 0 26
+_run_timer: CODE, 815 0 20
+_init_io: CODE, 789 0 26
+_uart_xmit: CODE, 847 0 6
+Total: 831

@@ -1,0 +1,61 @@
+ ------------« Begin Code »------------
+
+void InterruptHandlerHigh(void) // Declaration of InterruptHandler
+{
+            //Check If TMR1 Interrupt Flag Is Set
+     if(PIR1bits.CCP1IF){
+            //Get Timer1 Value For the 4th Detected Rising Edge;
+     cap_val = ReadTimer1();
+            //Clear Timer
+     WriteTimer1( 0x0000 );
+            //Clear CCP1 Overflow Flag Bit
+       PIR1bits.CCP1IF = 0;
+     }           //Check If CCP1 Interrupt Flag Is Set
+     else if(PIR1bits.TMR1IF){
+       //Timer Over Flowed: Add 0xFFFF To Current Capture Value
+       //This Is Not Used, But Would Be Necessary
+       //For Tracking Less Than 1200 RPMs
+     cap_val += 65535;
+            //Clear Timer1 Overflow Flag Bit
+     PIR1bits.TMR1IF = 0;
+     }
+//Re-enable Global Interrupts
+INTCONbits.GIE = 1;
+}
+
+------------« End Code »------------
+
+           The bold code above is what happens when a rising edge is detected. The value from Timer1 was read and stored in a variable. This value is the period for 1 fan blade to interrupt the photo-detector circuit.
+           One important note: I actually set this up so that every 4th rising edge triggers interrupt, then divide that value by 4 which gives a moving average for the period. This makes the data less sloppy and smoothed out.
+
+RPM Calculation & Display On LCD
+
+------------« Begin Code »------------
+
+...
+...
+      cur_cap_val = 60000000 /((cap_val>>2)*7);
+         //******************************************************
+         //Don't Show Junk Data
+         //RPMs Should Always Be between 1200 -> 3200
+         //******************************************************
+      if( cur_cap_val > 4000 || cur_cap_val < 1000){
+      array_2[4] = '\0';
+      array_2[3] = '\0';
+      array_2[2] = '\0';
+      array_2[1] = '\0';
+      array_2[0] = '0';
+      }
+      else{
+      ultoa(cur_cap_val,array_2);
+      }
+
+      if( isdigit( (unsigned char) array_2[4] )){
+      LCD_WRITE( (unsigned char) array_2[4],8);
+      LCD_WRITE( (unsigned char) array_2[3],7);
+      LCD_WRITE( (unsigned char) array_2[2],6);
+      LCD_WRITE( (unsigned char) array_2[1],5);
+      LCD_WRITE( (unsigned char) array_2[0],4);
+      }
+      else if( isdigit( (unsigned char) array_2[3] )){
+...

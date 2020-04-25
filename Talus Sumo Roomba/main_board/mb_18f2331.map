@@ -1,0 +1,142 @@
+MPLINK 4.45, Linker
+Linker Map File - Created Fri Feb 08 16:28:29 2013
+
+                                 Section Info
+                  Section       Type    Address   Location Size(Bytes)
+                ---------  ---------  ---------  ---------  ---------
+                   .org_0       code   0x000000    program   0x000004
+                   .cinit    romdata   0x000004    program   0x000002
+                   .org_1       code   0x000008    program   0x00027e
+       .config_300000_M.O       code   0x300000    program   0x000002
+       .config_300002_M.O       code   0x300002    program   0x000002
+       .config_300004_M.O       code   0x300004    program   0x000002
+       .config_300006_M.O       code   0x300006    program   0x000002
+       .config_300008_M.O       code   0x300008    program   0x000002
+       .config_30000A_M.O       code   0x30000a    program   0x000002
+       .config_30000C_M.O       code   0x30000c    program   0x000002
+
+
+
+                              Program Memory Usage 
+                               Start         End      
+                           ---------   ---------      
+                            0x000000    0x000005      
+                            0x000008    0x000285      
+                            0x300000    0x30000d      
+            658 out of 8472 program addresses used, program memory utilization is 7%
+
+
+
+                              Symbols - Sorted by Name
+                     Name    Address   Location    Storage File                     
+                ---------  ---------  ---------  --------- ---------                
+                    LOOP1   0x00003a    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+                    LOOP2   0x00003e    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+                    LOOP3   0x000042    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+             _.org_1_006A   0x00006a    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+             _.org_1_0076   0x000076    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+             _.org_1_0082   0x000082    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+             _.org_1_008E   0x00008e    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+             _.org_1_0098   0x000098    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+             _.org_1_00A4   0x0000a4    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+             _.org_1_00AE   0x0000ae    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+             _.org_1_00BA   0x0000ba    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+             _.org_1_00C4   0x0000c4    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+             _.org_1_00D0   0x0000d0    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+             _.org_1_00DA   0x0000da    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+             _.org_1_00E6   0x0000e6    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+             _.org_1_00F0   0x0000f0    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+             _.org_1_00FC   0x0000fc    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+             _.org_1_0106   0x000106    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+             _.org_1_0112   0x000112    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+             _.org_1_011C   0x00011c    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+             _.org_1_0128   0x000128    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+             _.org_1_0132   0x000132    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+             _.org_1_013C   0x00013c    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+             _.org_1_0146   0x000146    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+             _.org_1_0152   0x000152    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+             _.org_1_015C   0x00015c    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+             _.org_1_0168   0x000168    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+             _.org_1_0200   0x000200    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+                 delay_1s   0x000036    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+          drive_leftcliff   0x00016e    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+                 init_232   0x000056    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+            init_EncCount   0x00002c    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+    init_motor_controller   0x000064    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+               init_ports   0x00000c    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+                     loop   0x00026c    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+      motor_left_fwd_full   0x000088    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+      motor_left_fwd_half   0x0000b4    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+    motor_left_fwd_normal   0x00009e    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+      motor_left_rev_half   0x0000ca    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+          motor_left_stop   0x00007c    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+     motor_right_fwd_full   0x00010c    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+     motor_right_fwd_half   0x0000f6    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+   motor_right_fwd_normal   0x0000e0    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+  motor_right_fwd_quarter   0x000122    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+     motor_right_rev_full   0x00014c    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+     motor_right_rev_half   0x000136    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+         motor_right_stop   0x000070    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+          poll_leftclfsen   0x0001bc    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+              rs232_write   0x000162    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+                    start   0x0001cc    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+                     wait   0x0001fe    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+
+
+
+                              Symbols - Sorted by Address
+                     Name    Address   Location    Storage File                     
+                ---------  ---------  ---------  --------- ---------                
+               init_ports   0x00000c    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+            init_EncCount   0x00002c    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+                 delay_1s   0x000036    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+                    LOOP1   0x00003a    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+                    LOOP2   0x00003e    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+                    LOOP3   0x000042    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+                 init_232   0x000056    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+    init_motor_controller   0x000064    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+             _.org_1_006A   0x00006a    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+         motor_right_stop   0x000070    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+             _.org_1_0076   0x000076    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+          motor_left_stop   0x00007c    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+             _.org_1_0082   0x000082    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+      motor_left_fwd_full   0x000088    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+             _.org_1_008E   0x00008e    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+             _.org_1_0098   0x000098    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+    motor_left_fwd_normal   0x00009e    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+             _.org_1_00A4   0x0000a4    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+             _.org_1_00AE   0x0000ae    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+      motor_left_fwd_half   0x0000b4    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+             _.org_1_00BA   0x0000ba    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+             _.org_1_00C4   0x0000c4    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+      motor_left_rev_half   0x0000ca    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+             _.org_1_00D0   0x0000d0    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+             _.org_1_00DA   0x0000da    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+   motor_right_fwd_normal   0x0000e0    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+             _.org_1_00E6   0x0000e6    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+             _.org_1_00F0   0x0000f0    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+     motor_right_fwd_half   0x0000f6    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+             _.org_1_00FC   0x0000fc    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+             _.org_1_0106   0x000106    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+     motor_right_fwd_full   0x00010c    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+             _.org_1_0112   0x000112    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+             _.org_1_011C   0x00011c    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+  motor_right_fwd_quarter   0x000122    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+             _.org_1_0128   0x000128    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+             _.org_1_0132   0x000132    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+     motor_right_rev_half   0x000136    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+             _.org_1_013C   0x00013c    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+             _.org_1_0146   0x000146    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+     motor_right_rev_full   0x00014c    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+             _.org_1_0152   0x000152    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+             _.org_1_015C   0x00015c    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+              rs232_write   0x000162    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+             _.org_1_0168   0x000168    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+          drive_leftcliff   0x00016e    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+          poll_leftclfsen   0x0001bc    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+                    start   0x0001cc    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+                     wait   0x0001fe    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+             _.org_1_0200   0x000200    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+                     loop   0x00026c    program     static C:\Users\CHAS\Documents\Development\PIC\Talus Sumo Roomba\main_board\m.asm
+
+

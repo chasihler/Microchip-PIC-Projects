@@ -1,0 +1,2134 @@
+
+	title  "Electric Druid PIC VCDO - The Holy Grail!"
+;
+; The Electric Druid Voltage-Controlled Digital Oscillator
+; 25 March 2012
+; With thanks to Olivier Gillet for proving oscs on 8-bit uPs is worth doing.
+;
+; Hardware Notes:
+;   PIC16F1847 running at 32 MHz using the internal clock
+; 1  RA2/AN2	: 0-5V Frequency Knob, -24 to +24 semitones
+; 2  RA3/AN3	: 0-5V Fine Knob, -100 to +100 cents
+; 3  RA4/AN5	: 0-5V Waveform Knob, 0-255, 16 waveforms with interp
+; 4  ~MCLR/Vpp	: ICSP Vpp only
+; 5  Gnd
+; 6  RB0/CCP1	: Main Osc 8-bit PWM Output at 125KHz
+; 7  RB1/AN11	: 0-5V Sub Select Knob, 8 waveforms over 4 octaves
+; 8  RB2/AN10	: 0-5V Glide Knob, portamento time
+; 9  RB3/AN9	: 0-5V Bitcrush Knob, gives 8-bit to 1-bit settings
+; 10 RB4/AN8	: 0-5V Note CV, MIDI notes 0-63
+; 11 RB5/AN7	: 0-5V Freq Mod CV, -8 to +8 semitones
+; 12 ICSPCLK
+; 13 ICSPDAT/Glide In	: +5V=Glide On, 0V=Glide Off
+; 14 +5V
+; 15 RA6		: Currently test output
+; 16 RA7		: Sub Osc 8-bit PWM Output at 125KHz
+; 17 RA0/AN0	: 0-5V Waveform CV, scans wavetable
+; 18 RA1/AN1	: 0-5V Sub Select CV, modulates sub osc selection
+
+; Production Version 1, VCDO1.ASM
+; Developed from VCDO1M.ASM, the last/latest test version.
+; T.Wiltshire, August 2012
+
+	LIST R=DEC
+	INCLUDE <p16f1847.inc>
+	Errorlevel -302, -303
+
+; 16F1847 Configuration
+	__CONFIG _CONFIG1, _FOSC_INTOSC & _WDTE_OFF & _PWRTE_ON & _MCLRE_OFF & _CP_OFF & _CPD_OFF & _BOREN_OFF & _CLKOUTEN_OFF & _IESO_OFF & _FCMEN_OFF
+	__CONFIG _CONFIG2, _WRT_OFF & _PLLEN_ON & _STVREN_ON & _LVP_OFF
+
+;----------------------------------------------------------------------------
+; Four sample buffers of 16 samples each
+;----------------------------------------------------------------------------
+ CBLOCK 0x0A0
+	MAIN_OSC_BUFF1: 16			; This needs to be on a multiple of 16 
+	SUB_OSC_BUFF1: 16
+	MAIN_OSC_BUFF2: 16			; (0x20,0x30 etc)
+	SUB_OSC_BUFF2: 16
+ ENDC
+
+;----------------------------------------------------------------------------
+;	Variables
+;----------------------------------------------------------------------------
+ CBLOCK 0x020
+	; Where are we in the buffer?
+	SAMPLE_POS
+	; How many samples have we generated? (out of 16 in the buffer)
+	LOOP_COUNT
+
+	; General working storage
+	INDEX						; Used to store the index during lookups
+	TEMP
+	TEMP2
+
+	ADC_CHANNEL					; Which of the knobs and CVs are we reading?
+	ADC_STAGE					; What stage of the conversion process is this?
+	ADC_VALUE					; What's the final value?
+	
+	; Various flag bits. 1 is on,obviously.
+	SYS_FLAGS					; See Define statements below for details
+
+; The Input Variables (Control knobs and CV inputs)
+;--------------------------------------------------
+	NOTE_CV						; This is basically a MIDI note number 0-119
+	FREQ_MOD_CV					; FM input with no stepping
+	SUB_SELECT_CV				; Sub Osc Waveform switching
+	WAVE_CV						; Main Osc Wavetable scan
+
+	FREQ_CTRL					; 5 main controls
+	FINE_CTRL
+	WAVE_CTRL
+	SUB_SELECT_CTRL				; SubOsc waveform select
+;	GLIDE_CTRL					; (In truth, these variables aren't used)
+	BITCRUSH_CTRL
+
+;	PITCH_TUNE_CTRL			; Not implemented
+;	UNUSED_CTRL				; Currently ISCP input
+
+; Intermediate variables
+;------------------------------
+	FREQ_OFFSET					; -24 to +24 semitones
+	GLIDE_RATE_HI				; The portamento rate
+	GLIDE_RATE_LO
+	SUB_DETUNE_HI				; Linear detuning of Sub Osc
+	SUB_DETUNE_LO	
+	BIT_MASK					; Bitcrush mask
+	REQ_PITCH_HI				; This is the pitch we're aiming at
+	REQ_PITCH_LO
+	PITCH_HI					; This is the current pitch
+	PITCH_MID					; It may not be the same as REQ_PITCH
+	PITCH_LO					; because of portamento
+	OCTAVE						; Current octave (working storage)
+
+; The Oscillator + Sub
+;------------------------------
+	OSC_FREQ_HI					; The 24-bit frequency increment
+	OSC_FREQ_MID
+	OSC_FREQ_LO
+
+	OSC_PHASE_HI				; The 24-bit phase accumulator
+	OSC_PHASE_MID
+	OSC_PHASE_LO
+
+	SUB_FREQ_HI					; Same again for Sub Osc
+	SUB_FREQ_MID
+	SUB_FREQ_LO
+
+	SUB_PHASE_HI
+	SUB_PHASE_MID
+	SUB_PHASE_LO
+
+	OSC_WAVE					; Waveform selection 0-7
+	OSC_SHAPE					; Waveshape - an interp index between 2 waves
+
+	OSC_SUB_OCTAVE				; Sub Osc octave: +1, 0, -1, -2
+	OSC_SUB_WAVE				; Address of Sub Osc waveform
+
+; The Waveshape Interpolation
+;------------------------------
+	UPPER_WAVE					; Address of upper wavetable
+	LOWER_WAVE					; Address of lower wavetable
+	INPUT_X						; The two things we're interpolating
+	INPUT_Y
+;	INTERP_INDEX	- I don't need this. I use OSC_SHAPE directly.
+	INTERP_OUT					; The result
+; 5 bytes free here!
+ ENDC
+
+; 0x70-0x7F  Common RAM - Special variables available in all banks
+ CBLOCK 0x070
+	OUTPUT						; The 8-bit PWM audio oscillator output
+	SUB_OUTPUT					; The 8-bit PWM audio sub oscillator output	
+ ENDC
+
+;----------------------------------------------------------------------------
+;	DEFINE STATEMENTS
+;----------------------------------------------------------------------------
+
+; Useful bit definitions for clarity	
+#define ZEROBIT				STATUS,Z		; Zero Flag
+#define CARRY				STATUS,C		; Carry
+#define BORROW				STATUS,C		; Borrow is the same as Carry
+; System Flag bit definitions
+#define SAMPLES_REQ			SYS_FLAGS, 0	; New samples are required
+#define	LOWER_THAN_REQ		SYS_FLAGS, 1	; Pitch is lower than required
+#define GLIDE_ON			SYS_FLAGS, 2	; Is Glide switched on? (1=yes)
+
+; Sub Oscillator flags
+#define ONE_OCTAVE_DOWN		OSC_SUB_OCTAVE, 5	; Shift SubOsc 1 oct down
+#define TWO_OCTAVES_DOWN	OSC_SUB_OCTAVE, 6	; Shift SubOsc 2 octaves down
+
+; Sneaky sample handling flags (see notes)
+#define BUFFER_OVERFLOW		SAMPLE_POS, 4	; Have we run out of buffer?
+#define BUFFER_ONE			SAMPLE_POS, 5	; Are we using buffer two?
+
+#define GLIDE_SWITCH		PORTB,7			; Glide On/Off input on RB7
+
+; DEBUG - OUTPUT TIMING PULSE
+#define TIMING_LED			PORTA,6			; Output LED on RA6
+
+;----------------------------------------------------------------------------
+;	In the beginning, all was 0x000 and NOP...
+;----------------------------------------------------------------------------
+	org     0x0000				; Processor reset vector
+	nop							; for ICD use
+	goto    Main				; Go to the main program
+
+;----------------------------------------------------------------------------
+;	Sample Output Interrupt
+;----------------------------------------------------------------------------
+	org     0x0004				;Interrupt vector location
+InterruptEnter:
+	movlb	D'0'				; Bank 0
+	bcf		PIR1, TMR2IF		; Clear TMR2 interrupt flag
+
+; Set up the sample pointer
+	clrf	FSR1H
+	movf	SAMPLE_POS, w		; Add the current position in the buffer
+	movwf	FSR1L				; Set up the indirection register
+; Get the sample for the Main Osc
+	movf	INDF1, w			; Get the main oscillator sample
+	movwf	OUTPUT				; Get it ready for output
+; Get the sample for the Sub Osc
+	moviw	16[FSR1]			; Get the sub oscillator sample
+	movwf	SUB_OUTPUT			; Get it ready for output
+
+; Move onto the next sample and check for the end of the buffer
+	incf	SAMPLE_POS, f
+	
+; Have we run out of samples in this buffer?
+	btfss	BUFFER_OVERFLOW
+	goto	PWMOutput
+
+ChangeBuffer:
+	; Clear the overflow bit
+	bcf		BUFFER_OVERFLOW
+	; Toggle the buffer bit
+	movlw	0x60				; Move to buffer 1 if on buffer 2
+	xorwf	SAMPLE_POS, f		; and vice versa
+	; Request more samples from the main code
+	bsf		SAMPLES_REQ	
+
+; Puts the value of OUTPUT/SUB_OUTPUT into the appropriate
+; PWM duty cycle registers.
+PWMOutput:
+; Main Oscillator output
+	; Put the 2 LSBs of OUTPUT into CCP1CON
+	movlb	D'5'				; Bank 5
+	lsrf	OUTPUT, f			; Rotate bit 0 into the carry bit
+	bsf		CCP1CON, DC1B0		; Set or clear bit 4 of the CCP1CON register
+	btfss	CARRY
+	bcf		CCP1CON, DC1B0
+	lsrf    OUTPUT, f			; Rotate bit 1 into the carry bit
+	bsf		CCP1CON, DC1B1		; Set or clear bit 5 of the CCP1CON register
+	btfss	CARRY
+	bcf		CCP1CON, DC1B1
+	; Put the 6 high bits into CCPR1L
+	movf	OUTPUT, w
+	movwf   CCPR1L
+
+; Sub Oscillator output
+	; Put the 2 LSBs of SUB_OUTPUT into CCP2CON
+	lsrf	SUB_OUTPUT, f		; Rotate bit 0 into the carry bit
+	bsf		CCP2CON, DC1B0		; Set or clear bit 4 of the CCP2CON register
+	btfss	CARRY
+	bcf		CCP2CON, DC1B0
+	lsrf    SUB_OUTPUT, f		; Rotate bit 1 into the carry bit
+	bsf		CCP2CON, DC1B1		; Set or clear bit 5 of the CCP2CON register
+	btfss	CARRY
+	bcf		CCP2CON, DC1B1
+	; Put the 6 high bits into CCPR2L
+	movf	SUB_OUTPUT, w
+	movwf   CCPR2L
+
+InterruptExit:
+	retfie
+
+
+;----------------------------------------------------------------------------
+;	MAIN PROGRAM
+; This sets everything up before moving into the sample gen/ADC reading loop.
+;----------------------------------------------------------------------------
+Main:
+	movlb	D'1'				; Bank 1
+
+	; Set up the clock for 32MHz internal
+	movlw	B'11110000'			; 8MHz internal, x4 PLL
+	movwf	OSCCON
+
+	; Set up the IO Ports
+	movlw	B'00111111'			; All inputs except RA6-Sync, RA7-CCP2 PWM out
+	movwf	TRISA
+	movlw	B'11111110'			; All inputs except RB0-CCP1 PWM out
+	movwf	TRISB
+
+	; Set up the PWM sample interrupt
+	bsf		INTCON, GIE			; Enable interrupts
+	bsf		INTCON, PEIE		; Enable peripheral interrupts
+	bsf		PIE1, TMR2IE		; Enable the PWM interrupt
+
+	; Move CCP1 PWM output to pin RB0 and CCP2 PWM output to pin RA7
+	movlb	D'2'				; Bank 2
+	movlw	B'00001001'
+	movwf	APFCON0
+ 
+	; Set up Timer2 as PWM timebase
+	; 32MHz clock is used for Timer2
+	movlb	D'0'				; Bank 0
+	clrf	TMR2				; Clear Timer2
+	movlw	0x3F				; Set up Timer2 period register
+	movwf	PR2					; 8-bit, 125KHz PWM resolution
+	movlw	B'00001000'			; Postscale /2 (for ISR), Prescale /1, Tmr Off
+	movwf	T2CON				; PWM Frequency 125KHz, ISR at 62.5KHz
+
+	movlb	D'5'				; Bank 5
+	clrf	CCPTMRS				; All PWM modules use Timer2 for the timebase
+	; Set up PWM modules CCP1 & CCP2
+	movlw	B'00001100'			; Single output, PWM mode
+	movwf	CCP1CON
+	movwf	CCP2CON
+
+	; Remember that CCPR1L is the 8 MSBs, and the LSBs are in CCP1CON<5:4>
+	movlw	0x20
+	movwf	CCPR1L				; 50% duty cycle for starters
+	movwf	CCPR2L
+
+	movlb	D'0'				; Bank 0
+
+	; Start PWM up
+	bsf		T2CON, TMR2ON		; Turn timer 2 on
+
+; Set up Analog-to-digital convertor and ADC inputs
+	movlb	D'3'				; Bank 3
+	movlw	B'00011111'			; 5 Analog inputs on RA0-RA4
+	movwf	ANSELA
+	movlw	B'00111110'			; 5 Analog inputs on RB1-RB5
+	movwf	ANSELB
+; IGNORING RB6 AND RB7 - CURRENTLY ICSP, WILL BE CVS
+	
+	movlb	D'1'				; Bank 1
+	movlw	B'01100000'			; Left-justified, Fosc/64
+	movwf	ADCON1
+
+	; Set up Timer0 as ADC acquisition timer
+	movlw	B'00000001'			; Prescale for Timer 0, prescale /4 = 2MHz
+	movwf	OPTION_REG
+
+
+	movlb	D'0'				; Bank 0
+
+	; Set up both indirection pointers for Bank0
+	clrf	FSR0H
+	clrf	FSR1H
+
+	; Set up initial values of the variables
+	clrf	SYS_FLAGS
+	clrf	ADC_STAGE			; Start with new channel
+	clrf	ADC_CHANNEL			; We start by inc, so Channel 1
+
+	; Set up sample Buffer
+	movlw	#MAIN_OSC_BUFF1		; We start on buffer 1
+	movwf	SAMPLE_POS
+	bsf		SAMPLES_REQ			; And we *need* samples!
+
+	; Set up input variables
+	clrf	NOTE_CV
+	clrf	FREQ_MOD_CV
+	clrf	SUB_SELECT_CV
+	clrf	WAVE_CV
+	clrf	FREQ_CTRL
+	clrf	FINE_CTRL
+	clrf	SUB_SELECT_CTRL
+	clrf	BITCRUSH_CTRL
+
+	; Set up intermediate variables
+	clrf	REQ_PITCH_LO		
+	clrf	PITCH_LO
+	clrf	PITCH_MID
+	movlw	D'69'
+	movwf	PITCH_HI			; Concert A, 440Hz
+	movwf	REQ_PITCH_HI
+
+	movlw	D'255'				; Default to max increment, no portamento
+	movwf	GLIDE_RATE_HI		; The portamento rate
+	movwf	GLIDE_RATE_LO
+
+;	movlw	D'2'				; Default to no detune
+;	movwf	SUB_DETUNE_HI
+;	clrf	SUB_DETUNE_LO
+
+	clrf	OCTAVE
+
+	movlw	D'255'				; Default to no bitcrushing, full 8-bits
+	movwf	BIT_MASK
+
+	; Set up oscillator
+	clrf	OSC_PHASE_LO		; Clear Osc Accumulators
+	clrf	OSC_PHASE_MID
+	clrf	OSC_PHASE_HI
+	clrf	OSC_FREQ_LO
+	clrf	OSC_FREQ_MID
+	clrf	OSC_FREQ_HI
+	clrf	SUB_PHASE_LO		; Clear Sub Osc Accumulators
+	clrf	SUB_PHASE_MID
+	clrf	SUB_PHASE_HI
+	clrf	SUB_FREQ_LO
+	clrf	SUB_FREQ_MID
+	clrf	SUB_FREQ_HI
+	clrf	OSC_WAVE
+	clrf	OSC_SUB_OCTAVE		; Defaults to +1 octave
+	clrf	OSC_SUB_WAVE
+
+
+;----------------------------------------------------------------------------
+;	MAIN LOOP
+; This checks if further samples are required and generates them if so.
+; In the meantime, it checks the ADC channels and sets the control variables.
+;----------------------------------------------------------------------------
+MainLoop:
+	movlb	D'0'				; Bank 0
+
+; Do we need more samples for the audio output?
+	btfss	SAMPLES_REQ
+	goto	ReadCVs				; Read CVs if no sample required yet
+
+	; DEBUG
+	bsf		TIMING_LED
+
+	; Yes, we need more samples
+	call	SampleGeneration
+
+	; DEBUG
+	movlb	D'0'				; Bank 0
+	bcf		TIMING_LED
+	
+	; That's y'lot!
+	goto	MainLoop
+
+
+;----------------------------------------------------------------------------
+;	CONTROL KNOB AND EXTERNAL CV INPUTS
+;----------------------------------------------------------------------------
+ReadCVs:
+; We scan ADC channels sequentially. There are four stages:
+; Stage 0	- Increment to new channel and select new ADC channel
+; Stage 1	- Wait for acquisition, then start conversion
+; Stage 2	- Wait for conversion result, then process result
+	movf	ADC_STAGE, w			
+	brw							; Relative branch with stage value
+SelectADCStage:
+	goto	ADCNewChannel
+	goto	ADCAcquireAndStart
+	goto	ADCWaitAndProcess
+
+ADCNewChannel:
+	incf	ADC_CHANNEL, w		; Move to next CV input
+	andlw	0xF					; Only need four LSBs
+	movwf	ADC_CHANNEL			; Store updated CV input/ADC Channel
+	; Select new ADC input
+	call	GetADChannel
+	movlb	D'1'				; Bank 1
+	movwf	ADCON0
+	movlb	D'0'				; Bank 0	
+	; Now wait for acquisition
+	movlw	D'5'				; 250 x 0.4us = 0.1ms acquisistion time
+	movwf	TMR0
+	bcf		INTCON, T0IF		; Clear overflow flag
+	incf	ADC_STAGE,f			; Move to waiting for acquisition stage
+	goto	MainLoop
+
+ADCAcquireAndStart:
+	; We're waiting - has the ADC settled/acquired the input?
+	btfss   INTCON, T0IF		; If Timer0 has timed out, it's settled
+	goto	MainLoop			; It's not done yet
+	; Ok, it's done, so move to the stage below
+
+ADCStartConversion:
+	movlb	D'1'				; Bank 1
+	bsf     ADCON0, GO			; Start conversion
+	movlb	D'0'				; Bank 0
+	incf	ADC_STAGE,f			; Move to waiting for result stage
+	goto	MainLoop
+
+ADCWaitAndProcess:
+	; We're waiting - has the ADC finished the conversion?
+	movlb	D'1'				; Bank 1
+	btfsc   ADCON0, GO
+	goto	MainLoop			; It's not done yet
+	; Ok, it's done, so move to the stage below
+
+ADCProcessResult:
+	; Exactly what is this ADC result anyway? Lucky we remember what
+	; CV input we got it from!
+	movf	ADRESH, w
+	movlb	D'0'				; Bank 0
+	movwf	ADC_VALUE
+	movf	ADC_CHANNEL, w		; Get current channel				
+	brw							; Relative branch with channel value
+SelectCVInput:
+	goto	NoteCV
+	goto	FreqModCV
+	goto	SubSelectCV
+	goto	WaveCV
+	goto	FreqControl
+	goto	FineControl
+	goto	WaveformControl
+	goto	SubSelectControl
+	goto	NoteCV				; External CV inputs get checked twice
+	goto	FreqModCV
+	goto	SubSelectCV
+	goto	WaveCV
+	goto	GlideControl
+	goto	BitcrushControl
+	goto	DummyCV				; AN5	(Currently ISCP)
+	goto	DummyCV				; AN6	(Currently ISCP)
+
+;----------------------------------------------------------------------------
+;	EXTERNAL CV INPUTS
+; Note that these are inverted to suit external inverting mixers.
+; The expected range therefore runs from 0=+5V to 255=0V.
+;----------------------------------------------------------------------------
+NoteCV:
+	comf	ADC_VALUE, w		; Invert ADC value into W
+	movwf	NOTE_CV				; Store it
+	lsrf	NOTE_CV, f			
+	lsrf	NOTE_CV, f			; Reduce to 6-bits, 0-63 MIDI note number
+	call	RebuildPitchWord	; This will have altered!
+	; All done! Go back to the beginning!
+	clrf	ADC_STAGE			; Move to the next CV input
+	goto	MainLoop
+
+FreqModCV:
+	comf    ADC_VALUE, w		; Deal with the inversion
+	movwf	FREQ_MOD_CV
+	call	RebuildPitchWord	; This will have altered!
+	; All done! Go back to the beginning!
+	clrf	ADC_STAGE			; Move to the next CV input
+	goto	MainLoop
+
+SubSelectCV:
+	comf    ADC_VALUE, w		; Deal with the inversion
+	movwf	SUB_SELECT_CV
+	call	UpdateSubWaveform
+	clrf	ADC_STAGE			; Move to the next CV input
+	goto	MainLoop
+
+WaveCV:
+	comf    ADC_VALUE, w		; Deal with the inversion
+	movwf	WAVE_CV
+	call	UpdateWaveform
+	clrf	ADC_STAGE			; Move to the next CV input
+	goto	MainLoop
+
+;----------------------------------------------------------------------------
+;	CONTROL KNOBS
+;----------------------------------------------------------------------------
+FreqControl:
+	movf    ADC_VALUE, w
+	call	GetFreqControl		; Map 0-255 to -24 to +24 semitones
+	btfsc	WREG, 7				; Apply hysteresis (128 represents a boundary)
+	goto	FreqControlExit		; Skip if on a boundary
+	movwf	FREQ_CTRL			; Store the result
+	call	RebuildPitchWord	; This will have altered!
+FreqControlExit:
+	; All done! Go back to the beginning!
+	clrf	ADC_STAGE			; Move to the next CV input
+	goto	MainLoop
+
+
+FineControl:
+	movf    ADC_VALUE, w
+	movwf	FINE_CTRL
+	call	RebuildPitchWord	; This will have altered!
+	; All done! Go back to the beginning!
+	clrf	ADC_STAGE			; Move to the next CV input
+	goto	MainLoop
+
+
+WaveformControl:
+	;  Read the ADC Value and check it out
+	movf    ADC_VALUE, w
+	movwf	WAVE_CTRL
+	call	UpdateWaveform
+	; All done! Go back to the beginning!
+	clrf	ADC_STAGE			; Move to the next CV input
+	goto	MainLoop
+
+
+SubSelectControl:
+	movf    ADC_VALUE, w
+	movwf	SUB_SELECT_CTRL
+	call	UpdateSubWaveform
+	; All done! Go back to the beginning!
+	clrf	ADC_STAGE			; Move to the next CV input
+	goto	MainLoop
+
+
+GlideControl:
+	; Create the index (shift the ADC_VALUE up one place)
+	movf    ADC_VALUE, w		; Store ADC value as index
+	movwf	FSR0L
+	clrf	FSR0H
+	lslf	FSR0L, f			; Shift up for 16-bit table
+	rlf		FSR0H, f
+	; Add base address to pointer to read the glide data
+	movlw	LOW Portamento
+	addwf	FSR0L, f
+	movlw	HIGH Portamento
+	addwfc	FSR0H, f
+	; Get the data
+	moviw	FSR0++
+	movwf	GLIDE_RATE_HI
+	movf	INDF0, w			; Annoyingly, we can't do 'moviw FSR0'
+	movwf	GLIDE_RATE_LO
+	; Is the Glide switched on?
+	bsf		GLIDE_ON			; Assume it's on
+	btfsc	GLIDE_RATE_HI, 7
+	bcf		GLIDE_ON			; Turn off if required
+	btfss	GLIDE_SWITCH		; Test glide input
+	bcf		GLIDE_ON			; Turn off if required
+	; All done! Go back to the beginning!
+	clrf	ADC_STAGE			; Move to the next CV input
+	goto	MainLoop
+
+
+BitcrushControl:
+; Useful values run 0-15, but only even values are used (0,2,4 etc)
+	movlw	0xFF				; Start off with all 8-bits
+	movwf	BIT_MASK
+	swapf   ADC_VALUE, w		; Reduce it according to CV
+	xorlw	B'00001110'			; Invert the bits we use
+	andlw	B'00001110'			; Mask unwanted bits
+	movwf	BITCRUSH_CTRL
+	lsrf	BITCRUSH_CTRL, w	; Get 3-bit version
+	brw
+	lslf	BIT_MASK, f			; Value 0: 1-bit
+	lslf	BIT_MASK, f			; Value 1: 2-bit
+	lslf	BIT_MASK, f			; Value 2: 3-bit
+	lslf	BIT_MASK, f			; Value 3: 4-bit
+	lslf	BIT_MASK, f			; Value 4: 5-bit
+	lslf	BIT_MASK, f			; Value 5: 6-bit
+	lslf	BIT_MASK, f			; Value 6: 7-bit
+	; Value 7 skips to the instruction below (8-bit, no shifts)
+	; All done! Go back to the beginning!
+	clrf	ADC_STAGE			; Move to the next CV input
+	goto	MainLoop
+; Could this routine be done better using brw and a table?
+; retlw is a 2-cycle instruction, but I could save something?
+;
+; Currently there's no hysteresis. Don't know how much that matters here.
+
+
+;PitchTuneControl:
+;	movf    ADC_VALUE, w
+
+; Don't do anything with this for now.
+; I'll stick with the initial (tuned) value until I've got
+; an actual control in place.
+
+;	movwf	PITCH_TUNE_CTRL
+;	call	RebuildPitchWord	; This will have altered!
+;	; All done! Go back to the beginning!
+;	clrf	ADC_STAGE			; Move to the next CV input
+;	goto	MainLoop
+
+
+DummyCV:
+	; Do nothing with this reading
+	clrf	ADC_STAGE			; Move to the next CV input
+	goto	MainLoop
+
+
+;----------------------------------------------------------------------------
+;	Rebuild the Pitch word from the various CV inputs
+;----------------------------------------------------------------------------
+; The sixteen bit REQ_PITCH_HI/LO word is based on two CVs and three knobs.
+;	NOTE_CV		- MIDI Note CV, 0-127, top bit unused
+;	FREQ_MOD_CV	- Freq Modulation CV, +/-8 semitones
+;	FREQ_CTRL	- Main Frequency knob, +/-24 semitones
+;	FINE_CTRL	- Fine frequency knob, +/-100 cents
+;	PITCH_TUNE_CTRL	- Pitch Bend or Tuning knob, +/-8 semitones
+; Since these are unsigned with centre zero positions, they introduce an
+; offset. The sum of these offsets is cancelled by the master offset.
+
+RebuildPitchWord:
+	; Start with the Master Offset
+	clrf	REQ_PITCH_LO
+;	movlw	(256-37)			; -37 semitones offset
+	movlw	D'0'				; DEBUG - no offset for now
+	movwf	REQ_PITCH_HI
+
+	; Add the Note CV
+	movf	NOTE_CV, w
+	addwf	REQ_PITCH_HI, f
+
+	; Add the Freq Mod CV
+	swapf	FREQ_MOD_CV, w
+	andlw	0xF0				; Get low nibble in upper nibble position
+	addwf	REQ_PITCH_LO,f		; Add low nibble to low byte
+	swapf	FREQ_MOD_CV, w
+	andlw	0x0F				; Get upper nibble in low nibble position
+	addwfc	REQ_PITCH_HI,f		; Add upper nibble to high byte
+
+	; Add the Frequency control
+	movf	FREQ_CTRL, w
+	addwf	REQ_PITCH_HI, f
+
+	; Add the Fine control
+	lslf	FINE_CTRL, w	
+	addwf	REQ_PITCH_LO,f		; Add 7 lowest bits to low byte
+	movlw	D'0'
+	btfsc	FINE_CTRL, 7
+	movlw	D'1'
+	addwfc	REQ_PITCH_HI, f		; Add MSB to high byte
+
+	; Add the Pitch tune control
+;	swapf	PITCH_TUNE_CV, w
+;	andlw	0xF0				; Get low nibble in upper nibble position
+;	addwf	REQ_PITCH_LO,f		; Add low nibble to low byte
+;	swapf	PITCH_TUNE_CV, w
+;	andlw	0x0F				; Get upper nibble in low nibble position
+;	addwfc	REQ_PITCH_HI,f		; Add upper nibble to high byte
+
+	; That's the REQ_PITCH worked out!
+
+	; Is the REQ_PITCH higher or lower than the current PITCH?
+	movf	PITCH_MID, w
+	subwf	REQ_PITCH_LO, w
+	movf	PITCH_HI, w			; Do 16-bit comparision
+	subwfb	REQ_PITCH_HI, w		; REQ_PITCH - PITCH
+	; So is it bigger?
+	bsf		LOWER_THAN_REQ
+	btfss	BORROW
+	bcf		LOWER_THAN_REQ
+	return
+
+;----------------------------------------------------------------------------
+;	Update Waveform if required
+;----------------------------------------------------------------------------
+; The waveform is based on a CV and a knob.
+;	WAVE_CV		- External CV, -5 to +5V
+;	WAVE_CTRL	- Main Waveform knob
+
+; Since WAVE_CV is unsigned with a centre zero position, it introduces an
+; offset. Since the sum of the inputs wraps around, it doesn't matter.
+UpdateWaveform:
+	; What's the sum of the two inputs?
+	movf	WAVE_CV, w
+	addwf	WAVE_CTRL, w		; It's quite good that these wrap around to 0
+	movwf	TEMP
+	; Use the upper 4-bits as the WAVE index
+	swapf	TEMP, w
+	andlw	0x0F
+	movwf	OSC_WAVE	
+	; Use the lower 4-bits as the SHAPE index
+	swapf	TEMP, w
+	andlw	0xF0			
+	movwf	OSC_SHAPE			; This gets used for between-wave interp
+
+	; Set up waveform addresses for pointers to read waveforms from Prog Mem
+	movf	OSC_WAVE, w			; Get the waveform number
+	addlw	HIGH Waveforms		; Base address but + 0x8000
+	movwf	LOWER_WAVE			; Store base address of lower waveform
+	incf	OSC_WAVE, w			; Move to the upper waveform
+	andlw	0x0F				; Make sure it wraps around 0-15
+	addlw	HIGH Waveforms
+	movwf	UPPER_WAVE			; Store base address of upper waveform
+	; LOWER_WAVE and UPPER_WAVE are used as FSR1H by the SampleGen code.
+
+	; All done!
+	return
+
+;----------------------------------------------------------------------------
+;	Update SubOscillator Waveform if required
+;----------------------------------------------------------------------------
+; The sub osc waveform is based on a CV and a knob.
+;	SUB_SELECT_CV	- External CV, -5 to +5V
+;	SUB_SELECT_CTRL	- Main Waveform knob
+
+; Since SUB_SELECT_CV is unsigned with a centre zero position, it introduces an
+; offset. Since the sum of the inputs wraps around, it doesn't matter.
+UpdateSubWaveform:
+	; What's the sum of the two inputs?
+	movf	SUB_SELECT_CV, w
+	addwf	SUB_SELECT_CTRL, w	; It's quite good that these wrap around to 0
+	addlw	D'240'				; Reduce offset by 15 (240 = -15 = FUDGE)
+	call	GetSubSelectControl	; Map 0-255 to waveform address
+	btfss	WREG, 7				; Apply hysteresis (0 represents a boundary)
+	goto	SubSelectExit		; Skip if on a boundary
+	movwf	TEMP				; Store the result
+	andlw	B'01100000'
+	movwf	OSC_SUB_OCTAVE		; Store the octave setting
+	movf	TEMP, w
+	andlw	B'10011111'
+	movwf	OSC_SUB_WAVE		; Store the waveform setting	
+SubSelectExit:
+	; All done!
+	return
+
+;----------------------------------------------------------------------------
+;	GENERATE A NEW BATCH OF 16 SAMPLES
+;----------------------------------------------------------------------------
+; There are several stages to this:
+; 1) Portamento/Glide -	This looks at our current 24-bit PITCH and
+;						moves it towards our 16-bit REQ_PITCH at GLIDE_RATE.
+;						Once that is done, we know what the current PITCH is.
+; 2) Pitch to FreqInc - We take the current PITCH and convert to FREQ_INC.
+; 3) Sample Gen		  -	Actual generation of sixteen samples in a loop.
+;						Since this part is repeated 16 times, it must be 
+;						highly efficient.
+
+SampleGeneration:
+;---------------------------------------------
+;	Glide/Portamento
+;---------------------------------------------
+; Modify the 24-bit PITCH to get closer to the required pitch, REQ_PITCH
+; This is done at a constant rate, GLIDE_RATE.
+
+	btfss	GLIDE_ON
+	goto	UseReqPitch			; Glide is off, so use REQ_PITCH directly
+
+	; Glide is on - Is it going up or down?
+	btfss	LOWER_THAN_REQ
+	goto	GlideGoingDown
+
+GlideGoingUp:
+	; First, add GLIDE_RATE to the PITCH
+	movf	GLIDE_RATE_LO, w	; Add GLIDE_RATE_LO to PITCH_LO
+	addwf	PITCH_LO, f
+	movf	GLIDE_RATE_HI, w
+	addwfc	PITCH_MID, f		; Add to PITCH_MID
+	clrw			
+	addwfc	PITCH_HI, f			; Add 0 in case of carry to the high byte
+
+	; Second, decide whether that is equal or bigger than the REQ_PITCH
+	movf	PITCH_MID, w
+	subwf	REQ_PITCH_LO, w
+	movf	PITCH_HI, w			; Do 16-bit comparision
+	subwfb	REQ_PITCH_HI, w		; REQ_PITCH - PITCH
+	; So is it bigger? (Did we overshoot?)
+	btfsc	BORROW				; Not negative, we're not there yet
+	goto	PitchToFreqInc		; No overshoot, so use this new pitch value
+	; It's overshot, so just stop at the required pitch
+	goto	UseReqPitch
+	; Since we don't alter the LOWER_THAN_REQ flag, it'll do the same
+	; process next time, but that doesn't matter.
+
+GlideGoingDown:
+	; First, subtract GLIDE_RATE from the PITCH
+	movf	GLIDE_RATE_LO, w	; Take GLIDE_RATE_LO from PITCH_LO
+	subwf	PITCH_LO, f
+	movf	GLIDE_RATE_HI, w
+	subwfb	PITCH_MID, f		; Take from PITCH_MID
+	clrw
+	subwfb	PITCH_HI, f			; Take 0 in case of borrow from high byte
+
+	; Second, decide whether that is equal or less than the REQ_PITCH
+	movf	PITCH_MID, w
+	subwf	REQ_PITCH_LO, w
+	movf	PITCH_HI, w			; Do 16-bit comparision
+	subwfb	REQ_PITCH_HI, w		; REQ_PITCH - PITCH
+	; So is it less? (Did we undershoot?)
+	btfss	BORROW				; Negative, we're not there yet
+	goto	PitchToFreqInc		; No undershoot, so use this new pitch value
+	; If we get to here, it's undershot, so just stop at the required pitch
+
+UseReqPitch:
+	; Just use the required pitch
+	movf	REQ_PITCH_HI, w
+	movwf	PITCH_HI
+	movf	REQ_PITCH_LO, w
+	movwf	PITCH_MID
+	clrf	PITCH_LO			; IS THIS NECESSARY? (Minor glide time error?)
+	
+;---------------------------------------------
+;	Pitch to Freq Inc conversion
+;---------------------------------------------
+; Take twelve off the MIDI note number repeatedly until it's 0-11.
+; The number of twelves removed is the octave.
+
+PitchToFreqInc:
+	movf	PITCH_HI, w			; Get the note number part of the PITCH word
+
+; Octave 0
+	clrf	OCTAVE				; Assume Octave 0	
+	addlw	D'244'				; 256-12 = 244, so it's the same as -12
+	btfss	CARRY				; Less than or equal to 11?
+	goto	FoundTheNote		; This must be Octave 0
+
+;Octave 1
+	incf	OCTAVE, f
+	addlw	D'244'				; Take 12 off it
+	btfss	CARRY				; Less than or equal to 11?
+	goto	FoundTheNote		; This must be Octave 1
+
+;Octave 2
+	incf	OCTAVE, f
+	addlw	D'244'				; Take 12 off it
+	btfss	CARRY				; Less than or equal to 11?
+	goto	FoundTheNote		; This must be Octave 2
+
+;Octave 3
+	incf	OCTAVE, f
+	addlw	D'244'				; Take 12 off it
+	btfss	CARRY				; Less than or equal to 11?
+	goto	FoundTheNote		; This must be Octave 3
+
+;Octave 4
+	incf	OCTAVE, f
+	addlw	D'244'				; Take 12 off it
+	btfss	CARRY				; Less than or equal to 11?
+	goto	FoundTheNote		; This must be Octave 4
+
+;Octave 5
+	incf	OCTAVE, f
+	addlw	D'244'				; Take 12 off it
+	btfss	CARRY				; Less than or equal to 11?
+	goto	FoundTheNote		; This must be Octave 5
+
+;Octave 6
+	incf	OCTAVE, f
+	addlw	D'244'				; Take 12 off it
+	btfss	CARRY				; Less than or equal to 11?
+	goto	FoundTheNote		; This must be Octave 6
+
+;Octave 7
+	incf	OCTAVE, f
+	addlw	D'244'				; Take 12 off it
+	btfss	CARRY				; Less than or equal to 11?
+	goto	FoundTheNote		; This must be Octave 7
+
+;Octave 8
+	incf	OCTAVE, f
+	addlw	D'244'				; Take 12 off it
+	btfss	CARRY				; Less than or equal to 11?
+	goto	FoundTheNote		; This must be Octave 8
+
+;Octave 9
+	incf	OCTAVE, f
+	addlw	D'244'				; Take 12 off it
+	btfss	CARRY				; Less than or equal to 11?
+	goto	FoundTheNote		; This must be Octave 9
+
+; We've got a value greater than MIDI note 119
+; so let's top it at MIDI note 120
+	movlw	0x36				; Set the frequency increment
+	movwf	OSC_FREQ_HI			; to 3595800 which is high C,
+	movlw	0xDE				; MIDI note 120
+	movwf	OSC_FREQ_MID
+	movlw	0x18				
+	movwf	OSC_FREQ_LO
+	goto	Octave9				; No shifts required
+
+; When we jump to here, we've got the correct octave, and *nearly* got the
+; note within the octave
+FoundTheNote:
+; Note number has had one extra set of 12 taken off
+	addlw	D'12'				; Range is now 0-11
+; Turn this into an index from 0-191
+; 11x16 = 176, + up to 15 = 176+15 = 191 max index
+	movwf	FSR0L
+	swapf	FSR0L, f			; High nibble is 0-11 (0-176)
+	swapf	PITCH_MID, w		; Get sub-semitone position
+	andlw	0x0F				; I want high nibble in low nibble position
+	addwf	FSR0L, f			; Index 0-191 is in FSR0L
+	; Now shift the index up one
+	clrf	FSR0H
+	lslf	FSR0L, f
+	rlf		FSR0H, f
+	; Set up a pointer to read the Freq Inc data
+	movlw	LOW FrequencyIncrement
+	addwf	FSR0L, f			; Add base address to pointer
+	movlw	HIGH FrequencyIncrement
+	addwfc	FSR0H, f
+	; Get the data
+	moviw	FSR0++
+	movwf	OSC_FREQ_HI
+	movf	INDF0, w
+	movwf	OSC_FREQ_MID
+	clrf	OSC_FREQ_LO
+
+; Do two shifts down to get this back into the right place
+; (it was upshifted in the lookup tables)
+	lsrf	OSC_FREQ_HI, f
+	rrf		OSC_FREQ_MID, f
+	rrf		OSC_FREQ_LO, f
+	lsrf	OSC_FREQ_HI, f
+	rrf		OSC_FREQ_MID, f
+	rrf		OSC_FREQ_LO, f
+
+; Now, the freq inc needs shifting according to octave.
+	movlw	HIGH ShiftByOctave
+	movwf	PCLATH
+	movf	OCTAVE, w			; Get the octave
+	addlw	LOW ShiftByOctave
+	btfsc	CARRY
+	incf	PCLATH, f
+	movwf	PCL
+ShiftByOctave:
+	goto	Octave0
+	goto	Octave1
+	goto	Octave2
+	goto	Octave3
+	goto	Octave4
+	goto	Octave5
+	goto	Octave6
+	goto	Octave7
+	goto	Octave8
+	goto	Octave9
+
+Octave0:
+	lsrf	OSC_FREQ_HI, f
+	rrf		OSC_FREQ_MID, f
+	rrf		OSC_FREQ_LO, f
+Octave1:
+	lsrf	OSC_FREQ_HI, f
+	rrf		OSC_FREQ_MID, f
+	rrf		OSC_FREQ_LO, f
+Octave2:
+	lsrf	OSC_FREQ_HI, f
+	rrf		OSC_FREQ_MID, f
+	rrf		OSC_FREQ_LO, f
+Octave3:
+	lsrf	OSC_FREQ_HI, f
+	rrf		OSC_FREQ_MID, f
+	rrf		OSC_FREQ_LO, f
+Octave4:
+	lsrf	OSC_FREQ_HI, f
+	rrf		OSC_FREQ_MID, f
+	rrf		OSC_FREQ_LO, f
+Octave5:
+	lsrf	OSC_FREQ_HI, f
+	rrf		OSC_FREQ_MID, f
+	rrf		OSC_FREQ_LO, f
+Octave6:
+	lsrf	OSC_FREQ_HI, f
+	rrf		OSC_FREQ_MID, f
+	rrf		OSC_FREQ_LO, f
+Octave7:
+	lsrf	OSC_FREQ_HI, f
+	rrf		OSC_FREQ_MID, f
+	rrf		OSC_FREQ_LO, f
+Octave8:
+	lsrf	OSC_FREQ_HI, f
+	rrf		OSC_FREQ_MID, f
+	rrf		OSC_FREQ_LO, f
+Octave9:
+	; No shift required in octave 9
+; We should now have the correct frequency increment
+
+;---------------------------------------------
+;	Linear Detune
+;---------------------------------------------
+; This is intended as an optional replacement for the FINE_CTRL.
+
+	; First add on the DETUNE variable
+
+	; Now remove the 10Hz offset it introduces
+;	movlw	D'234'
+;	subwf	OSC_FREQ_LO
+;	movlw	D'234'
+;	subwfb	OSC_FREQ_MID
+;	movlw	D'234'
+;	subwfb	OSC_FREQ_HI	
+
+;---------------------------------------------
+;	Generate Sub Osc Frequency Increment
+;---------------------------------------------
+	lslf	OSC_FREQ_LO, w		; Start by *up*shifting 1 place
+	movwf	SUB_FREQ_LO			; Eg SubOsc can be 1 oct above the main!
+	rlf		OSC_FREQ_MID, w
+	movwf	SUB_FREQ_MID
+	rlf		OSC_FREQ_HI, w
+	movwf	SUB_FREQ_HI
+
+; Now downshift the freq inc by the required number of places
+ShiftSubDownTwo:
+	btfsc	TWO_OCTAVES_DOWN	; Do we shift down two octaves?
+	goto	ShiftSubDownOne
+	lsrf	SUB_FREQ_HI, f
+	rrf		SUB_FREQ_MID, f
+	rrf		SUB_FREQ_LO, f	
+	lsrf	SUB_FREQ_HI, f
+	rrf		SUB_FREQ_MID, f
+	rrf		SUB_FREQ_LO, f
+
+ShiftSubDownOne:
+	btfsc	ONE_OCTAVE_DOWN		; Do we shift down another octave?
+	goto	SubDetune
+	lsrf	SUB_FREQ_HI, f
+	rrf		SUB_FREQ_MID, f
+	rrf		SUB_FREQ_LO, f
+
+SubDetune:
+; Detune the suboscillator slightly so it beats against the main osc
+	movlw	D'44'				; Beats every 6 seconds
+	addwf	SUB_FREQ_LO, f
+	clrw
+	addwfc	SUB_FREQ_MID, f
+	addwfc	SUB_FREQ_HI, f	
+
+
+;---------------------------------------------
+;	Sample Generation Loop
+;---------------------------------------------
+SetUpSampleLoop:
+; Which set of samples are we generating?
+; If the interrupt is using buffer1, we generate buffer2 and vice versa
+	movlw	#MAIN_OSC_BUFF2		; Assume we build buffer2
+	btfss	BUFFER_ONE			; If interrupt is using buffer1, that's ok
+	movlw	#MAIN_OSC_BUFF1		; Otherwise, build buffer1
+	movwf	FSR0L
+	clrf	FSR0H
+
+; Set up a loop that generates a single sample
+	movlw	D'16'
+	movwf	LOOP_COUNT
+OneSampleLoop:
+
+;---------------------------------------------
+;	Oscillator
+;---------------------------------------------
+	; Add 24-bit Freq Inc to 24-bit phase accumulator
+	movf	OSC_FREQ_LO, w
+	addwf	OSC_PHASE_LO, f
+	movf	OSC_FREQ_MID, w
+	addwfc	OSC_PHASE_MID, f
+	movf	OSC_FREQ_HI, w
+	addwfc	OSC_PHASE_HI, f
+	
+	; Lookup the main Osc waveform
+	movf	OSC_PHASE_HI, w		; Use the phase as the low byte of our pointer
+;	andwf	BIT_MASK, w			; Apply table derez
+	movwf	FSR1L	
+	; Read the lower sample
+	movf	LOWER_WAVE, w
+	movwf	FSR1H
+	movf	INDF1, w
+	movwf	INPUT_X
+	; Read the upper sample
+	movf	UPPER_WAVE, w
+	movwf	FSR1H
+	movf	INDF1, w
+	movwf	INPUT_Y
+
+OscInterpolation:
+	; Interpolate between them
+	clrf	INTERP_OUT
+
+	movf	INPUT_X, w			; 4-bit interp for starters
+	btfsc	OSC_SHAPE, 4
+	movf	INPUT_Y, w
+	addwf	INTERP_OUT, f
+	lsrf	INTERP_OUT, f		; Using LSRF saves clearing the carry first
+
+	movf	INPUT_X, w
+	btfsc	OSC_SHAPE, 5
+	movf	INPUT_Y, w
+	addwf	INTERP_OUT, f
+	rrf		INTERP_OUT, f
+
+	movf	INPUT_X, w
+	btfsc	OSC_SHAPE, 6
+	movf	INPUT_Y, w
+	addwf	INTERP_OUT, f
+	rrf		INTERP_OUT, f
+
+	movf	INPUT_X, w
+	btfsc	OSC_SHAPE, 7
+	movf	INPUT_Y, w
+	addwf	INTERP_OUT, f
+	rrf		INTERP_OUT, f
+	
+	; We've generated a new sample
+	movf	INTERP_OUT, w
+	andwf	BIT_MASK, w			; Apply bitcrushing
+	movwf	INDF0				; Store the waveform output in the buffer
+
+;---------------------------------------------
+;	Sub Oscillator
+;---------------------------------------------
+
+	; Add 24-bit Freq Inc to 24-bit phase accumulator
+	movf	SUB_FREQ_LO, w
+	addwf	SUB_PHASE_LO, f
+	movf	SUB_FREQ_MID, w
+	addwfc	SUB_PHASE_MID, f
+	movf	SUB_FREQ_HI, w
+	addwfc	SUB_PHASE_HI, f
+
+	; Lookup the Sub Osc waveform
+	movf	SUB_PHASE_HI, w		; Get phase for index
+;	andwf	BIT_MASK, w			; Apply table derez
+	movwf	FSR1L
+	movf	OSC_SUB_WAVE, w		; Get waveform address
+	movwf	FSR1H
+	movf	INDF1, w
+	andwf	BIT_MASK, w			; Apply bitcrushing
+	movwi	16[FSR0]			; Store the sample in the Sub Osc buffer
+
+	; Move to the next sample in the buffer
+	incf	FSR0L, f
+
+	; Do within-block frequency interpolation
+	; Add DELTA to the current frequency increment
+	
+	; Yadda yadda - 16 or 24 bit addition - about 10 instructions
+	; Amounts to another 160 in total
+
+
+; Do we still need to do another sample?
+	decfsz	LOOP_COUNT, f
+	goto	OneSampleLoop
+
+	; That's all the samples done
+	bcf		SAMPLES_REQ
+	return
+
+;----------------------------------------------------------------------------
+;	ADC Channel Scan
+; This is a simple lookup for the ADCON0 values for each different channel.
+; Inadvertently it gives me a virtual-to-actual ADC channel mapping.
+; I can use that to let me scan external CVs twice as often as control knobs.
+;----------------------------------------------------------------------------
+GetADChannel:
+	movf	ADC_CHANNEL, w
+	brw
+ADCON0Values:
+	retlw	b'00100001'	; AN8	Note CV
+	retlw	b'00011101'	; AN7	Freq CV
+	retlw	b'00000101'	; AN1	Shape CV
+	retlw	b'00000001'	; AN0	Wave CV
+
+	retlw	b'00001001'	; AN2	Frequency Control
+	retlw	b'00001101'	; AN3	Fine/Detune Control
+	retlw	b'00010001'	; AN4	Waveform Control
+	retlw	b'00101101'	; AN11	Sub Osc Select Control
+
+	retlw	b'00100001'	; AN8	Note CV
+	retlw	b'00011101'	; AN7	Freq CV
+	retlw	b'00000101'	; AN1	Shape CV
+	retlw	b'00000001'	; AN0	Wave CV
+
+	retlw	b'00101001'	; AN10	Portamento Control
+	retlw	b'00100101'	; AN9	Bitcrush Control
+	retlw	b'00010101'	; AN5	unused (Currently ISCP)
+	retlw	b'00011001'	; AN6	unused (Currently ISCP)
+
+;----------------------------------------------------------------------------
+;	Frequency Control Lookup Table
+; Turns a 0-255 input into 0-48 semitones frequency shift.
+; 128 represents a boundary, and provides hysteresis.
+;----------------------------------------------------------------------------
+GetFreqControl:
+	brw
+FreqControlLookup:
+	dt	D'0', D'0', D'0', D'0', D'128', D'128', D'1', D'1'
+	dt	D'1', D'1', D'128', D'128', D'2', D'2', D'2', D'128'
+	dt	D'128', D'3', D'3', D'3', D'128', D'128', D'4', D'4'
+	dt	D'4', D'128', D'128', D'5', D'5', D'5', D'128', D'128'
+	dt	D'6', D'6', D'6', D'6', D'128', D'128', D'7', D'7'
+	dt	D'7', D'128', D'128', D'8', D'8', D'8', D'128', D'128'
+	dt	D'9', D'9', D'9', D'128', D'128', D'10', D'10', D'10'
+	dt	D'10', D'128', D'128', D'11', D'11', D'11', D'128', D'128'
+	dt	D'12', D'12', D'12', D'128', D'128', D'13', D'13', D'13'
+	dt	D'128', D'128', D'14', D'14', D'14', D'14', D'128', D'128'
+	dt	D'15', D'15', D'15', D'128', D'128', D'16', D'16', D'16'
+	dt	D'128', D'128', D'17', D'17', D'17', D'128', D'128', D'18'
+	dt	D'18', D'18', D'128', D'128', D'19', D'19', D'19', D'19'
+	dt	D'128', D'128', D'20', D'20', D'20', D'128', D'128', D'21'
+	dt	D'21', D'21', D'128', D'128', D'22', D'22', D'22', D'128'
+	dt	D'128', D'23', D'23', D'23', D'23', D'128', D'128', D'24'
+	dt	D'24', D'24', D'128', D'128', D'25', D'25', D'25', D'128'
+	dt	D'128', D'26', D'26', D'26', D'128', D'128', D'27', D'27'
+	dt	D'27', D'27', D'128', D'128', D'28', D'28', D'28', D'128'
+	dt	D'128', D'29', D'29', D'29', D'128', D'128', D'30', D'30'
+	dt	D'30', D'128', D'128', D'31', D'31', D'31', D'128', D'128'
+	dt	D'32', D'32', D'32', D'32', D'128', D'128', D'33', D'33'
+	dt	D'33', D'128', D'128', D'34', D'34', D'34', D'128', D'128'
+	dt	D'35', D'35', D'35', D'128', D'128', D'36', D'36', D'36'
+	dt	D'36', D'128', D'128', D'37', D'37', D'37', D'128', D'128'
+	dt	D'38', D'38', D'38', D'128', D'128', D'39', D'39', D'39'
+	dt	D'128', D'128', D'40', D'40', D'40', D'40', D'128', D'128'
+	dt	D'41', D'41', D'41', D'128', D'128', D'42', D'42', D'42'
+	dt	D'128', D'128', D'43', D'43', D'43', D'128', D'128', D'44'
+	dt	D'44', D'44', D'128', D'128', D'45', D'45', D'45', D'45'
+	dt	D'128', D'128', D'46', D'46', D'46', D'128', D'128', D'47'
+	dt	D'47', D'47', D'128', D'128', D'48', D'48', D'48', D'48'
+
+;----------------------------------------------------------------------------
+;	Sub Oscillator Waveform Selection Control Lookup Table
+; Turns a 0-255 input into a waveform address
+; 0 represents a boundary, and provides hysteresis.
+; I had to use significant hysteresis here, probably 'cos of additional noise
+; because Sub Select uses the sum of two ADC channels.
+; Note that bits 5 and 6 are used to indicate octave: +1,0,-1,-2
+;----------------------------------------------------------------------------
+GetSubSelectControl:
+	brw
+SubSelectControlLookup:
+	dt	0x92, 0x92, 0x92, 0x92, 0x92, 0x92, 0x0, 0x0
+	dt	0x0, 0x0, 0xb2, 0xb2, 0xb2, 0xb2, 0x0, 0x0
+	dt	0x0, 0x0, 0xd2, 0xd2, 0xd2, 0xd2, 0x0, 0x0
+	dt	0x0, 0x0, 0xf2, 0xf2, 0xf2, 0xf2, 0x0, 0x0
+	dt	0x0, 0x0, 0x8e, 0x8e, 0x8e, 0x8e, 0x0, 0x0
+	dt	0x0, 0x0, 0xae, 0xae, 0xae, 0xae, 0x0, 0x0
+	dt	0x0, 0x0, 0xce, 0xce, 0xce, 0xce, 0x0, 0x0
+	dt	0x0, 0x0, 0xee, 0xee, 0xee, 0xee, 0x0, 0x0
+	dt	0x0, 0x0, 0x91, 0x91, 0x91, 0x91, 0x0, 0x0
+	dt	0x0, 0x0, 0xb1, 0xb1, 0xb1, 0xb1, 0x0, 0x0
+	dt	0x0, 0x0, 0xd1, 0xd1, 0xd1, 0xd1, 0x0, 0x0
+	dt	0x0, 0x0, 0xf1, 0xf1, 0xf1, 0xf1, 0x0, 0x0
+	dt	0x0, 0x0, 0x9b, 0x9b, 0x9b, 0x9b, 0x0, 0x0
+	dt	0x0, 0x0, 0xbb, 0xbb, 0xbb, 0xbb, 0x0, 0x0
+	dt	0x0, 0x0, 0xdb, 0xdb, 0xdb, 0xdb, 0x0, 0x0
+	dt	0x0, 0x0, 0xfb, 0xfb, 0xfb, 0xfb, 0x0, 0x0
+	dt	0x0, 0x0, 0x9c, 0x9c, 0x9c, 0x9c, 0x0, 0x0
+	dt	0x0, 0x0, 0xbc, 0xbc, 0xbc, 0xbc, 0x0, 0x0
+	dt	0x0, 0x0, 0xdc, 0xdc, 0xdc, 0xdc, 0x0, 0x0
+	dt	0x0, 0x0, 0xfc, 0xfc, 0xfc, 0xfc, 0x0, 0x0
+	dt	0x0, 0x0, 0x9d, 0x9d, 0x9d, 0x9d, 0x0, 0x0
+	dt	0x0, 0x0, 0xbd, 0xbd, 0xbd, 0xbd, 0x0, 0x0
+	dt	0x0, 0x0, 0xdd, 0xdd, 0xdd, 0xdd, 0x0, 0x0
+	dt	0x0, 0x0, 0xfd, 0xfd, 0xfd, 0xfd, 0x0, 0x0
+	dt	0x0, 0x0, 0x9e, 0x9e, 0x9e, 0x9e, 0x0, 0x0
+	dt	0x0, 0x0, 0xbe, 0xbe, 0xbe, 0xbe, 0x0, 0x0
+	dt	0x0, 0x0, 0xde, 0xde, 0xde, 0xde, 0x0, 0x0
+	dt	0x0, 0x0, 0xfe, 0xfe, 0xfe, 0xfe, 0x0, 0x0
+	dt	0x0, 0x0, 0x9f, 0x9f, 0x9f, 0x9f, 0x0, 0x0
+	dt	0x0, 0x0, 0xbf, 0xbf, 0xbf, 0xbf, 0x0, 0x0
+	dt	0x0, 0x0, 0xdf, 0xdf, 0xdf, 0xdf, 0x0, 0x0
+	dt	0x0, 0x0, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff
+
+;----------------------------------------------------------------------------
+;	Frequency Increment Table
+; Exponential to linear conversion, 192 x 16-bit
+; I have a 24-bit PITCH variable, the top 12 bits of which are
+; converted into a frequency increment.
+; Although the frequency increment is 24-bit, the table is only for
+; the top octave and is upshifted 2 places. This allows me to store
+; it in 16-bits.
+; Since the octave is reduced to 0-11, this table of 192 entries
+; give me 16 positions within each semitone - more than enough.
+;----------------------------------------------------------------------------
+FrequencyIncrement:
+	dt	D'68', D'149', D'68', D'212', D'69', D'20', D'69', D'84'
+	dt	D'69', D'148', D'69', D'213', D'70', D'21', D'70', D'86'
+	dt	D'70', D'151', D'70', D'217', D'71', D'26', D'71', D'92'
+	dt	D'71', D'158', D'71', D'225', D'72', D'35', D'72', D'102'
+	dt	D'72', D'169', D'72', D'236', D'73', D'48', D'73', D'115'
+	dt	D'73', D'183', D'73', D'252', D'74', D'64', D'74', D'133'
+	dt	D'74', D'202', D'75', D'15', D'75', D'85', D'75', D'154'
+	dt	D'75', D'224', D'76', D'39', D'76', D'109', D'76', D'180'
+	dt	D'76', D'251', D'77', D'66', D'77', D'138', D'77', D'210'
+	dt	D'78', D'26', D'78', D'98', D'78', D'171', D'78', D'243'
+	dt	D'79', D'60', D'79', D'134', D'79', D'207', D'80', D'25'
+	dt	D'80', D'100', D'80', D'174', D'80', D'249', D'81', D'68'
+	dt	D'81', D'143', D'81', D'218', D'82', D'38', D'82', D'114'
+	dt	D'82', D'191', D'83', D'11', D'83', D'88', D'83', D'165'
+	dt	D'83', D'243', D'84', D'64', D'84', D'142', D'84', D'221'
+	dt	D'85', D'43', D'85', D'122', D'85', D'201', D'86', D'25'
+	dt	D'86', D'104', D'86', D'184', D'87', D'9', D'87', D'89'
+	dt	D'87', D'170', D'87', D'251', D'88', D'77', D'88', D'159'
+	dt	D'88', D'241', D'89', D'67', D'89', D'150', D'89', D'233'
+	dt	D'90', D'60', D'90', D'143', D'90', D'227', D'91', D'55'
+	dt	D'91', D'140', D'91', D'225', D'92', D'54', D'92', D'139'
+	dt	D'92', D'225', D'93', D'55', D'93', D'141', D'93', D'228'
+	dt	D'94', D'59', D'94', D'146', D'94', D'233', D'95', D'65'
+	dt	D'95', D'153', D'95', D'242', D'96', D'75', D'96', D'164'
+	dt	D'96', D'253', D'97', D'87', D'97', D'177', D'98', D'12'
+	dt	D'98', D'103', D'98', D'194', D'99', D'29', D'99', D'121'
+	dt	D'99', D'213', D'100', D'49', D'100', D'142', D'100', D'235'
+	dt	D'101', D'73', D'101', D'167', D'102', D'5', D'102', D'99'
+	dt	D'102', D'194', D'103', D'33', D'103', D'129', D'103', D'224'
+	dt	D'104', D'65', D'104', D'161', D'105', D'2', D'105', D'99'
+	dt	D'105', D'197', D'106', D'39', D'106', D'137', D'106', D'236'
+	dt	D'107', D'79', D'107', D'178', D'108', D'22', D'108', D'122'
+
+	dt	D'108', D'222', D'109', D'67', D'109', D'168', D'110', D'14'
+	dt	D'110', D'116', D'110', D'218', D'111', D'64', D'111', D'167'
+	dt	D'112', D'15', D'112', D'119', D'112', D'223', D'113', D'71'
+	dt	D'113', D'176', D'114', D'25', D'114', D'131', D'114', D'237'
+	dt	D'115', D'87', D'115', D'194', D'116', D'45', D'116', D'153'
+	dt	D'117', D'5', D'117', D'113', D'117', D'222', D'118', D'75'
+	dt	D'118', D'185', D'119', D'39', D'119', D'149', D'120', D'4'
+	dt	D'120', D'115', D'120', D'226', D'121', D'82', D'121', D'194'
+	dt	D'122', D'51', D'122', D'164', D'123', D'22', D'123', D'136'
+	dt	D'123', D'250', D'124', D'109', D'124', D'224', D'125', D'84'
+	dt	D'125', D'200', D'126', D'60', D'126', D'177', D'127', D'39'
+	dt	D'127', D'156', D'128', D'18', D'128', D'137', D'129', D'0'
+	dt	D'129', D'119', D'129', D'239', D'130', D'104', D'130', D'224'
+	dt	D'131', D'90', D'131', D'211', D'132', D'77', D'132', D'200'
+	dt	D'133', D'67', D'133', D'190', D'134', D'58', D'134', D'182'
+	dt	D'135', D'51', D'135', D'176', D'136', D'46', D'136', D'172'
+
+
+;----------------------------------------------------------------------------
+;	Glide Table
+; 256 x 16bit. 0x8000 represents 'off', so the first 16 entries disable
+; portamento.
+;----------------------------------------------------------------------------
+Portamento:
+	dt	D'128', D'0', D'128', D'0', D'128', D'0', D'128', D'0'
+	dt	D'128', D'0', D'128', D'0', D'128', D'0', D'128', D'0'
+	dt	D'128', D'0', D'128', D'0', D'128', D'0', D'128', D'0'
+	dt	D'128', D'0', D'128', D'0', D'128', D'0', D'128', D'0'
+	dt	D'60', D'33', D'58', D'218', D'57', D'153', D'56', D'95'
+	dt	D'55', D'44', D'53', D'255', D'52', D'217', D'51', D'185'
+	dt	D'50', D'159', D'49', D'139', D'48', D'125', D'47', D'117'
+	dt	D'46', D'114', D'45', D'117', D'44', D'125', D'43', D'139'
+	dt	D'42', D'157', D'41', D'181', D'40', D'210', D'39', D'243'
+	dt	D'39', D'26', D'38', D'69', D'37', D'116', D'36', D'168'
+	dt	D'35', D'224', D'35', D'29', D'34', D'93', D'33', D'162'
+	dt	D'32', D'235', D'32', D'55', D'31', D'136', D'30', D'220'
+	dt	D'30', D'52', D'29', D'143', D'28', D'238', D'28', D'80'
+	dt	D'27', D'182', D'27', D'31', D'26', D'139', D'25', D'250'
+	dt	D'25', D'109', D'24', D'226', D'24', D'91', D'23', D'214'
+	dt	D'23', D'84', D'22', D'213', D'22', D'88', D'21', D'223'
+	dt	D'21', D'103', D'20', D'243', D'20', D'129', D'20', D'17'
+	dt	D'19', D'164', D'19', D'57', D'18', D'208', D'18', D'105'
+	dt	D'18', D'5', D'17', D'163', D'17', D'67', D'16', D'228'
+	dt	D'16', D'136', D'16', D'46', D'15', D'214', D'15', D'128'
+	dt	D'15', D'43', D'14', D'217', D'14', D'136', D'14', D'57'
+	dt	D'13', D'235', D'13', D'159', D'13', D'85', D'13', D'12'
+	dt	D'12', D'197', D'12', D'128', D'12', D'59', D'11', D'249'
+	dt	D'11', D'184', D'11', D'120', D'11', D'57', D'10', D'252'
+	dt	D'10', D'192', D'10', D'134', D'10', D'76', D'10', D'20'
+	dt	D'9', D'221', D'9', D'167', D'9', D'115', D'9', D'63'
+	dt	D'9', D'13', D'8', D'220', D'8', D'171', D'8', D'124'
+	dt	D'8', D'78', D'8', D'33', D'7', D'244', D'7', D'201'
+	dt	D'7', D'158', D'7', D'117', D'7', D'76', D'7', D'37'
+	dt	D'6', D'254', D'6', D'216', D'6', D'178', D'6', D'142'
+	dt	D'6', D'106', D'6', D'71', D'6', D'37', D'6', D'3'
+	dt	D'5', D'227', D'5', D'195', D'5', D'163', D'5', D'132'
+
+	dt	D'5', D'102', D'5', D'73', D'5', D'44', D'5', D'16'
+	dt	D'4', D'244', D'4', D'217', D'4', D'191', D'4', D'165'
+	dt	D'4', D'140', D'4', D'115', D'4', D'91', D'4', D'67'
+	dt	D'4', D'44', D'4', D'21', D'3', D'255', D'3', D'233'
+	dt	D'3', D'212', D'3', D'191', D'3', D'170', D'3', D'150'
+	dt	D'3', D'131', D'3', D'112', D'3', D'93', D'3', D'75'
+	dt	D'3', D'57', D'3', D'39', D'3', D'22', D'3', D'5'
+	dt	D'2', D'245', D'2', D'229', D'2', D'213', D'2', D'197'
+	dt	D'2', D'182', D'2', D'168', D'2', D'153', D'2', D'139'
+	dt	D'2', D'125', D'2', D'111', D'2', D'98', D'2', D'85'
+	dt	D'2', D'72', D'2', D'60', D'2', D'48', D'2', D'36'
+	dt	D'2', D'24', D'2', D'13', D'2', D'2', D'1', D'247'
+	dt	D'1', D'236', D'1', D'226', D'1', D'215', D'1', D'205'
+	dt	D'1', D'195', D'1', D'186', D'1', D'176', D'1', D'167'
+	dt	D'1', D'158', D'1', D'149', D'1', D'141', D'1', D'132'
+	dt	D'1', D'124', D'1', D'116', D'1', D'108', D'1', D'100'
+	dt	D'1', D'93', D'1', D'85', D'1', D'78', D'1', D'71'
+	dt	D'1', D'64', D'1', D'57', D'1', D'50', D'1', D'44'
+	dt	D'1', D'38', D'1', D'31', D'1', D'25', D'1', D'19'
+	dt	D'1', D'13', D'1', D'8', D'1', D'2', D'0', D'253'
+	dt	D'0', D'247', D'0', D'242', D'0', D'237', D'0', D'232'
+	dt	D'0', D'227', D'0', D'222', D'0', D'217', D'0', D'213'
+	dt	D'0', D'208', D'0', D'204', D'0', D'199', D'0', D'195'
+	dt	D'0', D'191', D'0', D'187', D'0', D'183', D'0', D'179'
+	dt	D'0', D'175', D'0', D'171', D'0', D'168', D'0', D'164'
+	dt	D'0', D'161', D'0', D'157', D'0', D'154', D'0', D'151'
+	dt	D'0', D'147', D'0', D'144', D'0', D'141', D'0', D'138'
+	dt	D'0', D'135', D'0', D'132', D'0', D'130', D'0', D'127'
+	dt	D'0', D'124', D'0', D'121', D'0', D'119', D'0', D'116'
+	dt	D'0', D'114', D'0', D'111', D'0', D'109', D'0', D'107'
+	dt	D'0', D'104', D'0', D'102', D'0', D'100', D'0', D'98'
+	dt	D'0', D'96', D'0', D'94', D'0', D'92', D'0', D'90'
+
+;	dt	D'0', D'88', D'0', D'86', D'0', D'84', D'0', D'82'
+
+;----------------------------------------------------------------------------
+;	Waveform Lookup Tables
+; There are sixteen. Each is unsigned 8-bit, 256 samples long.
+; The position in Prog.Mem. is important, since these are read with
+; a pointer. Each waveform must start on a page boundary.
+; Note also that these waveforms have random phase shifts applied to the
+; harmonics. This makes the crossfades between them nonlinear and therefore
+; slightly more interesting. It isn't a big difference, but it's there.
+;----------------------------------------------------------------------------
+
+ org     0x0C00
+Waveforms:
+Hibox:
+	dt	D'185', D'220', D'233', D'222', D'199', D'177', D'165', D'165'
+	dt	D'171', D'176', D'176', D'171', D'165', D'159', D'154', D'151'
+	dt	D'149', D'149', D'152', D'157', D'161', D'160', D'156', D'151'
+	dt	D'150', D'156', D'166', D'176', D'181', D'183', D'184', D'189'
+	dt	D'199', D'212', D'222', D'225', D'221', D'214', D'211', D'214'
+	dt	D'222', D'229', D'232', D'230', D'224', D'219', D'218', D'221'
+	dt	D'226', D'233', D'239', D'246', D'251', D'254', D'255', D'253'
+	dt	D'248', D'242', D'238', D'234', D'232', D'229', D'227', D'224'
+	dt	D'221', D'218', D'215', D'212', D'212', D'214', D'219', D'224'
+	dt	D'227', D'226', D'222', D'218', D'218', D'223', D'231', D'238'
+	dt	D'241', D'239', D'233', D'228', D'225', D'224', D'224', D'222'
+	dt	D'219', D'213', D'206', D'196', D'183', D'169', D'160', D'159'
+	dt	D'167', D'181', D'196', D'203', D'203', D'199', D'197', D'200'
+	dt	D'209', D'217', D'220', D'215', D'205', D'195', D'189', D'186'
+	dt	D'183', D'177', D'169', D'163', D'163', D'166', D'169', D'165'
+	dt	D'151', D'132', D'113', D'101', D'98', D'102', D'107', D'110'
+	dt	D'113', D'116', D'120', D'122', D'119', D'110', D'95', D'83'
+	dt	D'79', D'83', D'92', D'100', D'103', D'100', D'96', D'94'
+	dt	D'94', D'93', D'88', D'81', D'73', D'71', D'77', D'86'
+	dt	D'94', D'95', D'89', D'81', D'77', D'80', D'87', D'94'
+	dt	D'93', D'84', D'67', D'48', D'32', D'20', D'13', D'10'
+	dt	D'10', D'11', D'13', D'14', D'12', D'8', D'5', D'6'
+	dt	D'13', D'23', D'34', D'41', D'42', D'40', D'38', D'37'
+	dt	D'39', D'42', D'45', D'45', D'42', D'38', D'32', D'27'
+	dt	D'22', D'19', D'18', D'17', D'17', D'15', D'12', D'7'
+	dt	D'3', D'3', D'5', D'11', D'18', D'26', D'34', D'41'
+	dt	D'48', D'51', D'51', D'48', D'45', D'45', D'50', D'58'
+	dt	D'64', D'63', D'56', D'46', D'40', D'42', D'51', D'61'
+	dt	D'68', D'67', D'64', D'62', D'64', D'71', D'78', D'79'
+	dt	D'74', D'66', D'60', D'59', D'62', D'67', D'72', D'74'
+	dt	D'75', D'76', D'76', D'76', D'75', D'75', D'81', D'91'
+	dt	D'102', D'106', D'100', D'86', D'73', D'74', D'97', D'138'
+
+Wipeout:
+	dt	D'155', D'170', D'182', D'190', D'194', D'193', D'188', D'181'
+	dt	D'174', D'166', D'160', D'156', D'155', D'156', D'159', D'162'
+	dt	D'165', D'167', D'167', D'165', D'162', D'158', D'154', D'150'
+	dt	D'149', D'149', D'152', D'157', D'164', D'172', D'180', D'187'
+	dt	D'193', D'197', D'199', D'198', D'196', D'194', D'190', D'187'
+	dt	D'185', D'184', D'183', D'184', D'185', D'185', D'186', D'186'
+	dt	D'185', D'184', D'183', D'182', D'182', D'185', D'189', D'196'
+	dt	D'204', D'214', D'224', D'235', D'244', D'250', D'254', D'255'
+	dt	D'253', D'248', D'241', D'233', D'225', D'219', D'214', D'210'
+	dt	D'209', D'208', D'208', D'208', D'206', D'203', D'198', D'190'
+	dt	D'182', D'172', D'163', D'156', D'151', D'149', D'150', D'155'
+	dt	D'162', D'170', D'179', D'187', D'194', D'198', D'200', D'199'
+	dt	D'196', D'192', D'187', D'182', D'178', D'176', D'175', D'175'
+	dt	D'176', D'177', D'178', D'179', D'179', D'178', D'176', D'173'
+	dt	D'170', D'166', D'163', D'159', D'157', D'155', D'153', D'152'
+	dt	D'151', D'150', D'148', D'146', D'144', D'141', D'137', D'133'
+	dt	D'129', D'125', D'121', D'117', D'113', D'110', D'106', D'103'
+	dt	D'100', D'97', D'93', D'89', D'85', D'81', D'77', D'73'
+	dt	D'70', D'69', D'69', D'71', D'73', D'77', D'82', D'86'
+	dt	D'89', D'91', D'92', D'91', D'88', D'85', D'81', D'78'
+	dt	D'76', D'76', D'78', D'82', D'87', D'93', D'98', D'102'
+	dt	D'104', D'102', D'98', D'91', D'81', D'70', D'59', D'48'
+	dt	D'39', D'33', D'29', D'28', D'30', D'32', D'35', D'37'
+	dt	D'38', D'38', D'36', D'32', D'28', D'24', D'21', D'19'
+	dt	D'20', D'23', D'28', D'36', D'44', D'52', D'60', D'66'
+	dt	D'70', D'72', D'72', D'70', D'67', D'63', D'60', D'57'
+	dt	D'56', D'56', D'57', D'59', D'61', D'64', D'66', D'67'
+	dt	D'67', D'67', D'67', D'68', D'69', D'71', D'75', D'81'
+	dt	D'87', D'94', D'101', D'106', D'109', D'110', D'107', D'103'
+	dt	D'96', D'88', D'80', D'73', D'68', D'66', D'66', D'68'
+	dt	D'72', D'77', D'81', D'84', D'85', D'84', D'82', D'79'
+	dt	D'76', D'75', D'77', D'82', D'92', D'105', D'120', D'137'
+
+DucksBackpack:
+	dt	D'215', D'238', D'252', D'255', D'249', D'238', D'227', D'219'
+	dt	D'214', D'213', D'211', D'207', D'201', D'193', D'185', D'180'
+	dt	D'178', D'179', D'180', D'179', D'176', D'169', D'162', D'157'
+	dt	D'155', D'156', D'160', D'163', D'163', D'159', D'152', D'143'
+	dt	D'135', D'128', D'125', D'122', D'120', D'116', D'110', D'102'
+	dt	D'95', D'90', D'88', D'89', D'93', D'96', D'99', D'100'
+	dt	D'100', D'100', D'101', D'101', D'102', D'101', D'100', D'97'
+	dt	D'94', D'92', D'92', D'95', D'101', D'107', D'112', D'116'
+	dt	D'117', D'116', D'114', D'113', D'113', D'114', D'116', D'119'
+	dt	D'121', D'123', D'125', D'127', D'129', D'131', D'131', D'130'
+	dt	D'126', D'121', D'115', D'110', D'107', D'106', D'106', D'107'
+	dt	D'109', D'112', D'114', D'118', D'121', D'125', D'129', D'131'
+	dt	D'131', D'129', D'126', D'124', D'123', D'125', D'128', D'133'
+	dt	D'137', D'139', D'140', D'138', D'135', D'132', D'130', D'129'
+	dt	D'129', D'129', D'127', D'124', D'120', D'115', D'111', D'108'
+	dt	D'107', D'108', D'111', D'115', D'120', D'125', D'131', D'137'
+	dt	D'143', D'148', D'153', D'157', D'160', D'161', D'161', D'159'
+	dt	D'156', D'152', D'147', D'142', D'140', D'139', D'140', D'142'
+	dt	D'144', D'147', D'148', D'149', D'150', D'152', D'156', D'161'
+	dt	D'167', D'171', D'174', D'173', D'170', D'166', D'163', D'161'
+	dt	D'161', D'162', D'164', D'166', D'166', D'165', D'163', D'161'
+	dt	D'158', D'156', D'153', D'149', D'144', D'137', D'130', D'124'
+	dt	D'119', D'116', D'115', D'114', D'114', D'112', D'110', D'107'
+	dt	D'105', D'102', D'100', D'97', D'94', D'91', D'88', D'86'
+	dt	D'86', D'89', D'93', D'98', D'102', D'103', D'101', D'97'
+	dt	D'92', D'88', D'86', D'86', D'87', D'89', D'90', D'91'
+	dt	D'92', D'92', D'94', D'95', D'96', D'95', D'92', D'86'
+	dt	D'80', D'74', D'71', D'72', D'74', D'77', D'79', D'80'
+	dt	D'78', D'75', D'74', D'76', D'81', D'88', D'95', D'101'
+	dt	D'103', D'103', D'102', D'102', D'104', D'109', D'115', D'121'
+	dt	D'123', D'123', D'120', D'117', D'116', D'118', D'121', D'125'
+	dt	D'126', D'125', D'122', D'121', D'126', D'138', D'160', D'187'
+
+Quiqui:
+	dt	D'182', D'206', D'222', D'231', D'232', D'228', D'221', D'214'
+	dt	D'209', D'208', D'211', D'216', D'221', D'224', D'225', D'222'
+	dt	D'217', D'211', D'206', D'203', D'201', D'202', D'204', D'206'
+	dt	D'207', D'206', D'202', D'198', D'193', D'189', D'186', D'185'
+	dt	D'186', D'188', D'191', D'194', D'197', D'200', D'202', D'203'
+	dt	D'204', D'204', D'203', D'201', D'198', D'193', D'188', D'183'
+	dt	D'178', D'176', D'175', D'177', D'181', D'186', D'193', D'198'
+	dt	D'203', D'207', D'209', D'208', D'206', D'202', D'197', D'191'
+	dt	D'185', D'181', D'178', D'176', D'177', D'179', D'183', D'188'
+	dt	D'192', D'196', D'200', D'203', D'207', D'210', D'215', D'221'
+	dt	D'228', D'234', D'240', D'244', D'246', D'246', D'245', D'242'
+	dt	D'240', D'240', D'241', D'243', D'247', D'250', D'252', D'252'
+	dt	D'248', D'242', D'232', D'222', D'211', D'200', D'192', D'186'
+	dt	D'182', D'182', D'183', D'187', D'191', D'195', D'198', D'200'
+	dt	D'199', D'195', D'190', D'183', D'175', D'167', D'161', D'155'
+	dt	D'151', D'148', D'145', D'141', D'136', D'129', D'120', D'111'
+	dt	D'102', D'94', D'89', D'86', D'86', D'87', D'88', D'89'
+	dt	D'88', D'86', D'82', D'78', D'74', D'70', D'68', D'68'
+	dt	D'70', D'72', D'74', D'76', D'77', D'76', D'72', D'66'
+	dt	D'58', D'49', D'38', D'27', D'17', D'9', D'3', D'1'
+	dt	D'2', D'6', D'12', D'19', D'26', D'31', D'35', D'37'
+	dt	D'38', D'38', D'40', D'42', D'47', D'53', D'59', D'66'
+	dt	D'72', D'77', D'80', D'82', D'83', D'84', D'86', D'88'
+	dt	D'90', D'92', D'94', D'94', D'92', D'89', D'85', D'79'
+	dt	D'73', D'67', D'62', D'59', D'57', D'56', D'57', D'59'
+	dt	D'60', D'62', D'62', D'61', D'58', D'52', D'45', D'37'
+	dt	D'28', D'20', D'13', D'8', D'6', D'6', D'7', D'11'
+	dt	D'15', D'20', D'26', D'31', D'37', D'42', D'47', D'50'
+	dt	D'51', D'51', D'48', D'45', D'42', D'39', D'38', D'39'
+	dt	D'41', D'43', D'44', D'44', D'41', D'37', D'32', D'28'
+	dt	D'27', D'29', D'34', D'42', D'52', D'60', D'66', D'68'
+	dt	D'68', D'67', D'68', D'73', D'85', D'103', D'128', D'155'
+
+Heeyaw:
+	dt	D'199', D'221', D'239', D'250', D'255', D'254', D'246', D'233'
+	dt	D'216', D'195', D'173', D'150', D'128', D'108', D'90', D'75'
+	dt	D'64', D'57', D'53', D'53', D'56', D'62', D'71', D'82'
+	dt	D'95', D'109', D'124', D'138', D'153', D'165', D'176', D'184'
+	dt	D'189', D'190', D'187', D'182', D'173', D'161', D'148', D'135'
+	dt	D'122', D'111', D'102', D'97', D'94', D'95', D'99', D'106'
+	dt	D'115', D'125', D'137', D'149', D'160', D'170', D'179', D'187'
+	dt	D'193', D'197', D'200', D'201', D'199', D'196', D'190', D'182'
+	dt	D'172', D'159', D'144', D'128', D'112', D'95', D'79', D'65'
+	dt	D'55', D'48', D'45', D'47', D'54', D'65', D'80', D'97'
+	dt	D'117', D'136', D'156', D'174', D'189', D'201', D'211', D'216'
+	dt	D'219', D'218', D'215', D'209', D'202', D'193', D'182', D'171'
+	dt	D'159', D'147', D'135', D'123', D'112', D'102', D'94', D'87'
+	dt	D'83', D'82', D'83', D'86', D'92', D'99', D'107', D'116'
+	dt	D'124', D'131', D'137', D'142', D'144', D'145', D'144', D'142'
+	dt	D'140', D'137', D'135', D'133', D'132', D'132', D'132', D'132'
+	dt	D'132', D'132', D'131', D'130', D'127', D'125', D'122', D'120'
+	dt	D'118', D'118', D'120', D'123', D'128', D'135', D'142', D'149'
+	dt	D'156', D'162', D'165', D'166', D'165', D'160', D'153', D'143'
+	dt	D'131', D'119', D'105', D'92', D'80', D'69', D'59', D'52'
+	dt	D'47', D'45', D'44', D'47', D'52', D'59', D'69', D'82'
+	dt	D'96', D'112', D'129', D'147', D'165', D'181', D'196', D'207'
+	dt	D'214', D'217', D'215', D'208', D'197', D'182', D'163', D'143'
+	dt	D'122', D'102', D'83', D'67', D'53', D'44', D'38', D'37'
+	dt	D'38', D'43', D'50', D'58', D'69', D'80', D'91', D'103'
+	dt	D'114', D'126', D'136', D'146', D'154', D'160', D'165', D'166'
+	dt	D'165', D'161', D'154', D'145', D'133', D'120', D'106', D'94'
+	dt	D'82', D'73', D'68', D'66', D'68', D'75', D'85', D'97'
+	dt	D'112', D'128', D'144', D'159', D'172', D'183', D'190', D'194'
+	dt	D'194', D'191', D'185', D'175', D'162', D'147', D'130', D'112'
+	dt	D'94', D'75', D'57', D'41', D'28', D'18', D'12', D'12'
+	dt	D'17', D'28', D'44', D'65', D'90', D'117', D'146', D'174'
+
+Foonik:
+	dt	D'212', D'230', D'244', D'252', D'255', D'253', D'247', D'240'
+	dt	D'232', D'224', D'217', D'211', D'205', D'199', D'192', D'186'
+	dt	D'180', D'175', D'171', D'168', D'166', D'165', D'164', D'161'
+	dt	D'158', D'155', D'151', D'147', D'145', D'144', D'145', D'147'
+	dt	D'151', D'154', D'156', D'156', D'154', D'150', D'144', D'137'
+	dt	D'130', D'124', D'120', D'117', D'116', D'115', D'113', D'111'
+	dt	D'108', D'103', D'98', D'94', D'91', D'91', D'92', D'96'
+	dt	D'100', D'105', D'109', D'112', D'114', D'115', D'117', D'118'
+	dt	D'121', D'125', D'129', D'132', D'134', D'136', D'136', D'136'
+	dt	D'136', D'138', D'143', D'149', D'156', D'164', D'171', D'175'
+	dt	D'177', D'175', D'170', D'164', D'157', D'151', D'146', D'143'
+	dt	D'143', D'143', D'145', D'147', D'149', D'150', D'152', D'154'
+	dt	D'156', D'159', D'162', D'166', D'169', D'171', D'172', D'172'
+	dt	D'170', D'168', D'166', D'165', D'166', D'168', D'171', D'175'
+	dt	D'179', D'181', D'181', D'179', D'176', D'172', D'168', D'164'
+	dt	D'163', D'163', D'163', D'164', D'163', D'161', D'157', D'153'
+	dt	D'148', D'143', D'140', D'139', D'138', D'138', D'138', D'136'
+	dt	D'133', D'128', D'122', D'116', D'111', D'107', D'105', D'105'
+	dt	D'105', D'104', D'103', D'100', D'96', D'91', D'85', D'81'
+	dt	D'77', D'75', D'75', D'76', D'78', D'79', D'81', D'82'
+	dt	D'82', D'83', D'83', D'84', D'85', D'87', D'88', D'90'
+	dt	D'90', D'89', D'87', D'83', D'80', D'78', D'78', D'81'
+	dt	D'85', D'92', D'100', D'107', D'113', D'116', D'118', D'117'
+	dt	D'116', D'115', D'115', D'117', D'121', D'125', D'130', D'135'
+	dt	D'138', D'140', D'140', D'140', D'140', D'140', D'141', D'141'
+	dt	D'140', D'137', D'132', D'124', D'115', D'105', D'95', D'86'
+	dt	D'79', D'74', D'70', D'67', D'63', D'59', D'54', D'49'
+	dt	D'44', D'40', D'39', D'40', D'43', D'50', D'57', D'65'
+	dt	D'73', D'79', D'82', D'84', D'84', D'84', D'83', D'83'
+	dt	D'84', D'86', D'88', D'90', D'92', D'93', D'92', D'91'
+	dt	D'90', D'88', D'88', D'88', D'89', D'91', D'92', D'94'
+	dt	D'97', D'101', D'107', D'117', D'131', D'148', D'169', D'191'
+
+RubberNaught:
+	dt	D'156', D'160', D'164', D'167', D'169', D'171', D'173', D'174'
+	dt	D'174', D'174', D'174', D'172', D'170', D'168', D'165', D'161'
+	dt	D'157', D'153', D'148', D'143', D'138', D'133', D'128', D'124'
+	dt	D'120', D'117', D'114', D'113', D'112', D'113', D'114', D'117'
+	dt	D'120', D'124', D'128', D'133', D'138', D'142', D'147', D'150'
+	dt	D'153', D'155', D'155', D'154', D'152', D'148', D'142', D'135'
+	dt	D'127', D'117', D'106', D'95', D'83', D'71', D'59', D'47'
+	dt	D'37', D'27', D'19', D'12', D'6', D'3', D'1', D'1'
+	dt	D'3', D'6', D'12', D'18', D'25', D'34', D'43', D'52'
+	dt	D'62', D'71', D'80', D'89', D'97', D'104', D'110', D'116'
+	dt	D'120', D'124', D'127', D'129', D'131', D'132', D'134', D'134'
+	dt	D'135', D'136', D'137', D'137', D'138', D'139', D'141', D'142'
+	dt	D'143', D'144', D'145', D'146', D'146', D'147', D'147', D'146'
+	dt	D'145', D'144', D'143', D'141', D'140', D'138', D'136', D'135'
+	dt	D'134', D'133', D'133', D'133', D'134', D'135', D'137', D'140'
+	dt	D'142', D'145', D'148', D'151', D'154', D'157', D'159', D'161'
+	dt	D'161', D'161', D'160', D'158', D'155', D'150', D'145', D'139'
+	dt	D'133', D'126', D'118', D'110', D'103', D'95', D'88', D'82'
+	dt	D'76', D'72', D'68', D'65', D'64', D'63', D'64', D'65'
+	dt	D'68', D'71', D'75', D'80', D'84', D'90', D'95', D'101'
+	dt	D'106', D'112', D'117', D'123', D'128', D'133', D'138', D'143'
+	dt	D'149', D'154', D'159', D'165', D'171', D'177', D'182', D'188'
+	dt	D'194', D'200', D'205', D'210', D'214', D'218', D'221', D'222'
+	dt	D'223', D'223', D'221', D'219', D'215', D'210', D'205', D'198'
+	dt	D'191', D'184', D'177', D'170', D'163', D'156', D'151', D'146'
+	dt	D'143', D'141', D'140', D'141', D'142', D'145', D'149', D'153'
+	dt	D'158', D'164', D'169', D'175', D'180', D'184', D'187', D'189'
+	dt	D'189', D'188', D'186', D'182', D'177', D'170', D'162', D'153'
+	dt	D'143', D'132', D'122', D'111', D'100', D'90', D'81', D'72'
+	dt	D'65', D'59', D'55', D'52', D'50', D'50', D'51', D'54'
+	dt	D'57', D'62', D'68', D'74', D'81', D'88', D'95', D'103'
+	dt	D'110', D'117', D'124', D'130', D'136', D'142', D'147', D'152'
+
+Woppam:
+	dt	D'137', D'152', D'170', D'180', D'171', D'145', D'124', D'125'
+	dt	D'146', D'167', D'171', D'160', D'148', D'145', D'150', D'153'
+	dt	D'143', D'116', D'84', D'70', D'84', D'110', D'112', D'82'
+	dt	D'51', D'54', D'79', D'89', D'75', D'70', D'103', D'151'
+	dt	D'165', D'134', D'99', D'104', D'144', D'187', D'216', D'235'
+	dt	D'245', D'241', D'231', D'228', D'233', D'228', D'204', D'182'
+	dt	D'184', D'194', D'187', D'163', D'148', D'154', D'150', D'114'
+	dt	D'64', D'37', D'40', D'48', D'53', D'66', D'84', D'78'
+	dt	D'40', D'12', D'38', D'98', D'132', D'115', D'95', D'114'
+	dt	D'148', D'146', D'110', D'100', D'147', D'207', D'220', D'189'
+	dt	D'165', D'174', D'193', D'189', D'167', D'146', D'135', D'131'
+	dt	D'135', D'150', D'166', D'165', D'148', D'129', D'113', D'92'
+	dt	D'68', D'65', D'90', D'120', D'125', D'109', D'101', D'109'
+	dt	D'116', D'111', D'116', D'145', D'177', D'178', D'154', D'147'
+	dt	D'176', D'208', D'206', D'182', D'178', D'208', D'234', D'226'
+	dt	D'195', D'174', D'171', D'162', D'129', D'87', D'68', D'82'
+	dt	D'109', D'118', D'93', D'52', D'23', D'19', D'23', D'15'
+	dt	D'1', D'8', D'44', D'79', D'83', D'69', D'77', D'113'
+	dt	D'143', D'138', D'120', D'128', D'164', D'194', D'196', D'189'
+	dt	D'194', D'200', D'189', D'170', D'171', D'196', D'215', D'202'
+	dt	D'169', D'140', D'121', D'107', D'97', D'100', D'116', D'128'
+	dt	D'129', D'121', D'107', D'84', D'63', D'66', D'90', D'102'
+	dt	D'82', D'58', D'77', D'136', D'175', D'156', D'116', D'112'
+	dt	D'143', D'155', D'131', D'116', D'149', D'203', D'215', D'175'
+	dt	D'132', D'126', D'142', D'150', D'148', D'150', D'147', D'118'
+	dt	D'70', D'40', D'45', D'59', D'55', D'40', D'40', D'57'
+	dt	D'62', D'47', D'32', D'37', D'52', D'60', D'62', D'73'
+	dt	D'95', D'120', D'151', D'192', D'225', D'221', D'181', D'151'
+	dt	D'168', D'216', D'242', D'227', D'204', D'209', D'226', D'216'
+	dt	D'174', D'138', D'138', D'159', D'162', D'137', D'101', D'78'
+	dt	D'71', D'74', D'78', D'78', D'70', D'62', D'68', D'89'
+	dt	D'109', D'108', D'86', D'64', D'63', D'82', D'107', D'125'
+
+OctaveBrass:
+	dt	D'194', D'221', D'241', D'252', D'255', D'251', D'242', D'231'
+	dt	D'220', D'209', D'200', D'191', D'182', D'174', D'167', D'160'
+	dt	D'155', D'151', D'147', D'144', D'139', D'134', D'127', D'119'
+	dt	D'112', D'107', D'104', D'103', D'106', D'110', D'114', D'119'
+	dt	D'122', D'124', D'124', D'122', D'119', D'116', D'113', D'110'
+	dt	D'108', D'107', D'106', D'106', D'107', D'108', D'108', D'109'
+	dt	D'110', D'110', D'110', D'109', D'109', D'108', D'107', D'106'
+	dt	D'105', D'105', D'105', D'107', D'109', D'112', D'116', D'121'
+	dt	D'125', D'129', D'132', D'133', D'133', D'133', D'131', D'130'
+	dt	D'129', D'129', D'128', D'128', D'129', D'130', D'131', D'132'
+	dt	D'133', D'134', D'134', D'135', D'134', D'134', D'132', D'130'
+	dt	D'128', D'126', D'125', D'124', D'123', D'124', D'126', D'130'
+	dt	D'134', D'139', D'143', D'147', D'148', D'148', D'145', D'141'
+	dt	D'137', D'134', D'131', D'131', D'131', D'132', D'133', D'133'
+	dt	D'131', D'128', D'125', D'121', D'117', D'112', D'106', D'98'
+	dt	D'90', D'83', D'78', D'77', D'83', D'95', D'114', D'136'
+	dt	D'159', D'179', D'192', D'198', D'197', D'191', D'182', D'173'
+	dt	D'164', D'158', D'153', D'149', D'146', D'143', D'141', D'139'
+	dt	D'137', D'136', D'136', D'134', D'131', D'127', D'121', D'115'
+	dt	D'109', D'105', D'104', D'105', D'109', D'115', D'122', D'128'
+	dt	D'133', D'136', D'137', D'136', D'134', D'131', D'128', D'125'
+	dt	D'123', D'121', D'120', D'120', D'121', D'121', D'122', D'122'
+	dt	D'123', D'122', D'121', D'119', D'117', D'114', D'111', D'108'
+	dt	D'106', D'103', D'102', D'102', D'103', D'106', D'110', D'116'
+	dt	D'121', D'127', D'132', D'135', D'138', D'139', D'140', D'140'
+	dt	D'140', D'140', D'139', D'138', D'137', D'135', D'134', D'132'
+	dt	D'130', D'129', D'127', D'125', D'123', D'121', D'119', D'117'
+	dt	D'115', D'114', D'113', D'112', D'112', D'114', D'116', D'120'
+	dt	D'124', D'128', D'132', D'134', D'134', D'132', D'128', D'123'
+	dt	D'117', D'112', D'108', D'106', D'105', D'104', D'103', D'101'
+	dt	D'98', D'94', D'89', D'85', D'80', D'76', D'71', D'67'
+	dt	D'63', D'61', D'62', D'69', D'83', D'104', D'132', D'163'
+
+Clarinet:
+	dt	D'206', D'219', D'231', D'240', D'248', D'253', D'255', D'255'
+	dt	D'252', D'246', D'239', D'230', D'220', D'209', D'198', D'187'
+	dt	D'176', D'165', D'155', D'146', D'137', D'129', D'123', D'117'
+	dt	D'111', D'107', D'103', D'99', D'96', D'94', D'93', D'91'
+	dt	D'91', D'90', D'91', D'91', D'92', D'93', D'95', D'97'
+	dt	D'98', D'101', D'103', D'105', D'108', D'112', D'116', D'120'
+	dt	D'126', D'132', D'138', D'146', D'154', D'162', D'171', D'180'
+	dt	D'189', D'197', D'205', D'213', D'220', D'226', D'231', D'235'
+	dt	D'238', D'240', D'242', D'243', D'244', D'244', D'243', D'243'
+	dt	D'242', D'241', D'240', D'238', D'237', D'236', D'234', D'232'
+	dt	D'230', D'228', D'226', D'224', D'221', D'219', D'216', D'213'
+	dt	D'209', D'206', D'202', D'197', D'193', D'188', D'183', D'178'
+	dt	D'172', D'166', D'161', D'156', D'151', D'147', D'143', D'140'
+	dt	D'137', D'136', D'135', D'134', D'134', D'135', D'135', D'136'
+	dt	D'136', D'136', D'136', D'135', D'133', D'131', D'127', D'124'
+	dt	D'119', D'114', D'109', D'103', D'97', D'90', D'84', D'78'
+	dt	D'72', D'66', D'61', D'56', D'52', D'48', D'46', D'45'
+	dt	D'45', D'47', D'49', D'53', D'58', D'65', D'72', D'80'
+	dt	D'89', D'98', D'107', D'116', D'125', D'133', D'140', D'145'
+	dt	D'150', D'154', D'157', D'158', D'159', D'159', D'158', D'157'
+	dt	D'155', D'153', D'151', D'149', D'147', D'145', D'143', D'141'
+	dt	D'139', D'137', D'135', D'133', D'131', D'128', D'125', D'122'
+	dt	D'119', D'115', D'110', D'105', D'99', D'93', D'87', D'80'
+	dt	D'72', D'65', D'57', D'49', D'42', D'35', D'28', D'22'
+	dt	D'17', D'13', D'10', D'8', D'7', D'7', D'8', D'9'
+	dt	D'11', D'13', D'15', D'18', D'20', D'22', D'25', D'27'
+	dt	D'28', D'30', D'32', D'35', D'37', D'40', D'43', D'47'
+	dt	D'51', D'55', D'60', D'65', D'70', D'75', D'80', D'85'
+	dt	D'90', D'95', D'99', D'103', D'107', D'110', D'113', D'115'
+	dt	D'116', D'117', D'117', D'116', D'115', D'113', D'110', D'107'
+	dt	D'104', D'100', D'97', D'95', D'94', D'94', D'96', D'100'
+	dt	D'105', D'113', D'123', D'135', D'148', D'162', D'176', D'191'
+
+Claribel:
+	dt	D'204', D'214', D'224', D'233', D'240', D'246', D'251', D'254'
+	dt	D'255', D'255', D'254', D'251', D'247', D'242', D'236', D'230'
+	dt	D'223', D'215', D'207', D'199', D'192', D'184', D'177', D'170'
+	dt	D'163', D'158', D'153', D'149', D'145', D'142', D'140', D'139'
+	dt	D'139', D'139', D'140', D'141', D'143', D'145', D'147', D'149'
+	dt	D'151', D'153', D'155', D'157', D'158', D'159', D'159', D'159'
+	dt	D'159', D'158', D'156', D'155', D'153', D'151', D'148', D'146'
+	dt	D'144', D'141', D'139', D'137', D'135', D'133', D'132', D'131'
+	dt	D'130', D'129', D'129', D'129', D'130', D'130', D'131', D'132'
+	dt	D'134', D'136', D'137', D'140', D'142', D'144', D'147', D'150'
+	dt	D'153', D'156', D'159', D'162', D'165', D'169', D'172', D'175'
+	dt	D'178', D'180', D'183', D'185', D'188', D'190', D'192', D'193'
+	dt	D'195', D'196', D'198', D'199', D'200', D'200', D'200', D'200'
+	dt	D'200', D'200', D'199', D'198', D'196', D'194', D'192', D'189'
+	dt	D'187', D'183', D'180', D'176', D'173', D'169', D'165', D'161'
+	dt	D'157', D'153', D'149', D'146', D'142', D'139', D'136', D'134'
+	dt	D'131', D'129', D'127', D'125', D'123', D'122', D'121', D'120'
+	dt	D'119', D'118', D'118', D'117', D'117', D'117', D'117', D'117'
+	dt	D'117', D'116', D'116', D'116', D'115', D'114', D'112', D'111'
+	dt	D'109', D'106', D'103', D'100', D'97', D'94', D'90', D'86'
+	dt	D'83', D'79', D'75', D'72', D'68', D'65', D'63', D'60'
+	dt	D'58', D'57', D'55', D'55', D'54', D'54', D'54', D'55'
+	dt	D'56', D'57', D'59', D'60', D'62', D'64', D'66', D'68'
+	dt	D'69', D'71', D'73', D'74', D'75', D'76', D'77', D'77'
+	dt	D'77', D'77', D'76', D'76', D'75', D'74', D'73', D'72'
+	dt	D'71', D'70', D'70', D'69', D'69', D'69', D'70', D'71'
+	dt	D'72', D'74', D'76', D'78', D'80', D'82', D'84', D'85'
+	dt	D'87', D'88', D'89', D'89', D'89', D'88', D'86', D'84'
+	dt	D'82', D'79', D'75', D'72', D'68', D'63', D'59', D'55'
+	dt	D'51', D'47', D'44', D'42', D'40', D'39', D'39', D'40'
+	dt	D'42', D'46', D'50', D'56', D'63', D'72', D'81', D'91'
+	dt	D'103', D'115', D'127', D'140', D'153', D'167', D'179', D'192'
+
+DistortionBell:
+	dt	D'186', D'216', D'239', D'252', D'255', D'247', D'231', D'210'
+	dt	D'186', D'163', D'145', D'132', D'125', D'125', D'129', D'135'
+	dt	D'142', D'148', D'151', D'151', D'150', D'146', D'141', D'137'
+	dt	D'133', D'130', D'128', D'126', D'123', D'120', D'115', D'111'
+	dt	D'107', D'104', D'104', D'107', D'115', D'126', D'140', D'157'
+	dt	D'173', D'187', D'197', D'203', D'204', D'201', D'195', D'186'
+	dt	D'178', D'171', D'167', D'165', D'166', D'170', D'174', D'178'
+	dt	D'180', D'181', D'180', D'176', D'172', D'167', D'163', D'159'
+	dt	D'157', D'156', D'156', D'156', D'155', D'154', D'151', D'148'
+	dt	D'144', D'140', D'138', D'137', D'138', D'141', D'146', D'152'
+	dt	D'159', D'164', D'167', D'169', D'168', D'165', D'161', D'157'
+	dt	D'152', D'149', D'148', D'148', D'150', D'152', D'155', D'158'
+	dt	D'160', D'161', D'161', D'161', D'160', D'159', D'158', D'158'
+	dt	D'158', D'159', D'159', D'159', D'157', D'154', D'149', D'142'
+	dt	D'135', D'128', D'121', D'116', D'112', D'111', D'113', D'115'
+	dt	D'120', D'124', D'128', D'130', D'131', D'130', D'127', D'124'
+	dt	D'119', D'115', D'113', D'111', D'112', D'114', D'118', D'123'
+	dt	D'129', D'134', D'139', D'142', D'145', D'146', D'147', D'147'
+	dt	D'146', D'146', D'145', D'143', D'141', D'138', D'134', D'128'
+	dt	D'121', D'113', D'105', D'96', D'89', D'83', D'79', D'77'
+	dt	D'78', D'79', D'82', D'85', D'87', D'88', D'87', D'85'
+	dt	D'82', D'78', D'76', D'75', D'76', D'79', D'85', D'92'
+	dt	D'101', D'109', D'116', D'122', D'125', D'126', D'125', D'123'
+	dt	D'120', D'117', D'114', D'111', D'109', D'106', D'103', D'98'
+	dt	D'93', D'86', D'79', D'72', D'67', D'63', D'62', D'63'
+	dt	D'66', D'71', D'76', D'80', D'82', D'82', D'79', D'73'
+	dt	D'68', D'62', D'59', D'60', D'65', D'74', D'88', D'104'
+	dt	D'120', D'136', D'149', D'157', D'161', D'160', D'154', D'146'
+	dt	D'136', D'126', D'117', D'110', D'104', D'99', D'95', D'91'
+	dt	D'88', D'84', D'81', D'79', D'79', D'82', D'87', D'93'
+	dt	D'101', D'108', D'113', D'114', D'110', D'101', D'88', D'74'
+	dt	D'60', D'49', D'45', D'50', D'64', D'87', D'117', D'151'
+
+Mawkish:
+	dt	D'199', D'221', D'238', D'250', D'255', D'254', D'248', D'238'
+	dt	D'224', D'209', D'194', D'181', D'169', D'160', D'152', D'148'
+	dt	D'145', D'143', D'143', D'144', D'146', D'149', D'153', D'157'
+	dt	D'162', D'167', D'171', D'175', D'178', D'180', D'180', D'178'
+	dt	D'176', D'172', D'168', D'164', D'160', D'156', D'153', D'149'
+	dt	D'145', D'142', D'138', D'134', D'131', D'128', D'126', D'125'
+	dt	D'125', D'127', D'130', D'134', D'139', D'144', D'149', D'154'
+	dt	D'159', D'163', D'167', D'169', D'171', D'172', D'172', D'171'
+	dt	D'168', D'164', D'159', D'152', D'145', D'137', D'129', D'121'
+	dt	D'116', D'112', D'110', D'110', D'112', D'115', D'120', D'126'
+	dt	D'132', D'138', D'145', D'150', D'156', D'161', D'166', D'171'
+	dt	D'174', D'176', D'176', D'174', D'170', D'164', D'156', D'147'
+	dt	D'138', D'128', D'119', D'111', D'106', D'102', D'100', D'100'
+	dt	D'102', D'105', D'110', D'115', D'121', D'127', D'134', D'140'
+	dt	D'147', D'152', D'157', D'161', D'163', D'163', D'162', D'159'
+	dt	D'155', D'151', D'147', D'144', D'141', D'140', D'140', D'141'
+	dt	D'142', D'143', D'144', D'145', D'144', D'143', D'142', D'140'
+	dt	D'138', D'137', D'137', D'138', D'140', D'143', D'146', D'149'
+	dt	D'152', D'154', D'156', D'156', D'155', D'154', D'151', D'147'
+	dt	D'142', D'135', D'128', D'120', D'112', D'103', D'95', D'87'
+	dt	D'82', D'78', D'76', D'77', D'80', D'85', D'92', D'98'
+	dt	D'105', D'111', D'116', D'120', D'122', D'123', D'123', D'121'
+	dt	D'119', D'116', D'112', D'107', D'102', D'95', D'89', D'82'
+	dt	D'75', D'68', D'63', D'59', D'56', D'56', D'57', D'60'
+	dt	D'64', D'69', D'75', D'80', D'85', D'89', D'93', D'96'
+	dt	D'99', D'102', D'103', D'105', D'106', D'106', D'105', D'104'
+	dt	D'102', D'99', D'95', D'92', D'88', D'85', D'82', D'80'
+	dt	D'78', D'77', D'76', D'75', D'74', D'73', D'72', D'72'
+	dt	D'73', D'74', D'77', D'80', D'85', D'90', D'94', D'99'
+	dt	D'103', D'105', D'107', D'108', D'107', D'106', D'104', D'101'
+	dt	D'97', D'92', D'87', D'81', D'75', D'69', D'63', D'60'
+	dt	D'60', D'64', D'72', D'85', D'103', D'125', D'149', D'175'
+
+Kookop:
+	dt	D'80', D'68', D'60', D'58', D'60', D'68', D'79', D'92'
+	dt	D'105', D'115', D'122', D'124', D'123', D'118', D'111', D'102'
+	dt	D'93', D'83', D'74', D'65', D'56', D'47', D'39', D'31'
+	dt	D'24', D'19', D'16', D'17', D'20', D'26', D'34', D'44'
+	dt	D'54', D'65', D'75', D'84', D'93', D'101', D'109', D'117'
+	dt	D'124', D'130', D'137', D'142', D'147', D'152', D'156', D'161'
+	dt	D'167', D'173', D'181', D'189', D'196', D'203', D'207', D'209'
+	dt	D'207', D'203', D'197', D'190', D'184', D'181', D'182', D'186'
+	dt	D'195', D'206', D'219', D'230', D'239', D'242', D'241', D'234'
+	dt	D'223', D'210', D'196', D'183', D'172', D'166', D'163', D'163'
+	dt	D'166', D'170', D'174', D'176', D'177', D'175', D'172', D'167'
+	dt	D'161', D'154', D'147', D'139', D'132', D'125', D'119', D'115'
+	dt	D'112', D'112', D'116', D'122', D'132', D'144', D'156', D'169'
+	dt	D'179', D'186', D'189', D'188', D'184', D'178', D'169', D'161'
+	dt	D'153', D'146', D'141', D'136', D'130', D'124', D'117', D'108'
+	dt	D'97', D'86', D'74', D'63', D'53', D'45', D'39', D'34'
+	dt	D'29', D'25', D'21', D'16', D'11', D'6', D'3', D'1'
+	dt	D'2', D'4', D'9', D'16', D'23', D'30', D'36', D'41'
+	dt	D'45', D'48', D'51', D'55', D'61', D'69', D'79', D'91'
+	dt	D'105', D'118', D'130', D'140', D'148', D'153', D'155', D'155'
+	dt	D'153', D'149', D'145', D'139', D'133', D'127', D'120', D'114'
+	dt	D'110', D'108', D'109', D'113', D'120', D'130', D'141', D'151'
+	dt	D'160', D'165', D'166', D'162', D'154', D'144', D'133', D'125'
+	dt	D'120', D'120', D'126', D'137', D'152', D'168', D'184', D'198'
+	dt	D'207', D'212', D'212', D'208', D'202', D'195', D'189', D'185'
+	dt	D'182', D'183', D'185', D'189', D'193', D'198', D'202', D'205'
+	dt	D'208', D'211', D'214', D'216', D'219', D'221', D'222', D'223'
+	dt	D'223', D'221', D'219', D'216', D'212', D'208', D'204', D'199'
+	dt	D'193', D'186', D'177', D'166', D'154', D'140', D'126', D'112'
+	dt	D'99', D'88', D'77', D'68', D'60', D'53', D'45', D'38'
+	dt	D'32', D'27', D'25', D'26', D'32', D'41', D'55', D'71'
+	dt	D'88', D'103', D'115', D'122', D'123', D'118', D'107', D'94'
+
+Boulud:
+	dt	D'222', D'236', D'246', D'252', D'255', D'254', D'249', D'240'
+	dt	D'227', D'212', D'194', D'174', D'153', D'131', D'109', D'88'
+	dt	D'68', D'50', D'35', D'23', D'15', D'10', D'9', D'11'
+	dt	D'18', D'27', D'39', D'54', D'71', D'89', D'108', D'127'
+	dt	D'145', D'163', D'178', D'192', D'202', D'211', D'216', D'218'
+	dt	D'217', D'213', D'207', D'198', D'188', D'176', D'163', D'150'
+	dt	D'137', D'125', D'113', D'103', D'94', D'88', D'83', D'81'
+	dt	D'81', D'82', D'86', D'91', D'97', D'103', D'111', D'118'
+	dt	D'125', D'131', D'136', D'140', D'142', D'143', D'143', D'141'
+	dt	D'138', D'133', D'128', D'122', D'116', D'110', D'105', D'101'
+	dt	D'97', D'95', D'95', D'96', D'100', D'105', D'112', D'120'
+	dt	D'129', D'140', D'151', D'162', D'172', D'182', D'190', D'197'
+	dt	D'202', D'204', D'204', D'201', D'195', D'187', D'176', D'163'
+	dt	D'148', D'132', D'115', D'98', D'81', D'65', D'50', D'38'
+	dt	D'28', D'21', D'17', D'17', D'20', D'27', D'37', D'50'
+	dt	D'66', D'84', D'104', D'125', D'147', D'168', D'188', D'206'
+	dt	D'222', D'236', D'246', D'252', D'255', D'254', D'249', D'240'
+	dt	D'227', D'212', D'194', D'174', D'153', D'131', D'109', D'88'
+	dt	D'68', D'50', D'35', D'23', D'15', D'10', D'9', D'11'
+	dt	D'18', D'27', D'39', D'54', D'71', D'89', D'108', D'127'
+	dt	D'145', D'163', D'178', D'192', D'202', D'211', D'216', D'218'
+	dt	D'217', D'213', D'207', D'198', D'188', D'176', D'163', D'150'
+	dt	D'137', D'125', D'113', D'103', D'94', D'88', D'83', D'81'
+	dt	D'81', D'82', D'86', D'91', D'97', D'103', D'111', D'118'
+	dt	D'125', D'131', D'136', D'140', D'142', D'143', D'143', D'141'
+	dt	D'138', D'133', D'128', D'122', D'116', D'110', D'105', D'101'
+	dt	D'97', D'95', D'95', D'96', D'100', D'105', D'112', D'120'
+	dt	D'129', D'140', D'151', D'162', D'172', D'182', D'190', D'197'
+	dt	D'202', D'204', D'204', D'201', D'195', D'187', D'176', D'163'
+	dt	D'148', D'132', D'115', D'98', D'81', D'65', D'50', D'38'
+	dt	D'28', D'21', D'17', D'17', D'20', D'27', D'37', D'50'
+	dt	D'66', D'84', D'104', D'125', D'147', D'168', D'188', D'206'
+
+Quagmire:
+	dt	D'206', D'255', D'255', D'217', D'173', D'153', D'159', D'174'
+	dt	D'178', D'170', D'162', D'168', D'187', D'202', D'198', D'176'
+	dt	D'149', D'132', D'129', D'132', D'131', D'126', D'122', D'126'
+	dt	D'133', D'131', D'116', D'93', D'80', D'89', D'118', D'147'
+	dt	D'156', D'141', D'112', D'88', D'81', D'86', D'94', D'97'
+	dt	D'98', D'99', D'105', D'108', D'103', D'87', D'68', D'57'
+	dt	D'60', D'75', D'94', D'111', D'123', D'132', D'139', D'144'
+	dt	D'143', D'136', D'126', D'119', D'122', D'136', D'158', D'182'
+	dt	D'199', D'202', D'191', D'169', D'149', D'140', D'144', D'153'
+	dt	D'156', D'146', D'126', D'112', D'115', D'135', D'156', D'164'
+	dt	D'152', D'128', D'110', D'110', D'126', D'145', D'155', D'152'
+	dt	D'142', D'135', D'136', D'140', D'143', D'141', D'137', D'131'
+	dt	D'125', D'116', D'105', D'97', D'98', D'108', D'119', D'121'
+	dt	D'110', D'90', D'76', D'77', D'92', D'108', D'110', D'97'
+	dt	D'80', D'78', D'96', D'129', D'158', D'169', D'161', D'145'
+	dt	D'131', D'124', D'120', D'112', D'102', D'97', D'104', D'124'
+	dt	D'147', D'159', D'156', D'143', D'130', D'125', D'125', D'122'
+	dt	D'112', D'101', D'101', D'120', D'153', D'183', D'195', D'185'
+	dt	D'165', D'153', D'158', D'175', D'189', D'188', D'171', D'150'
+	dt	D'138', D'140', D'149', D'156', D'154', D'144', D'132', D'122'
+	dt	D'112', D'103', D'97', D'96', D'101', D'107', D'106', D'98'
+	dt	D'88', D'85', D'95', D'112', D'123', D'118', D'98', D'78'
+	dt	D'72', D'88', D'114', D'132', D'132', D'116', D'97', D'88'
+	dt	D'92', D'103', D'108', D'103', D'91', D'80', D'80', D'92'
+	dt	D'114', D'138', D'158', D'168', D'168', D'161', D'152', D'147'
+	dt	D'149', D'156', D'166', D'178', D'190', D'204', D'216', D'220'
+	dt	D'210', D'189', D'166', D'151', D'148', D'150', D'151', D'147'
+	dt	D'142', D'142', D'147', D'147', D'133', D'104', D'73', D'61'
+	dt	D'75', D'106', D'132', D'137', D'120', D'97', D'84', D'86'
+	dt	D'94', D'99', D'98', D'95', D'98', D'101', D'97', D'81'
+	dt	D'61', D'51', D'63', D'89', D'111', D'116', D'107', D'101'
+	dt	D'109', D'126', D'132', D'112', D'74', D'50', D'68', D'129'
+
+Sine:
+	dt	D'130', D'133', D'136', D'139', D'142', D'145', D'148', D'151'
+	dt	D'154', D'157', D'160', D'163', D'166', D'169', D'172', D'175'
+	dt	D'178', D'181', D'184', D'186', D'189', D'192', D'195', D'197'
+	dt	D'200', D'202', D'205', D'207', D'210', D'212', D'214', D'217'
+	dt	D'219', D'221', D'223', D'225', D'227', D'229', D'231', D'233'
+	dt	D'234', D'236', D'238', D'239', D'241', D'242', D'243', D'245'
+	dt	D'246', D'247', D'248', D'249', D'250', D'251', D'252', D'252'
+	dt	D'253', D'253', D'254', D'254', D'255', D'255', D'255', D'255'
+	dt	D'255', D'255', D'255', D'255', D'254', D'254', D'253', D'253'
+	dt	D'252', D'252', D'251', D'250', D'249', D'248', D'247', D'246'
+	dt	D'245', D'243', D'242', D'241', D'239', D'238', D'236', D'234'
+	dt	D'233', D'231', D'229', D'227', D'225', D'223', D'221', D'219'
+	dt	D'217', D'214', D'212', D'210', D'207', D'205', D'202', D'200'
+	dt	D'197', D'195', D'192', D'189', D'186', D'184', D'181', D'178'
+	dt	D'175', D'172', D'169', D'166', D'163', D'160', D'157', D'154'
+	dt	D'151', D'148', D'145', D'142', D'139', D'136', D'133', D'130'
+	dt	D'126', D'123', D'120', D'117', D'114', D'111', D'108', D'105'
+	dt	D'102', D'99', D'96', D'93', D'90', D'87', D'84', D'81'
+	dt	D'78', D'75', D'72', D'70', D'67', D'64', D'61', D'59'
+	dt	D'56', D'54', D'51', D'49', D'46', D'44', D'42', D'39'
+	dt	D'37', D'35', D'33', D'31', D'29', D'27', D'25', D'23'
+	dt	D'22', D'20', D'18', D'17', D'15', D'14', D'13', D'11'
+	dt	D'10', D'9', D'8', D'7', D'6', D'5', D'4', D'4'
+	dt	D'3', D'3', D'2', D'2', D'1', D'1', D'1', D'1'
+	dt	D'1', D'1', D'1', D'1', D'2', D'2', D'3', D'3'
+	dt	D'4', D'4', D'5', D'6', D'7', D'8', D'9', D'10'
+	dt	D'11', D'13', D'14', D'15', D'17', D'18', D'20', D'22'
+	dt	D'23', D'25', D'27', D'29', D'31', D'33', D'35', D'37'
+	dt	D'39', D'42', D'44', D'46', D'49', D'51', D'54', D'56'
+	dt	D'59', D'61', D'64', D'67', D'70', D'72', D'75', D'78'
+	dt	D'81', D'84', D'87', D'90', D'93', D'96', D'99', D'102'
+	dt	D'105', D'108', D'111', D'114', D'117', D'120', D'123', D'126'
+
+SineOctave:
+	dt	D'131', D'136', D'141', D'147', D'152', D'157', D'162', D'167'
+	dt	D'172', D'177', D'182', D'187', D'191', D'196', D'200', D'205'
+	dt	D'209', D'213', D'217', D'220', D'224', D'227', D'230', D'233'
+	dt	D'236', D'239', D'241', D'243', D'246', D'247', D'249', D'251'
+	dt	D'252', D'253', D'254', D'254', D'255', D'255', D'255', D'255'
+	dt	D'254', D'254', D'253', D'252', D'251', D'250', D'248', D'247'
+	dt	D'245', D'243', D'241', D'238', D'236', D'233', D'231', D'228'
+	dt	D'225', D'222', D'219', D'216', D'212', D'209', D'205', D'202'
+	dt	D'198', D'195', D'191', D'188', D'184', D'180', D'177', D'173'
+	dt	D'169', D'166', D'162', D'159', D'155', D'152', D'149', D'145'
+	dt	D'142', D'139', D'136', D'133', D'130', D'128', D'125', D'123'
+	dt	D'120', D'118', D'116', D'114', D'112', D'110', D'109', D'108'
+	dt	D'106', D'105', D'104', D'103', D'103', D'102', D'102', D'101'
+	dt	D'101', D'101', D'102', D'102', D'102', D'103', D'103', D'104'
+	dt	D'105', D'106', D'107', D'108', D'109', D'111', D'112', D'114'
+	dt	D'115', D'117', D'118', D'120', D'122', D'124', D'125', D'127'
+	dt	D'129', D'131', D'132', D'134', D'136', D'138', D'139', D'141'
+	dt	D'142', D'144', D'145', D'147', D'148', D'149', D'150', D'151'
+	dt	D'152', D'153', D'153', D'154', D'154', D'154', D'155', D'155'
+	dt	D'155', D'154', D'154', D'153', D'153', D'152', D'151', D'150'
+	dt	D'148', D'147', D'146', D'144', D'142', D'140', D'138', D'136'
+	dt	D'133', D'131', D'128', D'126', D'123', D'120', D'117', D'114'
+	dt	D'111', D'107', D'104', D'101', D'97', D'94', D'90', D'87'
+	dt	D'83', D'79', D'76', D'72', D'68', D'65', D'61', D'58'
+	dt	D'54', D'51', D'47', D'44', D'40', D'37', D'34', D'31'
+	dt	D'28', D'25', D'23', D'20', D'18', D'15', D'13', D'11'
+	dt	D'9', D'8', D'6', D'5', D'4', D'3', D'2', D'2'
+	dt	D'1', D'1', D'1', D'1', D'2', D'2', D'3', D'4'
+	dt	D'5', D'7', D'9', D'10', D'13', D'15', D'17', D'20'
+	dt	D'23', D'26', D'29', D'32', D'36', D'39', D'43', D'47'
+	dt	D'51', D'56', D'60', D'65', D'69', D'74', D'79', D'84'
+	dt	D'89', D'94', D'99', D'104', D'109', D'115', D'120', D'125'
+
+Ramp:
+	dt	D'182', D'253', D'255', D'232', D'230', D'242', D'242', D'232'
+	dt	D'230', D'237', D'237', D'230', D'228', D'232', D'232', D'227'
+	dt	D'225', D'228', D'228', D'224', D'222', D'224', D'224', D'220'
+	dt	D'219', D'220', D'220', D'217', D'215', D'217', D'216', D'214'
+	dt	D'212', D'213', D'213', D'210', D'208', D'209', D'209', D'207'
+	dt	D'205', D'205', D'205', D'203', D'201', D'202', D'202', D'200'
+	dt	D'198', D'198', D'198', D'196', D'194', D'195', D'195', D'193'
+	dt	D'191', D'191', D'191', D'189', D'187', D'187', D'187', D'186'
+	dt	D'184', D'184', D'184', D'182', D'180', D'180', D'180', D'178'
+	dt	D'177', D'177', D'176', D'175', D'173', D'173', D'173', D'171'
+	dt	D'170', D'169', D'169', D'168', D'166', D'166', D'166', D'164'
+	dt	D'163', D'162', D'162', D'161', D'159', D'159', D'158', D'157'
+	dt	D'156', D'155', D'155', D'154', D'152', D'151', D'151', D'150'
+	dt	D'148', D'148', D'148', D'147', D'145', D'144', D'144', D'143'
+	dt	D'141', D'141', D'141', D'139', D'138', D'137', D'137', D'136'
+	dt	D'134', D'133', D'133', D'132', D'131', D'130', D'130', D'129'
+	dt	D'127', D'126', D'126', D'125', D'124', D'123', D'123', D'122'
+	dt	D'120', D'119', D'119', D'118', D'117', D'115', D'115', D'115'
+	dt	D'113', D'112', D'112', D'111', D'109', D'108', D'108', D'108'
+	dt	D'106', D'105', D'105', D'104', D'102', D'101', D'101', D'100'
+	dt	D'99', D'98', D'97', D'97', D'95', D'94', D'94', D'93'
+	dt	D'92', D'90', D'90', D'90', D'88', D'87', D'87', D'86'
+	dt	D'85', D'83', D'83', D'83', D'81', D'80', D'79', D'79'
+	dt	D'78', D'76', D'76', D'76', D'74', D'72', D'72', D'72'
+	dt	D'70', D'69', D'69', D'69', D'67', D'65', D'65', D'65'
+	dt	D'63', D'61', D'61', D'62', D'60', D'58', D'58', D'58'
+	dt	D'56', D'54', D'54', D'55', D'53', D'51', D'51', D'51'
+	dt	D'49', D'47', D'47', D'48', D'46', D'43', D'43', D'44'
+	dt	D'42', D'40', D'39', D'41', D'39', D'36', D'36', D'37'
+	dt	D'36', D'32', D'32', D'34', D'32', D'28', D'28', D'31'
+	dt	D'29', D'24', D'24', D'28', D'26', D'19', D'19', D'26'
+	dt	D'24', D'14', D'14', D'26', D'24', D'1', D'3', D'74'
+
+Pulse:
+	dt	D'128', D'130', D'133', D'134', D'134', D'136', D'139', D'140'
+	dt	D'141', D'142', D'145', D'147', D'147', D'149', D'153', D'155'
+	dt	D'155', D'157', D'161', D'164', D'164', D'167', D'173', D'176'
+	dt	D'176', D'180', D'189', D'194', D'195', D'205', D'230', D'255'
+	dt	D'255', D'231', D'206', D'198', D'197', D'192', D'185', D'181'
+	dt	D'181', D'178', D'174', D'172', D'172', D'170', D'167', D'165'
+	dt	D'165', D'164', D'162', D'161', D'160', D'159', D'158', D'157'
+	dt	D'157', D'156', D'154', D'153', D'153', D'153', D'151', D'151'
+	dt	D'151', D'150', D'149', D'148', D'148', D'148', D'147', D'146'
+	dt	D'146', D'146', D'145', D'144', D'144', D'144', D'143', D'143'
+	dt	D'143', D'142', D'141', D'141', D'141', D'141', D'140', D'140'
+	dt	D'140', D'139', D'139', D'138', D'138', D'138', D'137', D'137'
+	dt	D'137', D'137', D'136', D'136', D'136', D'135', D'135', D'135'
+	dt	D'134', D'134', D'134', D'133', D'133', D'133', D'133', D'132'
+	dt	D'132', D'132', D'131', D'131', D'131', D'131', D'130', D'130'
+	dt	D'130', D'130', D'129', D'129', D'129', D'129', D'128', D'128'
+	dt	D'128', D'128', D'127', D'127', D'127', D'127', D'126', D'126'
+	dt	D'126', D'126', D'125', D'125', D'125', D'125', D'124', D'124'
+	dt	D'124', D'123', D'123', D'123', D'123', D'122', D'122', D'122'
+	dt	D'121', D'121', D'121', D'120', D'120', D'120', D'119', D'119'
+	dt	D'119', D'119', D'118', D'118', D'118', D'117', D'117', D'116'
+	dt	D'116', D'116', D'115', D'115', D'115', D'115', D'114', D'113'
+	dt	D'113', D'113', D'112', D'112', D'112', D'111', D'110', D'110'
+	dt	D'110', D'109', D'108', D'108', D'108', D'107', D'106', D'105'
+	dt	D'105', D'105', D'103', D'103', D'103', D'102', D'100', D'99'
+	dt	D'99', D'98', D'97', D'96', D'95', D'94', D'92', D'91'
+	dt	D'91', D'89', D'86', D'84', D'84', D'82', D'78', D'75'
+	dt	D'75', D'71', D'64', D'59', D'58', D'50', D'25', D'1'
+	dt	D'1', D'26', D'51', D'61', D'62', D'67', D'76', D'80'
+	dt	D'80', D'83', D'89', D'92', D'92', D'95', D'99', D'101'
+	dt	D'101', D'103', D'107', D'109', D'109', D'111', D'114', D'115'
+	dt	D'116', D'117', D'120', D'122', D'122', D'123', D'126', D'128'
+
+; We never reach here
+	end 

@@ -1,0 +1,11 @@
+___aldiv: CODE, 252 0 130
+_ISR: CODE, 4 0 21
+_main: CODE, 40 0 212
+___almod: CODE, 382 0 110
+___lmul: CODE, 492 0 48
+__initialization: CODE, 27 0 9
+_serial_init: CODE, 540 0 34
+_pwm_init: CODE, 603 0 19
+_init_io: CODE, 574 0 29
+_uart_xmit: CODE, 628 0 6
+Total: 618

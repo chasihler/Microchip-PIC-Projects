@@ -1,0 +1,19 @@
+<chasxmd>vicatcu, I didn't compare it to my Fluke 52... I should. I think I was getting high readings as well.. 26-27deg C on my bench.. I think it was more likely 24-25 deg C. I'll check it out.
+<vicatcu>i also think it sort of went up over time
+<vicatcu>guessing it's measuring board temperature more it's reading air temperature i guess
+<chasxmd>I let it run for about 6 hours.. it was steady... with minor changes.. I did check it against my finger and then some freeze spray to confirm the readings appeared valid
+<vicatcu>probably need to put slots in the board to fix that
+<vicatcu>yea no doubt it responds to variations in temperature
+<chasxmd>yeah well it's not the worlds best sensor. I think if I was serious about measuing something I would choose an external thermocouple.
+<vicatcu>to measure air temperature?
+<chasxmd>If it was important... but not if I was just reading a onboard temp in a computer or something.
+<chasxmd>I like your slot idea...
+<vicatcu>would be interesting to try anyway
+<chasxmd>I used what I had.. a spark fun breakout board. I think I might actually try to build that board ... hmmm future blog post I think.
+<vicatcu>cool tag me if you do :)
+<chasxmd>I'll give you props for the idea ;)
+
+MIDI interface
+
+USB PIC
+

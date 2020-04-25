@@ -1,0 +1,10 @@
+_main: CODE, 1659 0 330
+_Send_I2C_ACK: CODE, 2040 0 8
+_Send_I2C_NAK: CODE, 2032 0 8
+_Send_I2C_Data: CODE, 1989 0 8
+_Send_I2C_StopBit: CODE, 2014 0 7
+_Send_I2C_ControlByte: CODE, 2004 0 10
+__initialization: CODE, 1657 0 0
+_Send_I2C_StartBit: CODE, 1997 0 7
+_Read_I2C_Data: CODE, 2021 0 11
+Total: 389

@@ -1,0 +1,16 @@
+Message[301] C:\PROGRAM FILES\MICROCHIP\MPASM SUITE\P16F877.INC 37 : MESSAGE: (Processor-header file mismatch.  Verify selected processor.)
+Message[302] C:\D\PROJECTS\LCDS\JUN23FINAL\16\P16LCD.ASM 78 : Register in operand not in bank 0.  Ensure that bank bits are correct.
+Message[302] C:\D\PROJECTS\LCDS\JUN23FINAL\16\P16LCD.ASM 108 : Register in operand not in bank 0.  Ensure that bank bits are correct.
+Message[302] C:\D\PROJECTS\LCDS\JUN23FINAL\16\P16LCD.ASM 115 : Register in operand not in bank 0.  Ensure that bank bits are correct.
+Message[302] C:\D\PROJECTS\LCDS\JUN23FINAL\16\P16LCD.ASM 116 : Register in operand not in bank 0.  Ensure that bank bits are correct.
+Message[302] C:\D\PROJECTS\LCDS\JUN23FINAL\16\P16LCD.ASM 117 : Register in operand not in bank 0.  Ensure that bank bits are correct.
+Message[302] C:\D\PROJECTS\LCDS\JUN23FINAL\16\P16LCD.ASM 121 : Register in operand not in bank 0.  Ensure that bank bits are correct.
+Message[302] C:\D\PROJECTS\LCDS\JUN23FINAL\16\P16LCD.ASM 297 : Register in operand not in bank 0.  Ensure that bank bits are correct.
+Message[302] C:\D\PROJECTS\LCDS\JUN23FINAL\16\P16LCD.ASM 298 : Register in operand not in bank 0.  Ensure that bank bits are correct.
+Message[302] C:\D\PROJECTS\LCDS\JUN23FINAL\16\P16LCD.ASM 299 : Register in operand not in bank 0.  Ensure that bank bits are correct.
+Message[302] C:\D\PROJECTS\LCDS\JUN23FINAL\16\P16LCD.ASM 300 : Register in operand not in bank 0.  Ensure that bank bits are correct.
+Message[302] C:\D\PROJECTS\LCDS\JUN23FINAL\16\P16LCD.ASM 368 : Register in operand not in bank 0.  Ensure that bank bits are correct.
+Message[302] C:\D\PROJECTS\LCDS\JUN23FINAL\16\P16LCD.ASM 369 : Register in operand not in bank 0.  Ensure that bank bits are correct.
+Message[302] C:\D\PROJECTS\LCDS\JUN23FINAL\16\P16LCD.ASM 370 : Register in operand not in bank 0.  Ensure that bank bits are correct.
+Message[302] C:\D\PROJECTS\LCDS\JUN23FINAL\16\P16LCD.ASM 371 : Register in operand not in bank 0.  Ensure that bank bits are correct.
+Message[305] C:\D\PROJECTS\LCDS\JUN23FINAL\16\P16LCD.ASM 483 : Using default destination of 1 (file).

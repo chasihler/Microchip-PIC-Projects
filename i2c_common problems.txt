@@ -1,0 +1,25 @@
+I2C Common Problems:
+
+Pullup resistors (on Clock and Data pins).
+
+Operation sequence (Write and Read Sequence):
+- Write: Start - Device Address (write, LSb = '0') - Data Address - Data - Stop
+- Read: Start - Device Address (write, LSb = '0') - Data Address - Start (Restart in Microchip PIC microcontrollers) - Device Address (read, LSb = '1') - Read - Acknowledge - Read - Negative Acknowledge - Stop. (Acknowledge if there are more Reads, Negative Acknowledge before stop).
+
+Address size (Bytes): What i called (Data Address), could be byte or more.
+
+After Write delay: You have to wait a small time after write operations (after stop, not during write). This delay will be needed in fast microcontrollers, if you don't delay you will read wrong data.
+
+Read Initialization Flag (REN): This is in PIC, you have to initialize read operation and wait for BF (Buffer Full) or SSPIF (Interrupt Flag), and then read buffer register (SSPBUF in PIC microcontrollers).
+
+Acknowledge: Don't forget to acknowledge during read operations, acknowledge only if you are going to read another byte, and negative acknowledge after the last read, right before stop. Negative acknowledge is done by inverting acknowledge polarity.
+
+Acknowledge polarity: Acknowledge has negative polarity, while negative acknowledge has positive polarity.
+
+Read bit: It's the LSb (least significant bit) of the (Device Address) byte, it should be '0' for write, and '1' for read
+
+Write Protect pin (EEPROM): Connect this pin to VCC, or GND, or leave it floating, get this information from datasheet, for 24 EEPROM series, you can leave it floating.
+
+Frequency: Ensure that the frequency you are working on is supported by the device you are trying to access.
+
+Software Reset (I don't know when to use it, but i found it in AT24C02B datasheet): Start - Write (0xFF) - Start - STOP.

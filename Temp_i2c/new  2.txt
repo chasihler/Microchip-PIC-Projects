@@ -1,0 +1,891 @@
+
+
+Neowin
+Login Register
+
+    News
+    Spotlight RSS Feed
+        Xbox One 2014 plans reportedly...
+        Internet Explorer still provid...
+        Bill Clinton will be speaking...
+        Microsoft removes blog post on...
+        Google sells Motorola Mobility...
+        Microsoft gets cozy with ARM o...
+    Gaming RSS Feed
+        Xbox One's Killer Instinct to...
+        Battlefield 4 for Xbox One sup...
+        Microsoft announces Ryse: Son...
+        Microsoft Store offers exclusi...
+        Microsoft shows off more of Xb...
+        First direct gameplay video fr...
+    Software RSS Feed
+        Malwarebytes Anti-Malware 2.0...
+        Sysinternals Process Explorer...
+        LibreOffice 4.2.0 RC4
+        Speccy 1.25.674
+        TSR Watermark Image Software 2...
+        SoftPerfect Network Scanner 5....
+    Forum
+    Forums
+        Microsoft to unlock more GPU p...
+        The Big Wrestling Thread!
+        SpaceX Updates (Thread 4): F9,...
+        I basically live in a hospital;
+        Congressman Threatens Reporter...
+        Woman gets pregnant thanks to...
+    More
+        Spy
+        Chat
+        Mail Services
+        Store
+        Subscriptions
+        Donations
+        Advertising
+        Facebook
+        Twitter
+        YouTube
+    Contact
+
+This topic
+
+    Community Rules
+    View New Content
+     
+
+    Forums
+    Spy
+    Members
+    Help
+
+    Neowin Forums
+    ? Technical Help & Support
+    ? Programming (C#, C++, JAVA, VB, .NET etc.)
+
+
+Mini Spy
+  My chit chat with Phil Spencer via Twitter... in Microsoft Console 	
+
+    22 Replies
+
+	
+
+    trooper11
+
+  Man dies after 8 hours in ER waiting room in Real World News 	
+
+    2 Replies
+
+	
+
+    Buttus
+
+  Applications open as black windows with Teamviewer in Software Discussion & Support 	
+
+    30 Replies
+
+	
+
+    Zlip792
+
+  Man dies after 8 hours in ER waiting room in Real World News 	
+
+    1 Reply
+
+	
+
+    +astropheed
+
+  Tomb Raider Definitive Edition - PlayStation 4 = ~60fps, Xbox One = ~30fps in Gamers' Hangout 	
+
+    Hot 190 Replies
+
+	
+
+    trooper11
+
+Photo
+IIC (I2C) problem on PIC with DS1307
+Started by n_K , Jul 19 2013 18:30
+pic ds1307 iic i2c
+
+    Please log in to reply
+
+12 replies to this topic
+#1 [IIC (I2C) problem on PIC with DS1307: post #1] n_K
+
+    Neowinian Senior
+    Tech Issues Solved: 2
+    Joined: 19-March 06 
+
+    Location: here.
+    OS: FreeDOS
+    Phone: Nokia 3315
+
+Posted 19 July 2013 - 18:30
+I've been having a bit of a proble with a PIC (18F4520) controlling a DS1307 RTC via IIC and communicating with a PC over RS232... I've got these 2 functions;
+
+unsigned char I2C_ReadSetAddress(unsigned char Position)
+{
+    unsigned char Data;
+    IdleI2C();
+    StartI2C();
+    WriteI2C(DeviceAddress & 0xFE);
+    IdleI2C();
+    WriteI2C(Position);
+    IdleI2C();
+    RestartI2C();
+    WriteI2C(DeviceAddress | 1);
+    IdleI2C();
+    while (SSPSTATbits.RW == 1) { }
+    Data = ReadI2C();
+    IdleI2C();
+    NotAckI2C();
+    StopI2C();
+    I2C_Pointer = Position;
+    ++I2C_Pointer;
+    return Data;
+}
+
+unsigned char I2C_Read()
+{
+    //Reads data from I2C Device
+    unsigned char Data;
+    IdleI2C();
+    StartI2C();
+    WriteI2C(DeviceAddress | 1);
+    IdleI2C();
+    while (SSPSTATbits.RW == 1) { }
+    Data = ReadI2C();
+    IdleI2C();
+    NotAckI2C();
+    StopI2C();
+    ++I2C_Pointer;
+    return Data;
+}
+
+Now I'm really not understanding why but for some darned reason I'm not able to get I2C_Read() working properly, when I run it I get back one byte, and instead of the internal pointer inside the RTC going up by one (say from 0x00 to 0x01) it will only go up by two, so from 0x00 to 0x02! This happens even if I comment out the NotAckI2C(); and have the protocol exactly as the DS1307 specification says, and I can't seem to understand why? When I use the first function and specify the address, it works absolutely fine. Write: 01, 02, 03, 04, 05, 06, 07, 08, 09 Top function gets: 01, 02, 03, 04, 05, 06, 07, 00, 09 Second function gets: 01 or 02, 04, 06, etc. IIC registers are all setup fine.
+
+    Top
+
+Ad Bot (disabled when logged in)
+
+    Register to remove me
+    Icon
+
+    Group: Treasury
+    Register: It's Free!
+
+
+#2 [IIC (I2C) problem on PIC with DS1307: post #2] Karl L.
+
+    xorangekiller
+    Tech Issues Solved: 15
+    Joined: 24-January 09 
+
+    Location: Virginia, USA
+    OS: Debian Testing
+
+Posted 19 July 2013 - 19:20
+
+Where did you get the *I2C() functions from? I don't remember reading about any standard I2C functions in the XC8 or XC16 compiler manuals. Assuming you are using the right I2C address, which I would double-check in hardware just to be sure, it is a little difficult to see where your problem lies without the source code for those functions. They are named well so it is fairly obvious what IdleI2C, for example, is supposed to do, but there could be a bug in that code as well. In case it helps, the following is my working implementation of I2C for the PIC18F242:
+
+/*
+ * File:    i2cmsu.h
+ * Author:  xorangekiller
+ * Date:    23 January 2013
+ *
+ * Original Author:  R. Reese MSU
+ * Original Date:    July 2003
+ *
+ * This file was based on i2cmsu.h from the example code provided on the CD with
+ * "MICROPROCESSORS FROM ASSEMBLY LANGUAGE TO C USING THE PIC18FXX2" by
+ * ROBERT B. REESE. Any modifications were made by the authors above to suit
+ * their project specifications.
+ */
+
+#ifndef _I2CMSU_H_
+#define _I2CMSU_H_
+
+#include "config.h"
+
+/* Error conditions which may be set by any public I2C library function */
+#define I2C_NO_ERR        0
+#define I2C_IDLE_ERR      1
+#define I2C_START_ERR     2
+#define I2C_RSTART_ERR    3
+#define I2C_STOP_ERR      4
+#define I2C_GET_ERR       5
+#define I2C_PUT_ERR       6
+#define I2C_MISSACK_ERR   7
+#define I2C_ACK_ERR       8
+#define I2C_NAK_ERR       9
+
+/*
+ * I2C Library Functions
+ *
+ * These functions assume the WatchDogTimer is in operation. If it timed our during normal
+ * operation, call i2c_get_err() or i2c_print_err() to determine what went wrong.
+ */
+
+INLINE_IF_POSSIBLE void i2c_init( unsigned char bitrate );
+
+void i2c_idle();
+void i2c_start();
+void i2c_rstart();
+void i2c_stop();
+void i2c_ack( unsigned char ackbit );
+
+void i2c_put( unsigned char byte );
+INLINE_IF_POSSIBLE void i2c_putbyte( unsigned char byte );
+void i2c_put_err( unsigned char byte );
+
+unsigned char i2c_get( unsigned char ackbit );
+INLINE_IF_POSSIBLE unsigned char i2c_getbyte( unsigned char ackbit );
+
+void i2c_print_err();
+INLINE_IF_POSSIBLE unsigned char i2c_get_err();
+
+#endif // _I2CMSU_H_
+
+/*
+ * File:    i2cmsu.c
+ * Author:  xorangekiller
+ * Date:    23 January 2013
+ *
+ * Original Author:  R. Reese MSU
+ * Original Date:    July 2003
+ *
+ * This file was based on i2cmsu.c from the example code provided on the CD with
+ * "MICROPROCESSORS FROM ASSEMBLY LANGUAGE TO C USING THE PIC18FXX2" by
+ * ROBERT B. REESE. Any modifications were made by the authors above to suit
+ * their project specifications.
+ */
+
+#include "i2cmsu.h"
+
+#include <stdio.h>
+
+/*************************************************************************************************
+ *                                      Private Variables                                        *
+ *************************************************************************************************/
+
+static persistent unsigned char i2c_errstat; // Which error occurred most recently?
+
+/*************************************************************************************************
+ *                                       Public Functions                                        *
+ *************************************************************************************************/
+
+/*
+ * Initialize the I2C library in Master Mode.
+ */
+INLINE_IF_POSSIBLE void i2c_init( unsigned char bitrate )
+{
+    SSPCON1 = 0x08; // Lower 4 bits of SSPCON1 represent the SSPM bits
+    SSPADD = bitrate; // In Master Mode the lower seven bits of SSPADD act as the baud rate generator reload value.
+    SSPEN = 1;
+
+    // SDA and SCL pins must initially be inputs to use the PIC18's I2C hardware in Master Mode
+    bitset( TRISC, 3 ); // Serial clock (SCL) - RC3/SCK/SCL
+    bitset( TRISC, 4 ); // Serial data (SDA) - RC4/SDI/SDA
+
+    SSPIF = 0; // Clear SPIF bit
+    i2c_errstat = I2C_NO_ERR; // Clear error status
+}
+
+/*
+ * Block until the I2C interface is idle.
+ */
+void i2c_idle()
+{
+    unsigned char byte1; // R/W status: Is a transfer in progress?
+    unsigned char byte2; // Lower 5 bits: Acknowledge Sequence, Receive, STOP, Repeated START, START
+
+    CLRWDT();
+    i2c_errstat = I2C_IDLE_ERR;
+
+    do
+    {
+        byte1 = SSPSTAT & 0x04;
+        byte2 = SSPCON2 & 0x1F;
+    } while( byte1 | byte2 );
+
+    CLRWDT();
+    i2c_errstat = I2C_NO_ERR;
+}
+
+/*
+ * Send the start message and wait start to finish.
+ */
+void i2c_start()
+{
+    i2c_idle();
+    i2c_errstat = I2C_START_ERR;
+    SEN = 1; // Initiate start
+    while( SEN ) continue;
+    CLRWDT();
+    i2c_errstat = I2C_NO_ERR;
+}
+
+/*
+ * Send the repeated start message and wait repeated start to finish.
+ */
+void i2c_rstart()
+{
+    i2c_idle();
+    i2c_errstat = I2C_RSTART_ERR;
+    RSEN = 1; // Reinitiate start
+    while( RSEN ) continue;
+    CLRWDT();
+    i2c_errstat = I2C_NO_ERR;
+}
+
+/*
+ * Sends the stop message and wait stop to finish.
+ */
+void i2c_stop()
+{
+    i2c_idle();
+    i2c_errstat = I2C_STOP_ERR;
+    PEN = 1; // Initiate stop
+    while( PEN ) continue;
+    CLRWDT();
+    i2c_errstat = I2C_NO_ERR;
+}
+
+/*
+ * Send an acknowledgement.
+ */
+void i2c_ack( unsigned char ackbit )
+{
+    CLRWDT();
+    ACKDT = ackbit;
+    if( ackbit ) i2c_errstat = I2C_NAK_ERR;
+    else i2c_errstat = I2C_ACK_ERR;
+    ACKEN = 1; // Initiate acknowlege cycle
+    while( ACKEN ) continue;
+    CLRWDT();
+    i2c_errstat = I2C_NO_ERR;
+}
+
+/*
+ * Send a single byte on the I2C bus.
+ */
+void i2c_put( unsigned char byte )
+{
+    i2c_errstat = I2C_PUT_ERR;
+    SSPIF = 0;
+    SSPBUF = byte;
+    while( !SSPIF ) continue; // Wait for the ACK to finish
+    CLRWDT();
+    if( ACKSTAT ) i2c_errstat = I2C_MISSACK_ERR;
+    else i2c_errstat = I2C_NO_ERR;
+}
+
+/*
+ * Send a single byte on the I2C bus, checking idle first.
+ */
+INLINE_IF_POSSIBLE void i2c_putbyte( unsigned char byte )
+{
+    i2c_idle();
+    i2c_put( byte );
+}
+
+/*
+ * Send a single byte on the I2C bus, and reset on ACK error.
+ */
+void i2c_put_err( unsigned char byte )
+{
+    // TODO: Fix any _potential_ bugs with this implementation.
+    //
+    // Originally, i2c_errstat was marked as 'persistent' (not a valid ANSI C keyword), which
+    // I assume means it would survive a device reset based on this context. If we reset here,
+    // the current value of i2c_errstat will probably be lost. This is likely bug #1 with this
+    // implementation.
+    //
+    // Any program calling this function must take care NOT to call i2c_init() after it restarts!
+    // This side-effect should probably be prominently mentioned somewhere because it would be very
+    // easy to do. Originally, this reset was enabled by default in i2c_put(), but since that
+    // implementation is so error-prone, I removed it from i2c_put() and replaced i2c_put_noerr()
+    // with this function to replace the missing functionality. This is potential bug #2.
+    i2c_put( byte );
+    if( i2c_errstat == I2C_MISSACK_ERR ) RESET();
+}
+
+/*
+ * Read a byte from the I2C bus and send an acknowledgement.
+ */
+unsigned char i2c_get( unsigned char ackbit )
+{
+    unsigned char byte; // Byte read from the bus
+
+    i2c_errstat = I2C_GET_ERR;
+    RCEN = 1;  // Initiate read event
+    while( RCEN ) continue;
+    CLRWDT();
+    while( !BF ) continue;
+    CLRWDT();
+
+    byte = SSPBUF;
+    i2c_errstat = I2C_NO_ERR;
+    i2c_ack( ackbit );
+
+    return byte;
+}
+
+/*
+ * Read a byte from the I2C bus, checking idle first, and send an acknowledgement.
+ */
+INLINE_IF_POSSIBLE unsigned char i2c_getbyte( unsigned char ackbit )
+{
+    i2c_idle();
+    return i2c_get( ackbit );
+}
+
+/*
+ * Print an error message based on the current error status.
+ */
+void i2c_print_err()
+{
+    printf( "\r\nI2C bus error is " );
+    switch( i2c_errstat )
+    {
+        case I2C_NO_ERR:
+            printf( "None" );
+            break;
+        case I2C_IDLE_ERR:
+            printf( "Idle" );
+            break;
+        case I2C_START_ERR:
+            printf( "Start" );
+            break;
+        case I2C_STOP_ERR:
+            printf( "Stop" );
+            break;
+        case I2C_GET_ERR:
+            printf( "Get" );
+            break;
+        case I2C_PUT_ERR:
+            printf( "Put" );
+            break;
+        case I2C_MISSACK_ERR:
+            printf( "Missing Ack" );
+            break;
+        case I2C_ACK_ERR:
+            printf( "Ack" );
+            break;
+        case I2C_NAK_ERR:
+            printf( "Nak" );
+            break;
+        default:
+            printf( "Unknown" );
+            break;
+    };
+    printf( "\r\n" );
+}
+
+/*
+ * Return the current error status.
+ */
+INLINE_IF_POSSIBLE unsigned char i2c_get_err()
+{
+    return i2c_errstat;
+}
+
+To use it you will need to call i2c_init() with the integer representing your desired frequency (as defined by your datasheet) as the first argument. Of course you also need the watchdog timer and interrupts setup first. Then you may invoke the i2c_*() functions like the following:
+
+void update_dac( unsigned char c )
+{
+    i2c_start();
+    i2c_put_err( DAC_ADDR );
+    i2c_put_err( 0x00 );
+    i2c_put_err( c );
+    i2c_stop();
+}
+
+
+    Top
+
+#3 [IIC (I2C) problem on PIC with DS1307: post #3] OP n_K
+
+    Neowinian Senior
+    Tech Issues Solved: 2
+    Joined: 19-March 06 
+
+    Location: here.
+    OS: FreeDOS
+    Phone: Nokia 3315
+
+Posted 19 July 2013 - 21:20
+
+Yes IIC functions exist in XC8, here's how to use them;
+
+#define I2C_V2 true
+#include <plib/i2c.h>
+//#include <plib/sw_i2c.h>
+
+I'll try with yours and see what the difference is. The sw_i2c is commented out because I'm no longer using it but I KNOW that has problems, I kid you not when the includes just change SWNotACK() to SWACK() so it wouldn't surprise me if the normal IIC libraries have problems.
+
+    Top
+
+#4 [IIC (I2C) problem on PIC with DS1307: post #4] Karl L.
+
+    xorangekiller
+    Tech Issues Solved: 15
+    Joined: 24-January 09 
+
+    Location: Virginia, USA
+    OS: Debian Testing
+
+Posted 19 July 2013 - 21:32
+
+Although Microchip provides excellent documentation, their standard library and compiler (at least with the previous generation compilers, before the XC8) are often quite buggy in my experience. It should work just how the documentation says, but that is not always the case. To their credit Microchip will normally try to help you if you put in a ticket on their website. Unfortunately try is definitely the right word. While I'm sure their support personnel really want to help, the answer is far too often that they are working on the issue but don't have an exact timeframe identified for when it will be fixed. This is the primary reason that I much prefer working with Atmel microcontrollers: not only is their AVR toolchain completely open-source, but it is far less buggy than Microchip's PIC toolchain.
+
+    Top
+
+#5 [IIC (I2C) problem on PIC with DS1307: post #5] OP n_K
+
+    Neowinian Senior
+    Tech Issues Solved: 2
+    Joined: 19-March 06 
+
+    Location: here.
+    OS: FreeDOS
+    Phone: Nokia 3315
+
+Posted 19 July 2013 - 21:43
+
+Haha agreed, I took a look at the AVR GCC toolchain and was very impressed, have only got 2 atmel chips to hand though an ATMEGA 168 and an AT89C51 and the programmer I've got only works on windows so it's a bit of an 'on hold' status.
+
+If I get it working using your method then I'll definately check out their support and report both bugs!
+
+    Top
+
+#6 [IIC (I2C) problem on PIC with DS1307: post #6] OP n_K
+
+    Neowinian Senior
+    Tech Issues Solved: 2
+    Joined: 19-March 06 
+
+    Location: here.
+    OS: FreeDOS
+    Phone: Nokia 3315
+
+Posted 19 July 2013 - 22:52
+
+OK got it kinda running, changed code to;
+
+unsigned char I2C_ReadSetAddress(unsigned char Position)
+{
+    //Reads data from I2C Device
+    unsigned char Data;
+    i2c_idle();
+    i2c_start();
+    i2c_put(DeviceAddress & 0xFE);
+    i2c_idle();
+    i2c_put(Position);
+    i2c_idle();
+    i2c_rstart();
+    i2c_put(DeviceAddress | 1);
+    i2c_idle();
+    while (SSPSTATbits.RW == 1) { }
+        Data = i2c_get(0);
+        i2c_idle();
+    i2c_stop();
+    ++I2C_Pointer;
+    return Data;
+}
+
+unsigned char I2C_Read()
+{
+    //Reads data from I2C Device
+    unsigned char Data;
+    i2c_idle();
+    i2c_start();
+    i2c_idle();
+    i2c_put(DeviceAddress | 1); //Here
+    i2c_idle();
+        Data = i2c_get(0);
+        i2c_idle();
+    i2c_stop();
+    ++I2C_Pointer;
+    return Data;
+}
+
+ 
+
+But... It's hit and miss for getting it working at all, sometimes even the first function call doesn't work, sometimes it does. The second function call always fails where the '//Here' comment is, it gets stuck in a loop I presume as setting a timer interupt causes it to break out with error code 6. I'm assuming it doesn't use I2C interupts (if it does I've not got a clue how to use them).
+
+    Top
+
+#7 [IIC (I2C) problem on PIC with DS1307: post #7] Karl L.
+
+    xorangekiller
+    Tech Issues Solved: 15
+    Joined: 24-January 09 
+
+    Location: Virginia, USA
+    OS: Debian Testing
+
+Posted 20 July 2013 - 00:40
+
+n_K, on 19 Jul 2013 - 13:43, said:
+
+    Haha agreed, I took a look at the AVR GCC toolchain and was very impressed, have only got 2 atmel chips to hand though an ATMEGA 168 and an AT89C51 and the programmer I've got only works on windows so it's a bit of an 'on hold' status.
+    If I get it working using your method then I'll definately check out their support and report both bugs!
+
+
+The have not used the second chip, but the ATMEGA 168 is a very nice general-purpose microcontroller. As an added bonus, you can even make use the Arduino libraries with it if you flash the Arduino bootloader and set the fuses to use the right frequency. I have a makefile that does as much using the frequency of the microcontroller's internal osciallator if you are interested. It assumes the paths where the Arduino software is installed on Debian, but I wrote the makefile so those can be easily changed for any other distro.
+
+Also I can highly recommend the USBtinyISP AVR programmer. It is an open-source hardware project that is designed to work with avrdude so you can use it on any major operating system. It also costs far less than the AVR programmers officially produced by Atmel. You can build one yourself for about $12, with one caveat: you need an AVR programmer to write the firmware to its ATTINY microcontroller. Fortunately you can buy a pre-built one almost as cheap as you can build one yourself, and still much cheaper than an official AVR programmer.
+ 
+
+n_K, on 19 Jul 2013 - 14:52, said:
+
+    But... It's hit and miss for getting it working at all, sometimes even the first function call doesn't work, sometimes it does. The second function call always fails where the '//Here' comment is, it gets stuck in a loop I presume as setting a timer interupt causes it to break out with error code 6. I'm assuming it doesn't use I2C interupts (if it does I've not got a clue how to use them).
+
+
+I should not have mentioned interrupts in my last post. The I2C program that I pulled those files from is generating waveforms via a DAC and outputting status information via RS232. My program is only using interrupts for RS232 communication, not I2C. I'm sorry about the confusion I caused.
+
+Does your programmer support ICD or are you debugging via printf() statements over serial? Microchip has numerous bugs in the parser that the printf() family of functions makes use of in their C standard library. I have had code fail in seemingly random places due to printf() or sprintf() bugs many times.
+
+Also, why are you ORing the device address with 1? Was that something the datasheet suggested? My I2C address, which I calculated from my DAC's datasheet, is transmitted in the following form:
+
+#define DAC_ADDR 0x58 // I2C DAC 01011000
+
+
+    Top
+
+#8 [IIC (I2C) problem on PIC with DS1307: post #8] OP n_K
+
+    Neowinian Senior
+    Tech Issues Solved: 2
+    Joined: 19-March 06 
+
+    Location: here.
+    OS: FreeDOS
+    Phone: Nokia 3315
+
+Posted 20 July 2013 - 10:14
+
+Not a bad idea that, might have a scout around later and see if I've got the things to make it!
+
+Ah just RS232 interupts, that's fine then, weird. My programmer for PICs is a kinda garbage JDM haha, absolutely no debugging at all, take the chip out, put in programmer, put back in breadboard and power on. I've got an LCD on it which I'm using for debugging.
+
+With I2C you have 2 addresses, one for reading and one for writing. You write to ADDR & FE and read from ADDR | 1.
+
+    Top
+
+#9 [IIC (I2C) problem on PIC with DS1307: post #9] Karl L.
+
+    xorangekiller
+    Tech Issues Solved: 15
+    Joined: 24-January 09 
+
+    Location: Virginia, USA
+    OS: Debian Testing
+
+Posted 21 July 2013 - 17:03
+
+n_K, on 20 Jul 2013 - 02:14, said:
+
+    Ah just RS232 interupts, that's fine then, weird. My programmer for PICs is a kinda garbage JDM haha, absolutely no debugging at all, take the chip out, put in programmer, put back in breadboard and power on. I've got an LCD on it which I'm using for debugging.
+
+
+That setup sounds like a pain to deal with. I debugged everything over serial when I programmed the micro with the PICKit 2, but in-circuit debugging was obviously much nicer with the PIC ICD 3. However both of those programmers allowed me to program in-place without removing my micro.
+
+n_K, on 20 Jul 2013 - 02:14, said:
+
+    With I2C you have 2 addresses, one for reading and one for writing. You write to ADDR & FE and read from ADDR | 1.
+
+
+You are right. I forgot about that.
+
+    Top
+
+#10 [IIC (I2C) problem on PIC with DS1307: post #10] OP n_K
+
+    Neowinian Senior
+    Tech Issues Solved: 2
+    Joined: 19-March 06 
+
+    Location: here.
+    OS: FreeDOS
+    Phone: Nokia 3315
+
+Posted 24 July 2013 - 19:15
+
+I've reached the limit with this JDM, it just won't do anything in circuit! Whatever it's doing with MCLR causes the CPU to run a bit of code then reset and does that 5 times then say it can't find a PIC!
+
+Was looking for PICKIT 3's on ebay and erm... £50 seems way too much, but there's some 'clones' for £20 but they don't mention how well they work compared to the original or if they've been blocked from updates or what, have you ever used them?
+
+    Top
+
+#11 [IIC (I2C) problem on PIC with DS1307: post #11] OP n_K
+
+    Neowinian Senior
+    Tech Issues Solved: 2
+    Joined: 19-March 06 
+
+    Location: here.
+    OS: FreeDOS
+    Phone: Nokia 3315
+
+Posted 25 July 2013 - 13:00
+
+Actually nevermind, found and ordered what appears to be a PICKIT 3 from a very known supplier, only it's a fraction of the cost anywhere else has the exact same item for and is cheaper than the item on their own website even, not sure if they've messed up or if it's a clone or what, will wait and see what happens!
+
+    Top
+
+#12 [IIC (I2C) problem on PIC with DS1307: post #12] Karl L.
+
+    xorangekiller
+    Tech Issues Solved: 15
+    Joined: 24-January 09 
+
+    Location: Virginia, USA
+    OS: Debian Testing
+
+Posted 25 July 2013 - 17:07
+
+To answer your question, I have never used the PICKIT 3, only the PICKIT 2 and ICD 3. They both worked well, although the ICD 3 was definitely noticeably slower programming the PIC than the PICKIT 2 was. I suspected the debugging features included in it slowed it down quite a bit. I also needed an RJ14 (4-pin telephone jack) to connect the ICD instead of the simple header for the PICKIT. Considering how well Microchip's official programmers work, I would be a little nervous about ordering a clone: it might be even worse. Hopefully the one you ordered works well.
+
+    Top
+
+#13 [IIC (I2C) problem on PIC with DS1307: post #13] OP n_K
+
+    Neowinian Senior
+    Tech Issues Solved: 2
+    Joined: 19-March 06 
+
+    Location: here.
+    OS: FreeDOS
+    Phone: Nokia 3315
+
+Posted 26 July 2013 - 14:47
+
+Heh yeah it has arrived and is actually genuine, pretty surprised for the price.
+
+http://uk.farnell.co...jsp?SKU=1686530 if anyone else is interested in a very cheap PICKIT 3!
+
+    Top
+
+Back to Programming (C#, C++, JAVA, VB, .NET etc.) · Next Unread Topic ?
+
+
+Also tagged with one or more of these keywords: pic, ds1307, iic, i2c
+New Replies
+	pic General & Off Topic Discussion ?  Jokes & Funny Stuff ? 
+Congratulations!
+
+Started by einsteinbqat, 25 Jan 2014   pic, funny 		
+
+    0 replies
+    136 views
+
+	
+Photo
+
+    einsteinbqat
+    25 Jan 2014
+
+New Replies
+	pic General & Off Topic Discussion ?  Jokes & Funny Stuff ? 
+Justin + Miley
+
+Started by einsteinbqat, 25 Jan 2014   pic, funny, joke 		
+
+    10 replies
+    512 views
+
+	
+Photo
+
+    Cydar
+    25 Jan 2014
+
+New Replies
+	pic General & Off Topic Discussion ?  Jokes & Funny Stuff ? 
+Chemical Burn
+
+Started by +Frank B., 24 Jan 2014   pic 		
+
+    3 replies
+    245 views
+
+	
+Photo
+
+    arachnoid
+    24 Jan 2014
+
+New Replies
+	pic General & Off Topic Discussion ?  Jokes & Funny Stuff ? 
+xkcd 1321: 'Cold'
+
+Started by +Frank B., 24 Jan 2014   pic 		
+
+    1 reply
+    181 views
+
+	
+Photo
+
+    XerXis
+    24 Jan 2014
+
+New Replies
+	joke General & Off Topic Discussion ?  Jokes & Funny Stuff ? 
+Surprise!
+
+Started by Mr. President, 24 Jan 2014   joke, images, pic, funny 		
+
+    2 replies
+    232 views
+
+	
+Photo
+
+    Pam14160
+    24 Jan 2014
+
+
+Click here to login or here to register to remove this ad, it's free!
+
+    Neowin Forums
+    ? Technical Help & Support
+    ? Programming (C#, C++, JAVA, VB, .NET etc.)
+    Privacy Policy
+    Community Rules ·
+
+Company
+
+    Contact Us
+    About Us
+    Advertising
+    DMCA Policy
+
+Community
+
+    News
+    Chat on IRC
+    Store
+    Privacy Policy
+
+Social Media
+
+    Facebook
+    Twitter
+    Google+
+    RSS
+
+Account
+
+    Register
+    Login
+
+Site Info
+
+All trademarks mentioned are the property of their respective owners.
+Pegasus © Neowin LLC, Since 2000. Powered by Ignition & IPB
+
+Terms of Use View Mobile Version | Top of Page
